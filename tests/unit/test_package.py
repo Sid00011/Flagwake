@@ -13,14 +13,14 @@ from cyberarena import cli
 
 
 def test_version_labels() -> None:
-    assert cyberarena.__version__ == "0.5.0rc1"
+    assert cyberarena.__version__ == "0.5.0rc2"
 
 
 def test_cli_version(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as exc:
         cli.main(["--version"])
     assert exc.value.code == 0
-    assert capsys.readouterr().out.startswith("flagwake 0.5.0rc1")
+    assert capsys.readouterr().out.startswith("flagwake 0.5.0rc2")
 
 
 def test_cli_no_args_prints_help(capsys: pytest.CaptureFixture[str]) -> None:
@@ -35,7 +35,7 @@ def test_module_entry_point() -> None:
         text=True,
         check=True,
     )
-    assert "flagwake 0.5.0rc1" in proc.stdout
+    assert "flagwake 0.5.0rc2" in proc.stdout
 
 
 def _holder(root: Path) -> str:
@@ -105,3 +105,21 @@ def test_the_package_data_covers_every_shipped_data_file():
         rel = f.relative_to(base).as_posix()
         depth = rel.count("/")
         assert any(fnmatch.fnmatch(rel, p) and depth == p.count("/") for p in patterns), rel
+
+
+def test_release_publishes_from_github_without_a_stored_token() -> None:
+    """Releases reach PyPI only through trusted publishing: a short-lived identity, an approval in
+    the pypi environment, actions pinned by commit, and a tag that must name the package version."""
+    import re
+
+    root = Path(__file__).resolve().parents[2]
+    wf = (root / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    assert 'tags: ["v*"]' in wf and "secrets." not in wf
+    assert "id-token: write" in wf and "name: pypi" in wf
+    assert re.search(r"pypa/gh-action-pypi-publish@[0-9a-f]{40}\b", wf)
+    uses = re.findall(r"uses: (\S+)", wf)
+    assert uses and all(re.search(r"@[0-9a-f]{40}$", u) for u in uses), uses
+    assert '"v$version" != "$GITHUB_REF_NAME"' in wf
+    project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    version = project["version"]
+    assert version == cyberarena.__version__

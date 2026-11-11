@@ -3,8 +3,12 @@
 All notable changes. Dates are UTC. Incidents are versioned by the generator version, the rules by
 the rules hash (see `docs/METHODOLOGY.md`).
 
-## Unreleased
+## 0.5.0rc2 (2026-11-11)
 
+- **Verified releases.** A version tag builds the package on GitHub Actions and publishes it to
+  PyPI with trusted publishing, after an approval: no stored token, and PyPI shows for each file
+  the repository, workflow and commit that built it. The same files are attached to the GitHub
+  release. `SECURITY.md` says how to check a download.
 - **On PyPI.** `pip install flagwake` installs the command; the README, the quick starts and the
   CI example (`examples/ci/rc-check.yml`, now pinned to a release) use it.
 - **CI.** The page tests install Chromium without apt, so they no longer depend on Ubuntu's

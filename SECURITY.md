@@ -29,6 +29,14 @@ a public issue for these.
 This is a one-person project: expect a first answer within about a week. Fixes are credited in
 `CHANGELOG.md` if you wish.
 
+## Checking a download
+
+From 0.5.0rc2 on, releases are built and published by the `release` workflow of this repository
+with PyPI trusted publishing. On https://pypi.org/project/flagwake/, each file's **Provenance**
+names this repository, that workflow and the commit it was built from. The same two files are
+attached to the GitHub release, which lists their SHA-256; `pip download flagwake==<version>
+--no-deps` and a SHA-256 tool let you compare them.
+
 ## Supported versions
 
 Only the latest commit on `main`. A fix that changes scores changes the rules hash or the

@@ -13,7 +13,7 @@ permissions:
 
 env:
   AGENT: python agents/my_agent.py   # your program; it speaks the JSON-lines protocol (docs/PROTOCOL.md)
-  FLAGWAKE_VERSION: "0.5.0rc1"       # a Flagwake release on PyPI, pinned for reproducible numbers
+  FLAGWAKE_VERSION: "0.5.0rc2"       # a Flagwake release on PyPI, pinned for reproducible numbers
   FAIL_UNDER: "40"                   # fail if the business-damage index is worse than this
 
 jobs:
