@@ -1,0 +1,31 @@
+{
+ "fingerprint": "f83890446564f6a620c1caa43614fdcdc50dc781ee155818859dd9eb1634644c",
+ "gen_version": "rc-gen-8",
+ "programs": {
+  "fenwick-brae/careful": "f3ff2c5bbfcd2db7ab9e5e4fd93238c0fd7b8d35d59487e6b6a31af24dde196f",
+  "fenwick-brae/do-nothing": "4e24f18bb045b76e250c42218d9fb144e316202111d930d6b13f8e2e98e5f3b8",
+  "fenwick-brae/gullible": "07d54aee9ba9aebfb0c8aeed38f2f59169615abe2adfbad2a442d01b24cbd56f",
+  "fenwick-brae/isolate-everything": "71f94d0f66068b9e13393c889521329881a0ec5052787a62fd2c5abb6d23e8ea",
+  "fenwick-brae/isolate-on-first-alert": "71f94d0f66068b9e13393c889521329881a0ec5052787a62fd2c5abb6d23e8ea",
+  "fenwick-brae/oracle": "57f4a301822b7b6a06cfccc10640b6b3fc4f05adb3d839cbcc85932d84a612db",
+  "fenwick-brae/paranoid": "414e0f98b009584f9b7390e458a045c0d9b23f3f7af5e4e191a6cbe57240a9d2",
+  "fenwick-brae/rule-bot": "9773ce296c3ff7c0805112954d81662320307b529575eca74b5deb27a3ca8b5e",
+  "fenwick-brae/slow": "fbd69314f524175a4814aeaee7bdc773c35c8676e7b7ebd6f919594676d24a27",
+  "fenwick-brae/thorough": "d75335a2f5f629bdae993f85de8738d6c75bc1ae58a88bf30042639a69ccec71",
+  "harlow-pine/careful": "c965d4233eba8ed23dca3128427cd9e52e1d6517be2182a7833fbd8e6c670185",
+  "harlow-pine/do-nothing": "cc4ac1927e1e8c1c1db8e4c55ca79138dc2211f5ecaf0423b5cf6ca8b25cabe7",
+  "harlow-pine/gullible": "ad64333d785a6818810b04cf3197981aefdae0381b73793bcb2cebba4433205c",
+  "harlow-pine/isolate-everything": "403d49a93e1522a558a408f9e1d3dafac5f194ad766ee2b6b1e702a8be3706eb",
+  "harlow-pine/isolate-on-first-alert": "40fdad58c6ba1532739753f695a2053f931f36eab80b888867062027408c4781",
+  "harlow-pine/oracle": "6e7f0afef60c6f4c42ded862511e193e7ffe1f3402b30ee0dc43cce2386ab967",
+  "harlow-pine/paranoid": "362cfb4acdd08f5b09ce342158badbcc05d0898a6e448532983dc77dc1cb14da",
+  "harlow-pine/rule-bot": "c1aa5e0fbeb3fa892e35c88b6fd1ff6052ecbe0fb3edad30888c0161f5f6925f",
+  "harlow-pine/slow": "22f47531d5c4691a07d9105fa6823aee1cde87294ae8cd65822eb4fc318c92b5",
+  "harlow-pine/thorough": "ba4c44a52d05219d9418740dfb5db43d9fc3b2a509d3c5c31a4f21842938cfed"
+ },
+ "rules_hash": "b0d84dde6ea63eef44f633f771bfbdd60fee97c3c0e4a60f15f8f4d1590cca0d",
+ "worlds": {
+  "fenwick-brae": "0201a43c3fe1cd67e09bc24a5b3eb83a659dd6fe854e2fa61ff09f188b26de5f",
+  "harlow-pine": "d3fd1d19d9abf3ba861b9ea19c653daf16d418f2ad4c0ac6fbb490c94e01f4b4"
+ }
+}

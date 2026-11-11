@@ -1,0 +1,9 @@
+# Only pyproject.toml, README.md, the licences, src/ and examples/ enter the image.
+.*
+*.md
+!README.md
+private
+logs
+web
+tests
+**/__pycache__

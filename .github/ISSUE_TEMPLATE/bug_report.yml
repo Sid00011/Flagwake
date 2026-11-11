@@ -1,0 +1,36 @@
+name: Bug report
+description: Something does not work as documented (a command, a report, a number).
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Security problems go to the Security tab ("Report a vulnerability"),
+        not here. A command list that scores well for the wrong reason: use "Idea or incident design".
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command or page, and its output
+      description: The exact command (or page URL) and the full output or error. Paste text, not screenshots.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: Output of `git rev-parse --short HEAD`.
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: Operating system, Python version (`python --version`), and the browser for viewer problems.
+    validations:
+      required: true

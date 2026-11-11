@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<title>Flagwake report viewer</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"%3E%3Cpath d="M1 9A4 4 0 0 1 5 5H14V16H1Z" fill="#4589ff"/%3E%3Cpath d="M14 5H30a1 1 0 0 1 .9 1.4L27 16H14Z" fill="#1f3f7a"/%3E%3Cpath d="M1 16H14V27H5A4 4 0 0 1 1 23Z" fill="#1f3f7a"/%3E%3Cpath d="M14 16H27L30.9 25.6a1 1 0 0 1-.9 1.4H14Z" fill="#4589ff"/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/rc.css">
+</head>
+<body>
+<div class="top">
+  <b>Flagwake&nbsp;&middot;&nbsp;report viewer</b>
+</div>
+<div class="wrap scroll">
+  <p class="subtle">Drop a <code>report.json</code> here, or pick one. It is
+  read in your browser; nothing is uploaded.</p>
+  <div class="drop" id="drop">
+    Drag &amp; drop report.json, or <label class="filelabel">choose a file
+    <input id="file" type="file" accept="application/json,.json" hidden></label>
+  </div>
+  <div id="out"></div>
+</div>
+<div class="foot">A report is just data. This page escapes every value; it runs nothing from the file
+and sends nothing anywhere.</div>
+<script src="js/viewer.js"></script>
+</body>
+</html>

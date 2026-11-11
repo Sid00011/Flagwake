@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security problem
+    url: https://github.com/Sid00011/Flagwake/security/advisories/new
+    about: Report privately; please do not open a public issue.

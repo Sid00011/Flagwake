@@ -1,0 +1,98 @@
+# CI of the Responder Check.
+# Every push to main, pull request, version tag and manual run: one Linux job with lint, the tests,
+# the golden determinism check, the secrets scan, the packaged-viewer check and a wheel build.
+# Version tags (v*) and manual runs also run the matrix (Linux and Windows, Python 3.11 and 3.12),
+# compare the golden fingerprint across all four, and run the report viewer's browser tests.
+name: ci
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  quick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -e ".[dev]" -c constraints.txt
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy
+      - run: pytest -q
+      - name: Golden determinism check (fixed baselines on fixed seeds, tests/rc/golden.json)
+        run: python scripts/golden_check.py
+      - name: No secrets or payment code (a grep error fails the job)
+        run: bash scripts/hygiene_scan.sh
+      - name: Packaged report viewer matches web/rc
+        run: python scripts/export_rc_web.py --check
+      - name: Wheel and sdist build
+        run: python -m pip wheel --no-deps -w dist .
+  test:
+    if: github.event_name == 'workflow_dispatch' || github.ref_type == 'tag'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.11", "3.12"]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: python -m pip install -e ".[dev]" -c constraints.txt
+      - run: pytest -q
+      - name: Golden fingerprint
+        run: python scripts/golden_check.py > golden-${{ matrix.os }}-${{ matrix.python }}.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: golden-${{ matrix.os }}-${{ matrix.python }}
+          path: golden-*.txt
+  compare-golden:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          path: fp
+          merge-multiple: true
+      - name: All platforms produced the identical fingerprint
+        run: |
+          ls fp
+          cat fp/*.txt
+          test "$(ls fp/*.txt | wc -l)" -eq 4
+          test "$(cat fp/*.txt | tr -d '\r' | sort -u | wc -l)" -eq 1
+  e2e:
+    # The report viewer in Chromium. CA_E2E=1 makes a missing browser a failure instead of a skip.
+    if: github.event_name == 'workflow_dispatch' || github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CA_E2E: "1"
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -e ".[dev,e2e]" -c constraints.txt
+      - run: python -m playwright install --with-deps chromium
+      - run: pytest -q tests/e2e
+      - name: Keep the e2e logs of a failed run
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: e2e-logs
+          path: logs/e2e/
+          if-no-files-found: ignore

@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<meta name="color-scheme" content="dark">
+<title>Flagwake</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"%3E%3Cpath d="M1 9A4 4 0 0 1 5 5H14V16H1Z" fill="#4589ff"/%3E%3Cpath d="M14 5H30a1 1 0 0 1 .9 1.4L27 16H14Z" fill="#1f3f7a"/%3E%3Cpath d="M1 16H14V27H5A4 4 0 0 1 1 23Z" fill="#1f3f7a"/%3E%3Cpath d="M14 16H27L30.9 25.6a1 1 0 0 1-.9 1.4H14Z" fill="#4589ff"/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/ui.css">
+</head>
+<body>
+<header class="bar">
+  <span class="brand"><svg class="mark" viewBox="0 4 32 24" aria-hidden="true"><path d="M1 9A4 4 0 0 1 5 5H14V16H1Z" fill="#4589ff"/><path d="M14 5H30a1 1 0 0 1 .9 1.4L27 16H14Z" fill="#1f3f7a"/><path d="M1 16H14V27H5A4 4 0 0 1 1 23Z" fill="#1f3f7a"/><path d="M14 16H27L30.9 25.6a1 1 0 0 1-.9 1.4H14Z" fill="#4589ff"/></svg>Flagwake</span>
+  <span id="chapter" aria-hidden="true"></span>
+  <span class="offline">Offline</span>
+</header>
+
+<main id="main">
+  <p id="notice" class="toast" role="alert" hidden></p>
+
+  <!-- 00 home -->
+  <section id="home" class="view">
+    <div class="hero">
+      <div>
+        <p class="label">Responder Check &middot; open source &middot; runs offline</p>
+        <h1 class="display" tabindex="-1">Test how your security defender handles an incident.</h1>
+        <p class="lede">Your <span class="q" tabindex="0">defender<span class="tip" role="tooltip">The program you want to test. It reads alerts and decides what to do.</span></span>
+          works through simulated incidents in an invented company. Its decisions are scored in business cost, and anyone can re&#8209;check the result.</p>
+        <div class="go">
+          <button type="button" id="demo" class="cta">Run the demo</button>
+          <button type="button" id="add" class="ghost">Test a defender</button>
+        </div>
+        <p class="hint">The demo runs two built-in example defenders on the same incidents. It takes about two seconds and needs no model.</p>
+      </div>
+      <div class="panel preview" aria-label="An example: two defenders on the same incidents">
+        <div class="ph"><span>Example &middot; the same 20 incidents</span><span class="badge ok"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Verified</span></div>
+        <table class="cmp">
+          <thead><tr><td></td><th scope="col">Careful</th><th scope="col">Gullible</th></tr></thead>
+          <tbody>
+            <tr class="score"><th scope="row">Damage index</th><td class="poor" data-demo="careful.score">63</td><td class="bad" data-demo="gullible.score">114</td></tr>
+            <tr><th scope="row">Compromised hosts contained</th><td data-demo="careful.0">10 of 13</td><td data-demo="gullible.0">7 of 13</td></tr>
+            <tr><th scope="row">Actions on clean machines</th><td data-demo="careful.1">0</td><td class="bad" data-demo="gullible.1">14</td></tr>
+            <tr><th scope="row">Planted orders obeyed</th><td data-demo="careful.2">0 of 11</td><td class="bad" data-demo="gullible.2">6 of 8</td></tr>
+            <tr><th scope="row">Critical actions without approval</th><td data-demo="careful.3">0</td><td class="bad" data-demo="gullible.3">10</td></tr>
+          </tbody>
+        </table>
+        <p class="pf">Damage index: 0 = the best response, 100 = doing nothing. Two built-in example defenders; run the demo to open both.</p>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="panel step"><span class="n">1</span><h3>Connect a defender</h3><p>A program, a model endpoint, or a product with its own tools.</p><code>flagwake defenders add</code></div>
+      <div class="panel step"><span class="n">2</span><h3>Run incidents</h3><p>Practice incidents to try things; fresh ones, drawn for each run, for results you share.</p><code>flagwake run --defender NAME</code></div>
+      <div class="panel step"><span class="n">3</span><h3>Verify the result</h3><p>Every number is re-derived from the stored commands. An edited report fails.</p><code>flagwake verify report.json</code></div>
+    </div>
+    <div id="running-banner" class="panel banner" hidden></div>
+    <div id="mine" hidden>
+      <p class="kicker">Defenders</p>
+      <ul id="defenders" class="tiles small"></ul>
+    </div>
+    <div id="past" hidden>
+      <p class="kicker">Results</p>
+      <ul id="runs" class="rows"></ul>
+    </div>
+  </section>
+
+  <!-- 01 what -->
+  <section id="s1" class="view" hidden>
+    <p class="kicker">Step 1 of 3</p>
+    <h1 class="display" tabindex="-1" data-text="What are you testing?">What are you testing?</h1>
+    <fieldset class="tiles">
+      <legend class="sr">Kind of defender</legend>
+      <label class="tile"><input type="radio" name="what" value="local" class="sr">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="11" rx="1.5"/><path d="M1 19h22"/></svg>
+        <b>On this computer</b><span class="dim">a model you run here</span></label>
+      <label class="tile"><input type="radio" name="what" value="online" class="sr">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>
+        <b>Online</b><span class="dim">address + key</span></label>
+      <label class="tile"><input type="radio" name="what" value="own" class="sr">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3v5M15 3v5M6 8h12v4a6 6 0 0 1-12 0zM12 18v3"/></svg>
+        <b>My own service</b><span class="dim">something you built</span></label>
+    </fieldset>
+
+    <div id="f-local" class="panel form" hidden>
+      <div class="row"><span id="detect-status" role="status" class="dim">Searching...</span>
+        <button type="button" id="detect-again" class="icon" aria-label="Search again" title="Search again"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg></button></div>
+      <div id="detect-list" class="pills"></div>
+    </div>
+
+    <div id="f-online" class="panel form" hidden>
+      <input id="o-url" type="url" maxlength="200" placeholder="Address  (https://.../v1)" aria-label="Address" autocomplete="off">
+      <input id="o-model" type="text" maxlength="200" placeholder="Model name" aria-label="Model name" autocomplete="off">
+      <input id="o-key" type="password" maxlength="500" placeholder="Key" aria-label="Key, kept in memory only" autocomplete="off"> <!-- hygiene-ok: hides the key while it is typed -->
+      <label class="check"><input id="o-use-env" type="checkbox"> Key from an
+        <span class="q" tabindex="0">environment variable<span class="tip" role="tooltip">A named setting of this computer that holds the key, so you never type it here.</span></span></label>
+      <input id="o-env" type="text" maxlength="64" placeholder="Variable name" aria-label="Variable name" autocomplete="off" hidden>
+      <p class="fine">The key stays in memory. Never saved.</p>
+    </div>
+
+    <div id="f-own" class="panel form" hidden>
+      <div class="seg" role="radiogroup" aria-label="How is it reached?">
+        <label><input type="radio" name="own" value="http" checked class="sr"><span>Address</span></label>
+        <label><input type="radio" name="own" value="command" class="sr"><span>Command</span></label>
+      </div>
+      <input id="own-url" type="url" maxlength="200" placeholder="http://127.0.0.1:8000/act" aria-label="Service address" autocomplete="off">
+      <div id="own-cmd-wrap" hidden>
+        <p id="own-cmd-off" class="fine">Command line only:
+          <span class="q" tabindex="0"><code>flagwake ui --allow-commands</code><span class="tip" role="tooltip">A command runs a program on this computer, so the page allows it only when started with this option.</span></span></p>
+        <div id="own-cmd-on" hidden>
+          <input id="own-cmd" type="text" maxlength="1000" placeholder="python my_agent.py" aria-label="Command" autocomplete="off">
+          <label class="check"><input id="own-confirm" type="checkbox"> I trust it to run here</label>
+          <label class="check"><input id="own-tools" type="checkbox"> It has its own loop and tools: connect it to the company as tools
+            <span class="q" tabindex="0">?<span class="tip" role="tooltip">It is started with FLAGWAKE_MCP_URL, FLAGWAKE_API_URL and FLAGWAKE_TOOLS_TOKEN in its environment and sees only the ticket and the tool descriptions; its own instructions are never changed. To connect a defender you start yourself, run flagwake tools serve and give it the printed addresses (it can register a webhook at /v1/webhooks).</span></span></label>
+        </div>
+      </div>
+    </div>
+
+    <div id="f-name" class="go" hidden>
+      <select id="world" aria-label="Company">
+        <option value="harlow-pine">Company: 18 hosts (default)</option>
+        <option value="fenwick-brae">Company: 60 hosts</option>
+        <option value="legacy">Company: the original rules</option>
+      </select>
+      <input id="world-file" type="text" maxlength="300" aria-label="Or a company file" placeholder="or a company file (flagwake world init)" autocomplete="off">
+      <input id="name" type="text" maxlength="40" aria-label="Name" placeholder="name" autocomplete="off">
+      <button type="button" id="save" class="cta">Next <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+    </div>
+  </section>
+
+  <!-- 02 check -->
+  <section id="s2" class="view" hidden>
+    <p class="kicker">Step 2 of 3</p>
+    <h1 class="display" tabindex="-1" data-text="Can we reach it?">Can we reach it?</h1>
+    <p id="s2-who" class="who"></p>
+    <div id="s2-key" class="panel form" hidden>
+      <input id="s2-key-input" type="password" maxlength="500" placeholder="Key" aria-label="Key, kept in memory only" autocomplete="off"> <!-- hygiene-ok: hides the key while it is typed -->
+      <button type="button" id="s2-key-save" class="ghost">Use key</button>
+    </div>
+    <label id="s2-confirm-wrap" class="check" hidden><input id="s2-confirm" type="checkbox"> I trust it to run here</label>
+    <div class="pips" id="pips" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <p id="s2-status" class="status" role="status" aria-live="polite"></p>
+    <ol id="ck-feed" class="term mini" aria-live="off" hidden></ol>
+    <ul id="s2-checks" class="fixes"></ul>
+    <div class="go">
+      <button type="button" id="check" class="cta">Check <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg></button>
+      <button type="button" id="to-s3" class="cta" hidden>Next <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+    </div>
+  </section>
+
+  <!-- 03 how much -->
+  <section id="s3" class="view" hidden>
+    <p class="kicker">Step 3 of 3</p>
+    <h1 class="display" tabindex="-1" data-text="How long a test?">How long a test?</h1>
+    <fieldset class="tiles">
+      <legend class="sr">Size of the run</legend>
+      <label class="tile num"><input type="radio" name="size" value="quick" checked class="sr"><em data-count="quick">&nbsp;</em><b>Quick</b><span class="est dim" data-size="quick"></span></label>
+      <label class="tile num"><input type="radio" name="size" value="standard" class="sr"><em data-count="standard">&nbsp;</em><b>Standard</b><span class="est dim" data-size="standard"></span></label>
+      <label class="tile num"><input type="radio" name="size" value="full" class="sr"><em data-count="full">&nbsp;</em><b>Full</b><span class="est dim" data-size="full"></span></label>
+    </fieldset>
+    <p class="fine"><span class="q" tabindex="0">incidents<span class="tip" role="tooltip">One invented security event, from the first alert to the defender's report. Times are rough estimates from the check; small runs give rough results.</span></span>
+      &middot;
+      <span class="seg small" role="radiogroup" aria-label="Which incidents">
+        <label><input type="radio" name="pack" value="fresh" checked class="sr"><span>Fresh</span></label>
+        <label><input type="radio" name="pack" value="practice" class="sr"><span>Practice</span></label>
+      </span>
+      <span class="q" tabindex="0">?<span class="tip" role="tooltip">Fresh incidents are drawn for this run, so no defender can have seen them before: use them for results you share. Practice ones are public.</span></span></p>
+    <label id="s3-confirm-wrap" class="check" hidden><input id="s3-confirm" type="checkbox"> I trust it to run here</label>
+    <div class="go"><button type="button" id="start" class="cta">Run <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg></button></div>
+  </section>
+
+  <!-- 04 running: the incident room -->
+  <section id="s4" class="view" hidden>
+    <div class="room-head">
+      <p class="kicker">Running</p>
+      <h1 class="sr" tabindex="-1">Running</h1>
+      <p class="room-title"><span id="lv-inc">Incident 1 / 12</span> <b id="lv-fam">starting</b></p>
+      <div class="clock" aria-hidden="true">
+        <span id="lv-time" class="mono">min 0</span>
+        <svg viewBox="0 0 480 6" preserveAspectRatio="none"><rect width="480" height="6" class="cl-track"/><rect id="lv-clock" width="0" height="6" class="cl-fill"/></svg>
+        <span class="mono dim">480</span>
+      </div>
+    </div>
+    <div class="room">
+      <div class="panel map-wrap">
+        <svg id="map" viewBox="0 0 420 300" role="img" aria-label="The company's network: red is held by the intruder"></svg>
+        <p class="legend mono"><i class="lg held"></i>intruder <i class="lg cut"></i>cut off <i class="lg down"></i>offline <i class="lg clean"></i>clean</p>
+      </div>
+      <div class="panel feed-wrap">
+        <p class="kicker">Defender</p>
+        <ol id="lv-feed" class="term" aria-live="off"></ol>
+      </div>
+    </div>
+    <div class="counters">
+      <div><b id="lv-held">0</b><span>held by intruder</span></div>
+      <div><b id="lv-cont" class="ok">0</b><span>right actions</span></div>
+      <div><b id="lv-wrong" class="no">0</b><span>wrong actions</span></div>
+      <div><b id="lv-cmds">0</b><span>commands</span></div>
+    </div>
+    <div class="overall">
+      <div class="ring small" role="progressbar" id="bar" aria-label="Incidents done" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="52" class="track"/><circle cx="60" cy="60" r="52" class="fill" id="ring-fill"/></svg>
+        <b id="ring-pct">0%</b>
+      </div>
+      <div>
+        <p id="s4-status" class="status" role="status" aria-live="polite"></p>
+        <p id="s4-who" class="who"></p>
+        <button type="button" id="stop" class="ghost">Stop</button>
+        <span class="fine">Safe to close this tab.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 result -->
+  <section id="s5" class="view" hidden>
+    <div class="res-head">
+      <div><p class="kicker">Result</p><h1 id="r-name" tabindex="-1"></h1><p id="r-meta" class="meta"></p></div>
+      <div class="go">
+        <button type="button" id="verify" class="cta"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Verify</span></button>
+        <button type="button" id="tamper" class="ghost" hidden>Tamper test</button>
+      </div>
+    </div>
+    <div id="r-pair" class="pair" hidden>
+      <p class="label">The same 20 incidents, two example defenders</p>
+      <div id="r-pair-rows" class="pair-rows"></div>
+    </div>
+    <div id="verify-out" aria-live="polite"></div>
+    <div class="score-row">
+      <div class="panel score">
+        <div class="dial" id="dial">
+          <svg viewBox="0 0 200 116" aria-hidden="true" id="dial-svg">
+            <line id="needle" x1="100" y1="100" x2="100" y2="30"/>
+            <circle cx="100" cy="100" r="5" class="hub"/>
+          </svg>
+          <b id="r-score">-</b>
+        </div>
+        <p id="r-headline" class="verdict"></p>
+        <p id="r-range" class="note"></p>
+        <p class="note">Damage index &middot; 0 = the best response, 100 = doing nothing</p>
+        <p id="r-warning" class="chip warn center-chip" hidden></p>
+      </div>
+      <div class="kpis" id="r-kpis"></div>
+    </div>
+    <p id="r-long" class="sr"></p>
+    <div class="two">
+      <div class="panel"><h2>Cost breakdown <span class="unit">in
+        <span class="q" tabindex="0">damage points<span class="tip" role="tooltip" id="r-points-note"></span></span></span></h2>
+        <ul id="r-costs" class="costs"></ul>
+        <ul id="r-scale" class="lines scale"></ul></div>
+      <div class="panel"><h2>Findings</h2>
+        <p class="sub good">Went well</p><ul id="r-well" class="chips"></ul>
+        <p class="sub bad">Went badly</p><ul id="r-badly" class="chips"></ul></div>
+    </div>
+    <div class="panel wide"><h2>Compared with the
+      <span class="q" tabindex="0">reference programs<span class="tip" role="tooltip">Simple programs shipped with the check, run on the same incidents. Lower is better.</span></span></h2>
+      <ul id="r-compare" class="bars"></ul></div>
+    <details class="panel more"><summary>What this score means</summary><p id="r-scope" class="scope"></p></details>
+    <details class="panel more"><summary>Verify on any computer</summary>
+      <p class="fine"><code id="r-verify"></code> <button type="button" id="copy" class="icon" aria-label="Copy" title="Copy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg></button></p></details>
+    <details class="panel more"><summary>Examples from its incidents</summary><div id="r-examples"></div></details>
+    <details class="panel more"><summary id="r-checks-sum">Connection</summary><ul id="r-checks" class="fixes"></ul></details>
+    <details class="panel more"><summary>Compare with another result</summary>
+      <div class="row"><select id="cmp-pick" aria-label="Other result"></select><button type="button" id="cmp-go" class="ghost">Compare</button></div>
+      <p id="cmp-note" class="fine"></p>
+      <table id="cmp-table" hidden><thead><tr><th></th><th id="cmp-a"></th><th id="cmp-b"></th></tr></thead><tbody></tbody></table>
+    </details>
+    <div class="go wrap">
+      <button type="button" id="dl-json" class="ghost"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M4 20h16"/></svg>report.json</button>
+      <button type="button" id="dl-html" class="ghost"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M4 20h16"/></svg>report.html</button>
+      <button type="button" id="again" class="cta">Run again</button>
+    </div>
+  </section>
+
+  <nav class="back-nav"><button type="button" class="back ghost" hidden aria-label="Back to start">&larr; Home</button></nav>
+</main>
+
+<footer class="tape">Flagwake &middot; open source (AGPL-3.0) &middot; runs offline &middot; nothing leaves this computer</footer>
+<script src="js/ui.js"></script>
+</body>
+</html>

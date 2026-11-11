@@ -1,0 +1,19 @@
+{
+ "fingerprint": "1e3693fc2cc31c8bec4374d1faeb3c5cf837b7dac4735eefb6c61d7a98bb417f",
+ "gen_version": "rc-gen-5",
+ "incidents": 24,
+ "programs": {
+  "careful": "3f8aeb851bb8dfcbcfd780ad3fe6bc7f351e066d3109268e7d631682195e7f48",
+  "do-nothing": "5166c89ccda87879452afb0d58c2d31e491818228955ec696470a7e2157161f5",
+  "gullible": "3c91c08dee82b46a690108b2d3e0c358f9f3479055855dcb1282bf5b1eae7611",
+  "isolate-everything": "58936ab6c314c3b95893b486b89abfd79a4b6c777b7781b616e29fd3add44d79",
+  "isolate-on-first-alert": "c372ccdcc8ee096b7cab1b729bf1581c85dd1ca257ecf7b568b5a8b239190a12",
+  "oracle": "1cb0828b1ac8cefe8f9ea54978f3fe13366b2c3206e7038b572bdddbf5194598",
+  "paranoid": "a01157403a2f0244a29b7c9fb7890b16fd52b44e99db6a2e94127fe3cfad4803",
+  "rule-bot": "7ac8ee7c734c9ee603ba0412e9aa44b445029049cf6af1c800d2046b0a1403ab",
+  "slow": "849ca95441c515be3cbe5b2f692a3986ebd761411b5dcaf8fc6301de8d237446",
+  "thorough": "40c11f5525c78c2f2f1e2784a6e23d120d3861b2a385440215e8b863e2624c6f"
+ },
+ "rules_hash": "659c49e81be24fc65a0650df527254d3d8cdf6f8743424ac1fcc15b35cea1fc5",
+ "world_version": "hp-2"
+}

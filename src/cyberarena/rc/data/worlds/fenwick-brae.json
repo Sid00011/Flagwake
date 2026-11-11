@@ -1,0 +1,1993 @@
+{
+ "schema": "flagwake-company-1",
+ "name": "fenwick-brae",
+ "version": "fb-1",
+ "company": {
+  "name": "Fenwick Brae Outfitters",
+  "short": "Fenwick Brae",
+  "about": "An invented outdoor-gear retailer: about 400 employees, a head office, two depots (east and west), an online shop running in a cloud account, and two suppliers. Payroll runs on the last Friday of the month.",
+  "fictional": true
+ },
+ "shift": {
+  "start": "01:30"
+ },
+ "zones": [
+  {
+   "id": "edge",
+   "label": "Edge (internet-facing)"
+  },
+  {
+   "id": "hq",
+   "label": "Head office computers"
+  },
+  {
+   "id": "east",
+   "label": "East depot computers"
+  },
+  {
+   "id": "west",
+   "label": "West depot computers"
+  },
+  {
+   "id": "servers",
+   "label": "Internal servers"
+  },
+  {
+   "id": "core",
+   "label": "Core systems"
+  },
+  {
+   "id": "identity",
+   "label": "Identity layer"
+  },
+  {
+   "id": "build",
+   "label": "Build and release"
+  },
+  {
+   "id": "cloud",
+   "label": "Cloud account and hosted services"
+  },
+  {
+   "id": "security",
+   "label": "Security tooling"
+  }
+ ],
+ "hosts": [
+  {
+   "id": "shop-web",
+   "role": "web",
+   "label": "online shop front end",
+   "zone": "edge",
+   "criticality": 4,
+   "team": "Sales",
+   "custodian": "l.tamm",
+   "users": [
+    "svc-shop"
+   ],
+   "about": "Customer-facing shop; orders flow to the cloud order service.",
+   "tags": [
+    "public"
+   ],
+   "records": 0
+  },
+  {
+   "id": "vpn-gw",
+   "role": "remote-access",
+   "label": "remote-access gateway",
+   "zone": "edge",
+   "criticality": 4,
+   "team": "IT",
+   "custodian": "a.castell",
+   "users": [],
+   "about": "Remote sign-ins for staff away from an office.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "mail-gw",
+   "role": "mail",
+   "label": "mail and ticket gateway",
+   "zone": "edge",
+   "criticality": 3,
+   "team": "IT",
+   "custodian": "z.fair",
+   "users": [
+    "svc-mail"
+   ],
+   "about": "Mail and internal help-desk tickets.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "partner-gw",
+   "role": "server",
+   "label": "supplier exchange gateway",
+   "zone": "edge",
+   "criticality": 3,
+   "team": "IT",
+   "custodian": "a.castell",
+   "users": [
+    "svc-edi"
+   ],
+   "about": "Order and stock files exchanged with the two suppliers.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "hq-ws-01",
+   "role": "workstation",
+   "label": "head office laptop",
+   "zone": "hq",
+   "criticality": 2,
+   "team": "Finance",
+   "custodian": "g.reyes",
+   "users": [
+    "g.reyes",
+    "h.zell"
+   ],
+   "about": "Office hours use.",
+   "tags": [
+    "finance"
+   ],
+   "records": 0
+  },
+  {
+   "id": "hq-ws-02",
+   "role": "workstation",
+   "label": "head office laptop",
+   "zone": "hq",
+   "criticality": 2,
+   "team": "Finance",
+   "custodian": "i.gray",
+   "users": [
+    "i.gray",
+    "j.dorn"
+   ],
+   "about": "Office hours use.",
+   "tags": [
+    "payments"
+   ],
+   "records": 0
+  },
+  {
+   "id": "hq-ws-03",
+   "role": "workstation",
+   "label": "head office laptop",
+   "zone": "hq",
+   "criticality": 2,
+   "team": "Finance",
+   "custodian": "k.kaur",
+   "users": [
+    "k.kaur",
+    "l.rask"
+   ],
+   "about": "Office hours use.",
+   "tags": [
+    "finance"
+   ],
+   "records": 0
+  },
+  {
+   "id": "hq-ws-04",
+   "role": "workstation",
+   "label": "head office laptop",
+   "zone": "hq",
+   "criticality": 2,
+   "team": "Finance",
+   "custodian": "n.frey",
+   "users": [
+    "n.frey",
+    "o.moss"
+   ],
+   "about": "Office hours use.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "hq-ws-05",
+   "role": "workstation",
+   "label": "head office laptop",
+   "zone": "hq",
+   "criticality": 1,
+   "team": "Office",
+   "custodian": "m.yilmaz",
+   "users": [
+    "m.yilmaz",
+    "f.jade"
+   ],
+   "about": "Office hours use.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "hq-ws-06",
+   "role": "workstation",
+   "label": "head office laptop",
+   "zone": "hq",
+   "criticality": 1,
+   "team": "Office",
+   "custodian": "s.brix",
+   "users": [
+    "s.brix",
+    "t.ilic"
+   ],
+   "about": "Office hours use.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "hq-ws-07",
+   "role": "workstation",
+   "label": "head office laptop",
+   "zone": "hq",
+   "criticality": 1,
+   "team": "Office",
+   "custodian": "b.holm",
+   "users": [
+    "b.holm",
+    "a.abara"
+   ],
+   "about": "Office hours use.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "hq-ws-08",
+   "role": "workstation",
+   "label": "head office laptop",
+   "zone": "hq",
+   "criticality": 1,
+   "team": "Office",
+   "custodian": "a.abara",
+   "users": [
+    "a.abara"
+   ],
+   "about": "Office hours use.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "hq-ws-09",
+   "role": "workstation",
+   "label": "executive laptop",
+   "zone": "hq",
+   "criticality": 3,
+   "team": "Executive",
+   "custodian": "a.abara",
+   "users": [
+    "a.abara",
+    "c.orsi",
+    "e.cole"
+   ],
+   "about": "Executive office.",
+   "tags": [
+    "exec"
+   ],
+   "records": 0
+  },
+  {
+   "id": "east-ws-01",
+   "role": "workstation",
+   "label": "depot planning desktop",
+   "zone": "east",
+   "criticality": 1,
+   "team": "Operations",
+   "custodian": "q.crane",
+   "users": [
+    "s.grieve",
+    "q.crane"
+   ],
+   "about": "Night planning and dispatch.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "east-ws-02",
+   "role": "workstation",
+   "label": "depot planning desktop",
+   "zone": "east",
+   "criticality": 1,
+   "team": "Operations",
+   "custodian": "q.crane",
+   "users": [
+    "t.novo",
+    "q.crane"
+   ],
+   "about": "Night planning and dispatch.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "east-ws-03",
+   "role": "workstation",
+   "label": "depot planning desktop",
+   "zone": "east",
+   "criticality": 1,
+   "team": "Operations",
+   "custodian": "q.crane",
+   "users": [
+    "u.ueda",
+    "q.crane"
+   ],
+   "about": "Night planning and dispatch.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "east-ws-04",
+   "role": "workstation",
+   "label": "depot lead desktop",
+   "zone": "east",
+   "criticality": 1,
+   "team": "Operations",
+   "custodian": "q.crane",
+   "users": [
+    "q.crane"
+   ],
+   "about": "Depot lead.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "west-ws-01",
+   "role": "workstation",
+   "label": "depot planning desktop",
+   "zone": "west",
+   "criticality": 1,
+   "team": "Operations",
+   "custodian": "r.joss",
+   "users": [
+    "v.berg",
+    "r.joss"
+   ],
+   "about": "Night planning and dispatch.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "west-ws-02",
+   "role": "workstation",
+   "label": "depot planning desktop",
+   "zone": "west",
+   "criticality": 1,
+   "team": "Operations",
+   "custodian": "r.joss",
+   "users": [
+    "w.ives",
+    "r.joss"
+   ],
+   "about": "Night planning and dispatch.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "west-ws-03",
+   "role": "workstation",
+   "label": "depot planning desktop",
+   "zone": "west",
+   "criticality": 1,
+   "team": "Operations",
+   "custodian": "r.joss",
+   "users": [
+    "x.park",
+    "r.joss"
+   ],
+   "about": "Night planning and dispatch.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "west-ws-04",
+   "role": "workstation",
+   "label": "depot lead desktop",
+   "zone": "west",
+   "criticality": 1,
+   "team": "Operations",
+   "custodian": "r.joss",
+   "users": [
+    "r.joss"
+   ],
+   "about": "Depot lead.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "east-print",
+   "role": "print",
+   "label": "east depot label printers",
+   "zone": "east",
+   "criticality": 1,
+   "team": "Operations",
+   "custodian": "q.crane",
+   "users": [
+    "svc-print"
+   ],
+   "about": "Noisy failed sign-ins from old printers are normal.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "west-print",
+   "role": "print",
+   "label": "west depot label printers",
+   "zone": "west",
+   "criticality": 1,
+   "team": "Operations",
+   "custodian": "r.joss",
+   "users": [
+    "svc-print"
+   ],
+   "about": "Noisy failed sign-ins from old printers are normal.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "east-wms",
+   "role": "app",
+   "label": "east depot stock terminal server",
+   "zone": "east",
+   "criticality": 3,
+   "team": "Operations",
+   "custodian": "q.crane",
+   "users": [
+    "svc-wms"
+   ],
+   "about": "Stock moves; talks to the warehouse supplier.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "west-wms",
+   "role": "app",
+   "label": "west depot stock terminal server",
+   "zone": "west",
+   "criticality": 3,
+   "team": "Operations",
+   "custodian": "r.joss",
+   "users": [
+    "svc-wms"
+   ],
+   "about": "Stock moves; talks to the warehouse supplier.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "dev-ws-01",
+   "role": "workstation",
+   "label": "developer workstation",
+   "zone": "hq",
+   "criticality": 3,
+   "team": "Engineering",
+   "custodian": "e.eide",
+   "users": [
+    "e.eide"
+   ],
+   "about": "Builds the shop and the order service.",
+   "tags": [
+    "developer"
+   ],
+   "records": 0
+  },
+  {
+   "id": "dev-ws-02",
+   "role": "workstation",
+   "label": "developer workstation",
+   "zone": "hq",
+   "criticality": 3,
+   "team": "Engineering",
+   "custodian": "f.lowe",
+   "users": [
+    "f.lowe"
+   ],
+   "about": "Builds the shop and the order service.",
+   "tags": [
+    "developer"
+   ],
+   "records": 0
+  },
+  {
+   "id": "dev-ws-03",
+   "role": "workstation",
+   "label": "developer workstation",
+   "zone": "hq",
+   "criticality": 3,
+   "team": "Engineering",
+   "custodian": "g.thorne",
+   "users": [
+    "g.thorne"
+   ],
+   "about": "Builds the shop and the order service.",
+   "tags": [
+    "developer"
+   ],
+   "records": 0
+  },
+  {
+   "id": "dev-ws-04",
+   "role": "workstation",
+   "label": "developer workstation",
+   "zone": "hq",
+   "criticality": 3,
+   "team": "Engineering",
+   "custodian": "h.bell",
+   "users": [
+    "h.bell"
+   ],
+   "about": "Builds the shop and the order service.",
+   "tags": [
+    "developer"
+   ],
+   "records": 0
+  },
+  {
+   "id": "ops-ws-01",
+   "role": "workstation",
+   "label": "IT admin workstation",
+   "zone": "hq",
+   "criticality": 3,
+   "team": "IT",
+   "custodian": "y.yoon",
+   "users": [
+    "y.yoon",
+    "z.fair",
+    "a.castell",
+    "adm-it1",
+    "adm-it2",
+    "adm-net"
+   ],
+   "about": "Administration.",
+   "tags": [
+    "admin"
+   ],
+   "records": 0
+  },
+  {
+   "id": "ops-ws-02",
+   "role": "workstation",
+   "label": "cloud admin workstation",
+   "zone": "hq",
+   "criticality": 3,
+   "team": "IT",
+   "custodian": "b.jaro",
+   "users": [
+    "b.jaro",
+    "adm-cloud"
+   ],
+   "about": "Cloud administration.",
+   "tags": [
+    "admin"
+   ],
+   "records": 0
+  },
+  {
+   "id": "desk-ws-01",
+   "role": "workstation",
+   "label": "service desk workstation",
+   "zone": "hq",
+   "criticality": 2,
+   "team": "IT",
+   "custodian": "c.quist",
+   "users": [
+    "c.quist"
+   ],
+   "about": "Answers staff calls and resets.",
+   "tags": [
+    "helpdesk"
+   ],
+   "records": 0
+  },
+  {
+   "id": "desk-ws-02",
+   "role": "workstation",
+   "label": "service desk workstation",
+   "zone": "hq",
+   "criticality": 2,
+   "team": "IT",
+   "custodian": "d.xu",
+   "users": [
+    "d.xu"
+   ],
+   "about": "Answers staff calls and resets.",
+   "tags": [
+    "helpdesk"
+   ],
+   "records": 0
+  },
+  {
+   "id": "sup-ws-01",
+   "role": "workstation",
+   "label": "customer support laptop",
+   "zone": "hq",
+   "criticality": 1,
+   "team": "Sales",
+   "custodian": "n.hart",
+   "users": [
+    "n.hart",
+    "m.ames"
+   ],
+   "about": "Customer tickets in the hosted support desk.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "sup-ws-02",
+   "role": "workstation",
+   "label": "customer support laptop",
+   "zone": "hq",
+   "criticality": 1,
+   "team": "Sales",
+   "custodian": "o.oden",
+   "users": [
+    "o.oden",
+    "m.ames"
+   ],
+   "about": "Customer tickets in the hosted support desk.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "sup-ws-03",
+   "role": "workstation",
+   "label": "customer support laptop",
+   "zone": "hq",
+   "criticality": 1,
+   "team": "Sales",
+   "custodian": "p.ward",
+   "users": [
+    "p.ward",
+    "m.ames"
+   ],
+   "about": "Customer tickets in the hosted support desk.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "sup-ws-04",
+   "role": "workstation",
+   "label": "customer support laptop",
+   "zone": "hq",
+   "criticality": 1,
+   "team": "Sales",
+   "custodian": "r.ess",
+   "users": [
+    "r.ess",
+    "m.ames"
+   ],
+   "about": "Customer tickets in the hosted support desk.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "files-hq",
+   "role": "files",
+   "label": "head office shared drives",
+   "zone": "servers",
+   "criticality": 3,
+   "team": "IT",
+   "custodian": "z.fair",
+   "users": [
+    "svc-backup"
+   ],
+   "about": "Department shares.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "files-depot",
+   "role": "files",
+   "label": "depot shared drives",
+   "zone": "servers",
+   "criticality": 2,
+   "team": "Operations",
+   "custodian": "p.ure",
+   "users": [
+    "svc-backup"
+   ],
+   "about": "Depot shares.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "hr-app",
+   "role": "app",
+   "label": "HR and payslip portal",
+   "zone": "servers",
+   "criticality": 3,
+   "team": "HR",
+   "custodian": "m.yilmaz",
+   "users": [
+    "svc-payroll"
+   ],
+   "about": "Staff records; reads the payroll database.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "erp-app",
+   "role": "app",
+   "label": "finance and stock system",
+   "zone": "servers",
+   "criticality": 4,
+   "team": "Finance",
+   "custodian": "g.reyes",
+   "users": [
+    "svc-erp"
+   ],
+   "about": "Invoices, stock and supplier orders.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "print-hq",
+   "role": "print",
+   "label": "head office print server",
+   "zone": "servers",
+   "criticality": 1,
+   "team": "Office",
+   "custodian": "t.ilic",
+   "users": [
+    "svc-print"
+   ],
+   "about": "Office printers.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "intranet",
+   "role": "web",
+   "label": "staff intranet",
+   "zone": "servers",
+   "criticality": 2,
+   "team": "Office",
+   "custodian": "t.ilic",
+   "users": [
+    "svc-web"
+   ],
+   "about": "Staff news and forms.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "ci-01",
+   "role": "ci",
+   "label": "build and release server",
+   "zone": "build",
+   "criticality": 4,
+   "team": "Engineering",
+   "custodian": "i.isak",
+   "users": [
+    "svc-ci",
+    "i.isak",
+    "e.eide",
+    "f.lowe",
+    "g.thorne",
+    "h.bell"
+   ],
+   "about": "Builds and ships the shop and the order service.",
+   "tags": [
+    "release"
+   ],
+   "records": 0
+  },
+  {
+   "id": "repo-01",
+   "role": "server",
+   "label": "source code server",
+   "zone": "build",
+   "criticality": 4,
+   "team": "Engineering",
+   "custodian": "i.isak",
+   "users": [
+    "svc-ci",
+    "e.eide",
+    "f.lowe",
+    "g.thorne",
+    "h.bell"
+   ],
+   "about": "Source code and build recipes.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "artifact-01",
+   "role": "server",
+   "label": "release package store",
+   "zone": "build",
+   "criticality": 3,
+   "team": "Engineering",
+   "custodian": "i.isak",
+   "users": [
+    "svc-ci"
+   ],
+   "about": "Built packages before release.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "dc-a",
+   "role": "identity",
+   "label": "directory server A",
+   "zone": "identity",
+   "criticality": 5,
+   "team": "IT",
+   "custodian": "z.fair",
+   "users": [
+    "svc-sync",
+    "adm-it1",
+    "adm-it2",
+    "adm-net"
+   ],
+   "about": "Every staff sign-in goes through it.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "dc-b",
+   "role": "identity",
+   "label": "directory server B",
+   "zone": "identity",
+   "criticality": 5,
+   "team": "IT",
+   "custodian": "z.fair",
+   "users": [
+    "svc-sync",
+    "adm-it1",
+    "adm-it2"
+   ],
+   "about": "Replica of directory server A.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "sso-01",
+   "role": "identity",
+   "label": "single sign-on service",
+   "zone": "identity",
+   "criticality": 5,
+   "team": "IT",
+   "custodian": "b.jaro",
+   "users": [
+    "svc-sso",
+    "adm-cloud"
+   ],
+   "about": "Sign-in to the hosted services.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "db-orders",
+   "role": "database",
+   "label": "orders database",
+   "zone": "core",
+   "criticality": 5,
+   "team": "Sales",
+   "custodian": "l.tamm",
+   "users": [
+    "svc-shop",
+    "svc-backup",
+    "svc-erp"
+   ],
+   "about": "Customer orders and addresses.",
+   "tags": [],
+   "records": 3
+  },
+  {
+   "id": "db-pay",
+   "role": "database",
+   "label": "payroll database",
+   "zone": "core",
+   "criticality": 5,
+   "team": "Finance",
+   "custodian": "l.rask",
+   "users": [
+    "svc-payroll",
+    "svc-backup"
+   ],
+   "about": "Payroll; the batch runs on payroll Fridays.",
+   "tags": [],
+   "records": 3
+  },
+  {
+   "id": "db-erp",
+   "role": "database",
+   "label": "finance database",
+   "zone": "core",
+   "criticality": 5,
+   "team": "Finance",
+   "custodian": "g.reyes",
+   "users": [
+    "svc-erp",
+    "svc-backup"
+   ],
+   "about": "Ledger and supplier accounts.",
+   "tags": [],
+   "records": 2
+  },
+  {
+   "id": "pay-01",
+   "role": "payments",
+   "label": "payments service",
+   "zone": "core",
+   "criticality": 5,
+   "team": "Finance",
+   "custodian": "h.zell",
+   "users": [
+    "svc-pay",
+    "svc-ci"
+   ],
+   "about": "Sends refunds and supplier payments to the bank.",
+   "tags": [
+    "payments"
+   ],
+   "records": 0
+  },
+  {
+   "id": "backup-a",
+   "role": "backup",
+   "label": "backup server",
+   "zone": "core",
+   "criticality": 4,
+   "team": "IT",
+   "custodian": "k.marek",
+   "users": [
+    "svc-backup"
+   ],
+   "about": "Nightly copies of the databases and shares; large transfers at night are normal.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "backup-vault",
+   "role": "backup",
+   "label": "backup catalog and vault",
+   "zone": "core",
+   "criticality": 4,
+   "team": "IT",
+   "custodian": "k.marek",
+   "users": [
+    "svc-backup"
+   ],
+   "about": "Keeps the backup catalog; the restore point for everything.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "siem-01",
+   "role": "monitoring",
+   "label": "security monitoring",
+   "zone": "security",
+   "criticality": 4,
+   "team": "Security",
+   "custodian": "j.falk",
+   "users": [
+    "svc-scan"
+   ],
+   "about": "Collects logs and raises every alert you see.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "cloud-api",
+   "role": "server",
+   "label": "cloud order service",
+   "zone": "cloud",
+   "criticality": 4,
+   "team": "Engineering",
+   "custodian": "b.jaro",
+   "users": [
+    "svc-shop",
+    "svc-ci"
+   ],
+   "about": "Takes orders from the shop and writes the orders database.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "cloud-queue",
+   "role": "server",
+   "label": "cloud order queue",
+   "zone": "cloud",
+   "criticality": 3,
+   "team": "Engineering",
+   "custodian": "b.jaro",
+   "users": [
+    "svc-shop"
+   ],
+   "about": "Buffers orders between the shop and the order service.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "cloud-store",
+   "role": "server",
+   "label": "cloud file storage",
+   "zone": "cloud",
+   "criticality": 3,
+   "team": "Engineering",
+   "custodian": "b.jaro",
+   "users": [
+    "svc-ci",
+    "svc-backup"
+   ],
+   "about": "Product images and nightly exports.",
+   "tags": [],
+   "records": 1
+  },
+  {
+   "id": "cloud-bastion",
+   "role": "remote-access",
+   "label": "cloud admin gateway",
+   "zone": "cloud",
+   "criticality": 4,
+   "team": "IT",
+   "custodian": "b.jaro",
+   "users": [
+    "adm-cloud"
+   ],
+   "about": "Admin sign-ins to the cloud account.",
+   "tags": [],
+   "records": 0
+  }
+ ],
+ "people": [
+  {
+   "account": "a.abara",
+   "name": "Ana Abara",
+   "title": "chief executive",
+   "team": "Executive",
+   "manager": null,
+   "exec": true,
+   "tags": []
+  },
+  {
+   "account": "b.holm",
+   "name": "Bram Holm",
+   "title": "finance director",
+   "team": "Executive",
+   "manager": "a.abara",
+   "exec": true,
+   "tags": []
+  },
+  {
+   "account": "c.orsi",
+   "name": "Chidi Orsi",
+   "title": "operations director",
+   "team": "Executive",
+   "manager": "a.abara",
+   "exec": true,
+   "tags": []
+  },
+  {
+   "account": "d.vance",
+   "name": "Dalia Vance",
+   "title": "head of security",
+   "team": "Executive",
+   "manager": "a.abara",
+   "exec": true,
+   "tags": [
+    "security"
+   ]
+  },
+  {
+   "account": "e.cole",
+   "name": "Emil Cole",
+   "title": "technology director",
+   "team": "Executive",
+   "manager": "a.abara",
+   "exec": true,
+   "tags": []
+  },
+  {
+   "account": "f.jade",
+   "name": "Farah Jade",
+   "title": "legal counsel",
+   "team": "Executive",
+   "manager": "a.abara",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "g.reyes",
+   "name": "Goran Reyes",
+   "title": "finance manager",
+   "team": "Finance",
+   "manager": "b.holm",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "h.zell",
+   "name": "Hana Zell",
+   "title": "payments lead",
+   "team": "Finance",
+   "manager": "g.reyes",
+   "exec": false,
+   "tags": [
+    "payments"
+   ]
+  },
+  {
+   "account": "i.gray",
+   "name": "Ivo Gray",
+   "title": "accountant",
+   "team": "Finance",
+   "manager": "g.reyes",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "j.dorn",
+   "name": "Jun Dorn",
+   "title": "accountant",
+   "team": "Finance",
+   "manager": "g.reyes",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "k.kaur",
+   "name": "Kira Kaur",
+   "title": "accountant",
+   "team": "Finance",
+   "manager": "g.reyes",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "l.rask",
+   "name": "Lars Rask",
+   "title": "payroll lead",
+   "team": "Finance",
+   "manager": "g.reyes",
+   "exec": false,
+   "tags": [
+    "payroll"
+   ]
+  },
+  {
+   "account": "m.yilmaz",
+   "name": "Mina Yilmaz",
+   "title": "HR manager",
+   "team": "HR",
+   "manager": "c.orsi",
+   "exec": false,
+   "tags": [
+    "hr"
+   ]
+  },
+  {
+   "account": "n.frey",
+   "name": "Nils Frey",
+   "title": "HR officer",
+   "team": "HR",
+   "manager": "m.yilmaz",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "o.moss",
+   "name": "Ola Moss",
+   "title": "HR officer",
+   "team": "HR",
+   "manager": "m.yilmaz",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "p.ure",
+   "name": "Pavel Ure",
+   "title": "operations manager",
+   "team": "Operations",
+   "manager": "c.orsi",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "q.crane",
+   "name": "Quinn Crane",
+   "title": "east depot lead",
+   "team": "Operations",
+   "manager": "p.ure",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "r.joss",
+   "name": "Rhea Joss",
+   "title": "west depot lead",
+   "team": "Operations",
+   "manager": "p.ure",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "s.grieve",
+   "name": "Sami Grieve",
+   "title": "depot planner",
+   "team": "Operations",
+   "manager": "q.crane",
+   "exec": false,
+   "tags": [
+    "remote"
+   ]
+  },
+  {
+   "account": "t.novo",
+   "name": "Tove Novo",
+   "title": "depot planner",
+   "team": "Operations",
+   "manager": "q.crane",
+   "exec": false,
+   "tags": [
+    "remote"
+   ]
+  },
+  {
+   "account": "u.ueda",
+   "name": "Umar Ueda",
+   "title": "depot planner",
+   "team": "Operations",
+   "manager": "q.crane",
+   "exec": false,
+   "tags": [
+    "remote"
+   ]
+  },
+  {
+   "account": "v.berg",
+   "name": "Vera Berg",
+   "title": "depot planner",
+   "team": "Operations",
+   "manager": "r.joss",
+   "exec": false,
+   "tags": [
+    "remote"
+   ]
+  },
+  {
+   "account": "w.ives",
+   "name": "Wes Ives",
+   "title": "depot planner",
+   "team": "Operations",
+   "manager": "r.joss",
+   "exec": false,
+   "tags": [
+    "remote"
+   ]
+  },
+  {
+   "account": "x.park",
+   "name": "Xenia Park",
+   "title": "depot planner",
+   "team": "Operations",
+   "manager": "r.joss",
+   "exec": false,
+   "tags": [
+    "remote"
+   ]
+  },
+  {
+   "account": "y.yoon",
+   "name": "Yusuf Yoon",
+   "title": "IT manager",
+   "team": "IT",
+   "manager": "e.cole",
+   "exec": false,
+   "tags": [],
+   "admin": "adm-it1"
+  },
+  {
+   "account": "z.fair",
+   "name": "Zara Fair",
+   "title": "systems administrator",
+   "team": "IT",
+   "manager": "y.yoon",
+   "exec": false,
+   "tags": [],
+   "admin": "adm-it2"
+  },
+  {
+   "account": "a.castell",
+   "name": "Aldo Castell",
+   "title": "network administrator",
+   "team": "IT",
+   "manager": "y.yoon",
+   "exec": false,
+   "tags": [],
+   "admin": "adm-net"
+  },
+  {
+   "account": "b.jaro",
+   "name": "Bea Jaro",
+   "title": "cloud engineer",
+   "team": "IT",
+   "manager": "e.cole",
+   "exec": false,
+   "tags": [],
+   "admin": "adm-cloud"
+  },
+  {
+   "account": "c.quist",
+   "name": "Cyrus Quist",
+   "title": "service desk",
+   "team": "IT",
+   "manager": "y.yoon",
+   "exec": false,
+   "tags": [
+    "helpdesk"
+   ]
+  },
+  {
+   "account": "d.xu",
+   "name": "Dita Xu",
+   "title": "service desk",
+   "team": "IT",
+   "manager": "y.yoon",
+   "exec": false,
+   "tags": [
+    "helpdesk"
+   ]
+  },
+  {
+   "account": "e.eide",
+   "name": "Eero Eide",
+   "title": "developer",
+   "team": "Engineering",
+   "manager": "e.cole",
+   "exec": false,
+   "tags": [
+    "developer"
+   ]
+  },
+  {
+   "account": "f.lowe",
+   "name": "Fen Lowe",
+   "title": "developer",
+   "team": "Engineering",
+   "manager": "e.cole",
+   "exec": false,
+   "tags": [
+    "developer"
+   ]
+  },
+  {
+   "account": "g.thorne",
+   "name": "Gia Thorne",
+   "title": "developer",
+   "team": "Engineering",
+   "manager": "e.cole",
+   "exec": false,
+   "tags": [
+    "developer"
+   ]
+  },
+  {
+   "account": "h.bell",
+   "name": "Hugo Bell",
+   "title": "developer",
+   "team": "Engineering",
+   "manager": "e.cole",
+   "exec": false,
+   "tags": [
+    "developer"
+   ]
+  },
+  {
+   "account": "i.isak",
+   "name": "Ilse Isak",
+   "title": "release engineer",
+   "team": "Engineering",
+   "manager": "e.cole",
+   "exec": false,
+   "tags": [
+    "developer"
+   ]
+  },
+  {
+   "account": "j.falk",
+   "name": "Jonas Falk",
+   "title": "security analyst",
+   "team": "Security",
+   "manager": "d.vance",
+   "exec": false,
+   "tags": [
+    "security"
+   ]
+  },
+  {
+   "account": "k.marek",
+   "name": "Kofi Marek",
+   "title": "backup administrator",
+   "team": "IT",
+   "manager": "y.yoon",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "l.tamm",
+   "name": "Lena Tamm",
+   "title": "e-commerce lead",
+   "team": "Sales",
+   "manager": "c.orsi",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "m.ames",
+   "name": "Milo Ames",
+   "title": "customer support lead",
+   "team": "Sales",
+   "manager": "l.tamm",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "n.hart",
+   "name": "Nora Hart",
+   "title": "customer support",
+   "team": "Sales",
+   "manager": "m.ames",
+   "exec": false,
+   "tags": [
+    "remote"
+   ]
+  },
+  {
+   "account": "o.oden",
+   "name": "Otto Oden",
+   "title": "customer support",
+   "team": "Sales",
+   "manager": "m.ames",
+   "exec": false,
+   "tags": [
+    "remote"
+   ]
+  },
+  {
+   "account": "p.ward",
+   "name": "Pia Ward",
+   "title": "customer support",
+   "team": "Sales",
+   "manager": "m.ames",
+   "exec": false,
+   "tags": [
+    "remote"
+   ]
+  },
+  {
+   "account": "r.ess",
+   "name": "Rui Ess",
+   "title": "customer support",
+   "team": "Sales",
+   "manager": "m.ames",
+   "exec": false,
+   "tags": [
+    "remote"
+   ]
+  },
+  {
+   "account": "s.brix",
+   "name": "Sela Brix",
+   "title": "procurement",
+   "team": "Finance",
+   "manager": "b.holm",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "t.ilic",
+   "name": "Teo Ilic",
+   "title": "marketing",
+   "team": "Sales",
+   "manager": "l.tamm",
+   "exec": false,
+   "tags": []
+  }
+ ],
+ "accounts": [
+  {
+   "account": "svc-shop",
+   "type": "service",
+   "purpose": "shop and order service access to the orders database",
+   "host": "cloud-api",
+   "contact": "l.tamm",
+   "reaches": [
+    "db-orders",
+    "cloud-queue"
+   ]
+  },
+  {
+   "account": "svc-backup",
+   "type": "service",
+   "purpose": "nightly backups",
+   "host": "backup-a",
+   "contact": "k.marek",
+   "reaches": [
+    "db-orders",
+    "db-pay",
+    "db-erp",
+    "files-hq",
+    "files-depot",
+    "backup-vault",
+    "cloud-store"
+   ]
+  },
+  {
+   "account": "svc-payroll",
+   "type": "service",
+   "purpose": "HR portal access to payroll",
+   "host": "hr-app",
+   "contact": "m.yilmaz",
+   "reaches": [
+    "db-pay"
+   ]
+  },
+  {
+   "account": "svc-erp",
+   "type": "service",
+   "purpose": "finance system database access",
+   "host": "erp-app",
+   "contact": "g.reyes",
+   "reaches": [
+    "db-erp",
+    "db-orders"
+   ]
+  },
+  {
+   "account": "svc-pay",
+   "type": "service",
+   "purpose": "authorises payment submissions",
+   "host": "pay-01",
+   "contact": "h.zell",
+   "reaches": [
+    "pay-01",
+    "db-erp"
+   ]
+  },
+  {
+   "account": "svc-ci",
+   "type": "service",
+   "purpose": "build and deploy jobs",
+   "host": "ci-01",
+   "contact": "i.isak",
+   "reaches": [
+    "repo-01",
+    "artifact-01",
+    "cloud-api",
+    "pay-01",
+    "cloud-store"
+   ]
+  },
+  {
+   "account": "svc-edi",
+   "type": "service",
+   "purpose": "supplier file exchange",
+   "host": "partner-gw",
+   "contact": "a.castell",
+   "reaches": [
+    "erp-app",
+    "east-wms",
+    "west-wms"
+   ]
+  },
+  {
+   "account": "svc-wms",
+   "type": "service",
+   "purpose": "depot stock terminals",
+   "host": "east-wms",
+   "contact": "p.ure",
+   "reaches": [
+    "erp-app"
+   ]
+  },
+  {
+   "account": "svc-print",
+   "type": "service",
+   "purpose": "label printing",
+   "host": "print-hq",
+   "contact": "t.ilic",
+   "reaches": []
+  },
+  {
+   "account": "svc-mail",
+   "type": "service",
+   "purpose": "mail delivery",
+   "host": "mail-gw",
+   "contact": "z.fair",
+   "reaches": []
+  },
+  {
+   "account": "svc-web",
+   "type": "service",
+   "purpose": "intranet content",
+   "host": "intranet",
+   "contact": "t.ilic",
+   "reaches": [
+    "files-hq"
+   ]
+  },
+  {
+   "account": "svc-sync",
+   "type": "service",
+   "purpose": "directory sync",
+   "host": "dc-a",
+   "contact": "z.fair",
+   "reaches": [
+    "dc-b",
+    "sso-01"
+   ]
+  },
+  {
+   "account": "svc-sso",
+   "type": "service",
+   "purpose": "hosted sign-in",
+   "host": "sso-01",
+   "contact": "b.jaro",
+   "reaches": [
+    "helpdesk-saas"
+   ]
+  },
+  {
+   "account": "svc-scan",
+   "type": "service",
+   "purpose": "monitoring collector",
+   "host": "siem-01",
+   "contact": "j.falk",
+   "reaches": []
+  },
+  {
+   "account": "adm-it1",
+   "type": "admin",
+   "person": "y.yoon"
+  },
+  {
+   "account": "adm-it2",
+   "type": "admin",
+   "person": "z.fair"
+  },
+  {
+   "account": "adm-net",
+   "type": "admin",
+   "person": "a.castell"
+  },
+  {
+   "account": "adm-cloud",
+   "type": "admin",
+   "person": "b.jaro"
+  }
+ ],
+ "links": [
+  {
+   "id": "freight-co",
+   "kind": "supplier",
+   "label": "freight supplier booking system",
+   "address": "198.51.100.71",
+   "host": "partner-gw",
+   "flows": [
+    "shipping"
+   ],
+   "contact_role": "freight-desk"
+  },
+  {
+   "id": "stock-co",
+   "kind": "supplier",
+   "label": "warehouse supplier stock system",
+   "address": "198.51.100.72",
+   "host": "partner-gw",
+   "flows": [
+    "restock"
+   ],
+   "contact_role": "stock-desk"
+  },
+  {
+   "id": "bank-link",
+   "kind": "partner",
+   "label": "bank payment gateway",
+   "address": "203.0.113.20",
+   "host": "pay-01",
+   "flows": [
+    "payments"
+   ],
+   "contact_role": "bank-desk"
+  },
+  {
+   "id": "offsite",
+   "kind": "provider",
+   "label": "offsite backup copy",
+   "address": "192.0.2.90",
+   "host": "backup-a"
+  },
+  {
+   "id": "mirror",
+   "kind": "provider",
+   "label": "software update mirror",
+   "address": "192.0.2.16",
+   "host": "siem-01"
+  }
+ ],
+ "services": [
+  {
+   "id": "helpdesk-saas",
+   "kind": "saas",
+   "label": "hosted customer support desk",
+   "criticality": 3,
+   "team": "Sales",
+   "users": [
+    "m.ames",
+    "n.hart",
+    "o.oden",
+    "p.ward",
+    "r.ess"
+   ],
+   "about": "Customer tickets, order notes and refund requests."
+  },
+  {
+   "id": "mail-saas",
+   "kind": "saas",
+   "label": "hosted staff mailboxes",
+   "criticality": 3,
+   "team": "IT",
+   "users": [
+    "a.abara",
+    "b.holm",
+    "c.orsi",
+    "e.cole",
+    "f.jade"
+   ],
+   "about": "Executive and staff mail."
+  }
+ ],
+ "flows": [
+  {
+   "id": "shop-orders",
+   "kind": "orders",
+   "label": "online shop orders",
+   "value_per_minute": 8,
+   "hosts": [
+    "shop-web",
+    "cloud-api",
+    "cloud-queue",
+    "db-orders"
+   ],
+   "contact_role": "shop-lead",
+   "store": "db-orders"
+  },
+  {
+   "id": "payments",
+   "kind": "payments",
+   "label": "refunds and supplier payments",
+   "value_per_minute": 4,
+   "hosts": [
+    "pay-01"
+   ],
+   "pausable": true,
+   "link": "bank-link",
+   "contact_role": "payments-lead"
+  },
+  {
+   "id": "shipping",
+   "kind": "other",
+   "label": "freight bookings",
+   "value_per_minute": 3,
+   "hosts": [
+    "partner-gw",
+    "files-depot"
+   ],
+   "pausable": true,
+   "pause_cost_per_minute": 1,
+   "link": "freight-co",
+   "contact_role": "ops-lead"
+  },
+  {
+   "id": "restock",
+   "kind": "other",
+   "label": "depot restocking",
+   "value_per_minute": 2,
+   "hosts": [
+    "east-wms",
+    "west-wms",
+    "erp-app"
+   ],
+   "pausable": true,
+   "pause_cost_per_minute": 1,
+   "link": "stock-co",
+   "contact_role": "ops-lead"
+  },
+  {
+   "id": "payroll",
+   "kind": "payroll",
+   "label": "payroll batch",
+   "value_per_minute": 3,
+   "hosts": [
+    "db-pay",
+    "hr-app"
+   ],
+   "store": "db-pay",
+   "contact_role": "finance-lead"
+  },
+  {
+   "id": "support",
+   "kind": "support",
+   "label": "customer support desk",
+   "value_per_minute": 2,
+   "hosts": [
+    "helpdesk-saas"
+   ],
+   "contact_role": "support-lead"
+  },
+  {
+   "id": "releases",
+   "kind": "other",
+   "label": "shop releases",
+   "value_per_minute": 1,
+   "hosts": [
+    "ci-01",
+    "repo-01"
+   ],
+   "pausable": true,
+   "contact_role": "eng-lead"
+  }
+ ],
+ "roles": {
+  "security-lead": {
+   "person": "d.vance"
+  },
+  "legal": {
+   "person": "f.jade"
+  },
+  "duty-manager": {
+   "person": "c.orsi",
+   "title": "duty manager tonight"
+  },
+  "finance-lead": {
+   "person": "b.holm"
+  },
+  "payments-lead": {
+   "person": "h.zell"
+  },
+  "it-lead": {
+   "person": "y.yoon"
+  },
+  "eng-lead": {
+   "person": "e.cole"
+  },
+  "helpdesk": {
+   "person": "c.quist"
+  },
+  "hr": {
+   "person": "m.yilmaz"
+  },
+  "shop-lead": {
+   "person": "l.tamm"
+  },
+  "support-lead": {
+   "person": "m.ames"
+  },
+  "ops-lead": {
+   "person": "p.ure"
+  },
+  "freight-desk": {
+   "name": "Freight supplier operations desk",
+   "title": "supplier contact",
+   "external": true
+  },
+  "stock-desk": {
+   "name": "Warehouse supplier service desk",
+   "title": "supplier contact",
+   "external": true
+  },
+  "bank-desk": {
+   "name": "Bank payments desk",
+   "title": "partner contact",
+   "external": true
+  }
+ },
+ "approval": {
+  "decider": "duty-manager",
+  "delay": 15,
+  "expiry": 30,
+  "valid": 60,
+  "rules": [
+   {
+    "actions": [
+     "isolate",
+     "restore"
+    ],
+    "criticality_at_least": 4
+   },
+   {
+    "actions": [
+     "block",
+     "reset"
+    ],
+    "account_types": [
+     "admin",
+     "executive"
+    ]
+   },
+   {
+    "actions": [
+     "pause"
+    ],
+    "flows": [
+     "payments",
+     "releases"
+    ]
+   }
+  ]
+ },
+ "logs": [
+  {
+   "source": "endpoint",
+   "zones": [
+    "edge",
+    "hq",
+    "east",
+    "west",
+    "servers",
+    "core",
+    "identity",
+    "build",
+    "security"
+   ],
+   "delay": 0
+  },
+  {
+   "source": "identity",
+   "zones": "all",
+   "delay": 2
+  },
+  {
+   "source": "network",
+   "zones": [
+    "edge",
+    "servers",
+    "core",
+    "identity",
+    "build"
+   ],
+   "delay": 5,
+   "gaps": [
+    "03:00-03:20"
+   ]
+  },
+  {
+   "source": "cloud",
+   "zones": [
+    "cloud"
+   ],
+   "delay": 8
+  }
+ ],
+ "calendar": {
+  "windows": [
+   {
+    "id": "payroll",
+    "label": "payroll batch",
+    "start": "05:30",
+    "minutes": 30,
+    "days": [
+     "Fri"
+    ],
+    "flow": "payroll",
+    "multiplier": 3
+   },
+   {
+    "id": "settlement",
+    "label": "nightly payment settlement",
+    "start": "04:00",
+    "minutes": 40,
+    "days": [
+     "Mon",
+     "Tue",
+     "Wed",
+     "Thu",
+     "Fri"
+    ],
+    "flow": "payments",
+    "multiplier": 2
+   }
+  ]
+ }
+}

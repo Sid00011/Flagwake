@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Environments and secrets
+.venv/
+venv/
+.env
+.env.*
+*.pem
+*.key
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Output of flagwake check, baselines and mcp in the working folder
+check-out/
+flagwake-runs/
+flagwake-demo/
+mcp-report/
+rc-mcp-log/
+
+# Runtime databases (never commit)
+*.sqlite
+*.sqlite3
+*.db
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+logs/
+
+# The launchers' private environment and a local defender registry
+.flagwake-venv/
+flagwake.yaml
+tools-test/

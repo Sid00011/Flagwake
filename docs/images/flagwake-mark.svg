@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 4 32 24" width="64" height="48" role="img" aria-label="Flagwake">
+  <title>Flagwake</title>
+  <path d="M1 9A4 4 0 0 1 5 5H14V16H1Z" fill="#4589ff"/>
+  <path d="M14 5H30a1 1 0 0 1 .9 1.4L27 16H14Z" fill="#1f3f7a"/>
+  <path d="M1 16H14V27H5A4 4 0 0 1 1 23Z" fill="#1f3f7a"/>
+  <path d="M14 16H27L30.9 25.6a1 1 0 0 1-.9 1.4H14Z" fill="#4589ff"/>
+</svg>

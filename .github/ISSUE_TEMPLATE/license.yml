@@ -1,0 +1,27 @@
+name: License inquiry
+description: Ask about a commercial license, support or a custom evaluation.
+title: "License inquiry: "
+labels: ["license"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Flagwake is free under the AGPL-3.0, including inside a company. A commercial license
+        covers uses the AGPL does not suit (a closed product, a hosted service without source) and
+        support or custom work. See LICENSING.md. Do not put confidential details here: ask for a
+        private channel and the author will reply with one.
+  - type: textarea
+    id: use
+    attributes:
+      label: What you want to do with Flagwake
+      description: For example "evaluate three vendor defenders on our own company file" or "ship it inside our product".
+    validations:
+      required: true
+  - type: input
+    id: org
+    attributes:
+      label: Organisation (optional)
+  - type: textarea
+    id: timeline
+    attributes:
+      label: Timeline and anything else (optional)

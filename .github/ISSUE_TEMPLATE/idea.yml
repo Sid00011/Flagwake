@@ -1,0 +1,21 @@
+name: Idea or incident design
+description: A feature idea, a problem with an incident family, or a question about the scoring.
+labels: ["idea"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Changes to incidents or scoring change the generator version or the rules hash, and every
+        such change is recorded in docs/METHODOLOGY.md with both readings.
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea or the problem
+      description: What you would change or what you found, and why it matters.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Reports, family:seed pairs, commands or numbers that show it, if you have them.

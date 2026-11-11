@@ -1,0 +1,84 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flagwake"
+version = "0.5.0rc1"
+description = "A free, offline, re-checkable test of how an AI defender behaves during a security incident, scored with business cost."
+# The package index shows docs/PYPI.md: the README's pictures are files of the repository.
+readme = { file = "docs/PYPI.md", content-type = "text/markdown" }
+requires-python = ">=3.11"
+license = "AGPL-3.0-only"
+license-files = ["LICENSE", "LICENSE-DATA", "NOTICE"]
+authors = [{ name = "Sid" }]
+keywords = [
+    "security", "incident-response", "evaluation", "benchmark", "soc", "defender", "agents",
+    "simulation", "reproducible",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Testing",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/Sid00011/Flagwake"
+Documentation = "https://github.com/Sid00011/Flagwake/tree/main/docs"
+Issues = "https://github.com/Sid00011/Flagwake/issues"
+Changelog = "https://github.com/Sid00011/Flagwake/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "mypy",
+    "pytest",
+    "pytest-cov",
+]
+# Browser tests of the report viewer (tests/e2e, Chromium only). Then: python -m playwright install chromium
+e2e = ["playwright==1.64.0"]
+
+[project.scripts]
+flagwake = "cyberarena.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+# The fictional world and the report viewer that flagwake serve hosts.
+"cyberarena.rc" = ["data/*.json", "data/worlds/*.json", "web/*.html", "web/css/*.css", "web/js/*.js"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C90"]
+
+[tool.ruff.lint.mccabe]
+# No function may branch more than this; a longer one is split into named parts.
+max-complexity = 20
+
+[tool.mypy]
+files = ["src/cyberarena"]
+python_version = "3.11"
+warn_unused_ignores = true
+warn_redundant_casts = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+addopts = "-ra"
+markers = [
+    "slow: long-running statistical tests",
+    "time_limit(seconds): a per-test time limit other than the default (tests/conftest.py)",
+]

@@ -1,0 +1,1045 @@
+{
+ "schema": "flagwake-company-1",
+ "name": "harlow-pine",
+ "version": "hp-3",
+ "company": {
+  "name": "Harlow & Pine Logistics",
+  "short": "Harlow & Pine",
+  "about": "An invented mid-size logistics firm: about 220 employees, one head office, two depots (north and south). Payroll runs every other Friday.",
+  "fictional": true
+ },
+ "shift": {
+  "start": "02:10"
+ },
+ "zones": [
+  {
+   "id": "edge",
+   "label": "Edge (internet-facing)"
+  },
+  {
+   "id": "office",
+   "label": "Office and depot computers"
+  },
+  {
+   "id": "servers",
+   "label": "Internal servers"
+  },
+  {
+   "id": "core",
+   "label": "Core systems"
+  },
+  {
+   "id": "security",
+   "label": "Security tooling"
+  },
+  {
+   "id": "cloud",
+   "label": "Hosted services"
+  }
+ ],
+ "hosts": [
+  {
+   "id": "web-01",
+   "role": "web",
+   "label": "public tracking website",
+   "zone": "edge",
+   "criticality": 3,
+   "team": "Sales",
+   "custodian": "z.laurent",
+   "users": [
+    "svc-web"
+   ],
+   "about": "Serves the public parcel-tracking site; content sync from files-01 at 03:00 by svc-web.",
+   "tags": [
+    "public"
+   ],
+   "records": 0
+  },
+  {
+   "id": "vpn-01",
+   "role": "remote-access",
+   "label": "remote-access gateway",
+   "zone": "edge",
+   "criticality": 4,
+   "team": "IT",
+   "custodian": "d.roy",
+   "users": [],
+   "about": "Remote sign-ins for staff working away from the office; a few per night.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "mail-01",
+   "role": "mail",
+   "label": "mail and ticket gateway",
+   "zone": "edge",
+   "criticality": 3,
+   "team": "IT",
+   "custodian": "l.chen",
+   "users": [
+    "svc-sync"
+   ],
+   "about": "Receives mail and helpdesk tickets around the clock.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "ws-fin-01",
+   "role": "workstation",
+   "label": "finance laptop",
+   "zone": "office",
+   "criticality": 2,
+   "team": "Finance",
+   "custodian": "l.brandt",
+   "users": [
+    "l.brandt",
+    "o.nilsen",
+    "g.odum"
+   ],
+   "about": "Office hours use; idle at night apart from updates.",
+   "tags": [
+    "finance"
+   ],
+   "records": 0
+  },
+  {
+   "id": "ws-fin-02",
+   "role": "workstation",
+   "label": "payroll laptop",
+   "zone": "office",
+   "criticality": 2,
+   "team": "Finance",
+   "custodian": "m.tanaka",
+   "users": [
+    "m.tanaka",
+    "f.haddad"
+   ],
+   "about": "Prepares the payroll batch; busy on payroll Fridays.",
+   "tags": [
+    "payroll"
+   ],
+   "records": 0
+  },
+  {
+   "id": "ws-hr-01",
+   "role": "workstation",
+   "label": "HR laptop",
+   "zone": "office",
+   "criticality": 2,
+   "team": "HR",
+   "custodian": "r.ibarra",
+   "users": [
+    "r.ibarra",
+    "s.achebe",
+    "i.moreau"
+   ],
+   "about": "Office hours use; opens CVs and forms from mail.",
+   "tags": [
+    "hr"
+   ],
+   "records": 0
+  },
+  {
+   "id": "ws-ops-01",
+   "role": "workstation",
+   "label": "operations desktop (head office)",
+   "zone": "office",
+   "criticality": 1,
+   "team": "Operations",
+   "custodian": "s.lindqvist",
+   "users": [
+    "s.lindqvist",
+    "b.hollis",
+    "p.zielinski"
+   ],
+   "about": "Route planning; used by the night planners.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "ws-ops-02",
+   "role": "workstation",
+   "label": "dispatch desktop (north depot)",
+   "zone": "office",
+   "criticality": 1,
+   "team": "Operations",
+   "custodian": "j.pereira",
+   "users": [
+    "j.pereira",
+    "k.mori",
+    "y.khalil"
+   ],
+   "about": "Night dispatch; busy around the shift change.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "ws-ops-03",
+   "role": "workstation",
+   "label": "dispatch desktop (south depot)",
+   "zone": "office",
+   "criticality": 1,
+   "team": "Operations",
+   "custodian": "a.diallo",
+   "users": [
+    "a.diallo",
+    "l.ferri"
+   ],
+   "about": "Night dispatch; busy around the shift change.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "ws-dev-01",
+   "role": "workstation",
+   "label": "developer workstation",
+   "zone": "office",
+   "criticality": 2,
+   "team": "IT",
+   "custodian": "e.dahl",
+   "users": [
+    "e.dahl",
+    "s.russo"
+   ],
+   "about": "Builds the tracking site; runs test jobs at night.",
+   "tags": [
+    "developer"
+   ],
+   "records": 0
+  },
+  {
+   "id": "hr-portal",
+   "role": "app",
+   "label": "internal HR web app",
+   "zone": "servers",
+   "criticality": 3,
+   "team": "HR",
+   "custodian": "r.ibarra",
+   "users": [
+    "svc-payroll"
+   ],
+   "about": "Staff records and payslips; reads the payroll database through svc-payroll.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "files-01",
+   "role": "files",
+   "label": "shared drives",
+   "zone": "servers",
+   "criticality": 3,
+   "team": "IT",
+   "custodian": "l.chen",
+   "users": [
+    "svc-backup",
+    "svc-web"
+   ],
+   "about": "Department shares; backed up nightly by svc-backup.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "print-01",
+   "role": "print",
+   "label": "print server",
+   "zone": "servers",
+   "criticality": 1,
+   "team": "Facilities",
+   "custodian": "m.singh",
+   "users": [
+    "svc-print"
+   ],
+   "about": "Depot label printers; noisy, harmless failed sign-ins from old printers.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "dc-01",
+   "role": "identity",
+   "label": "identity and directory server",
+   "zone": "core",
+   "criticality": 5,
+   "team": "IT",
+   "custodian": "m.ivers",
+   "users": [
+    "svc-sync",
+    "adm-ivers",
+    "adm-chen",
+    "adm-roy"
+   ],
+   "about": "Every sign-in in the company goes through it.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "db-01",
+   "role": "database",
+   "label": "customer database",
+   "zone": "core",
+   "criticality": 5,
+   "team": "Sales",
+   "custodian": "f.wagner",
+   "users": [
+    "svc-backup",
+    "svc-web"
+   ],
+   "about": "Customer and shipment records; nightly backup to backup-01 by svc-backup.",
+   "tags": [],
+   "records": 3
+  },
+  {
+   "id": "db-02",
+   "role": "database",
+   "label": "payroll database",
+   "zone": "core",
+   "criticality": 5,
+   "team": "Finance",
+   "custodian": "m.tanaka",
+   "users": [
+    "svc-payroll",
+    "svc-backup"
+   ],
+   "about": "Payroll; the payroll batch runs here on payroll Fridays.",
+   "tags": [],
+   "records": 3
+  },
+  {
+   "id": "backup-01",
+   "role": "backup",
+   "label": "backup server",
+   "zone": "core",
+   "criticality": 4,
+   "team": "IT",
+   "custodian": "a.nwosu",
+   "users": [
+    "svc-backup"
+   ],
+   "about": "Pulls nightly copies of db-01, db-02 and files-01; large transfers at night are normal.",
+   "tags": [],
+   "records": 0
+  },
+  {
+   "id": "monitor-01",
+   "role": "monitoring",
+   "label": "security monitoring (the alert source)",
+   "zone": "security",
+   "criticality": 4,
+   "team": "IT",
+   "custodian": "o.farouk",
+   "users": [
+    "svc-scan"
+   ],
+   "about": "Collects logs and raises every alert you see. If it is offline, no new alerts arrive.",
+   "tags": [],
+   "records": 0
+  }
+ ],
+ "people": [
+  {
+   "account": "h.marsh",
+   "name": "Helen Marsh",
+   "title": "chief executive",
+   "team": "Executive",
+   "manager": null,
+   "exec": true,
+   "tags": []
+  },
+  {
+   "account": "t.varga",
+   "name": "Tomas Varga",
+   "title": "finance director",
+   "team": "Executive",
+   "manager": "h.marsh",
+   "exec": true,
+   "tags": []
+  },
+  {
+   "account": "p.raman",
+   "name": "Priya Raman",
+   "title": "operations director",
+   "team": "Executive",
+   "manager": "h.marsh",
+   "exec": true,
+   "tags": []
+  },
+  {
+   "account": "n.okafor",
+   "name": "Nadia Okafor",
+   "title": "head of security (CISO)",
+   "team": "Executive",
+   "manager": "h.marsh",
+   "exec": true,
+   "tags": [
+    "security"
+   ]
+  },
+  {
+   "account": "l.brandt",
+   "name": "Leon Brandt",
+   "title": "finance manager",
+   "team": "Finance",
+   "manager": "t.varga",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "m.tanaka",
+   "name": "Mei Tanaka",
+   "title": "payroll lead",
+   "team": "Finance",
+   "manager": "l.brandt",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "o.nilsen",
+   "name": "Oskar Nilsen",
+   "title": "accountant",
+   "team": "Finance",
+   "manager": "l.brandt",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "f.haddad",
+   "name": "Fatima Haddad",
+   "title": "payroll clerk",
+   "team": "Finance",
+   "manager": "m.tanaka",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "g.odum",
+   "name": "Grace Odum",
+   "title": "accounts clerk",
+   "team": "Finance",
+   "manager": "l.brandt",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "r.ibarra",
+   "name": "Rosa Ibarra",
+   "title": "HR manager",
+   "team": "HR",
+   "manager": "p.raman",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "s.achebe",
+   "name": "Samuel Achebe",
+   "title": "HR officer",
+   "team": "HR",
+   "manager": "r.ibarra",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "i.moreau",
+   "name": "Ines Moreau",
+   "title": "recruiter",
+   "team": "HR",
+   "manager": "r.ibarra",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "s.lindqvist",
+   "name": "Stefan Lindqvist",
+   "title": "operations manager",
+   "team": "Operations",
+   "manager": "p.raman",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "j.pereira",
+   "name": "Joao Pereira",
+   "title": "north depot lead",
+   "team": "Operations",
+   "manager": "s.lindqvist",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "a.diallo",
+   "name": "Amara Diallo",
+   "title": "south depot lead",
+   "team": "Operations",
+   "manager": "s.lindqvist",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "k.mori",
+   "name": "Kenji Mori",
+   "title": "night dispatcher",
+   "team": "Operations",
+   "manager": "j.pereira",
+   "exec": false,
+   "tags": [
+    "remote"
+   ]
+  },
+  {
+   "account": "l.ferri",
+   "name": "Lucia Ferri",
+   "title": "night dispatcher",
+   "team": "Operations",
+   "manager": "a.diallo",
+   "exec": false,
+   "tags": [
+    "remote"
+   ]
+  },
+  {
+   "account": "b.hollis",
+   "name": "Ben Hollis",
+   "title": "fleet planner",
+   "team": "Operations",
+   "manager": "s.lindqvist",
+   "exec": false,
+   "tags": [
+    "remote"
+   ]
+  },
+  {
+   "account": "y.khalil",
+   "name": "Yara Khalil",
+   "title": "overnight dispatch supervisor",
+   "team": "Operations",
+   "manager": "j.pereira",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "p.zielinski",
+   "name": "Piotr Zielinski",
+   "title": "warehouse coordinator",
+   "team": "Operations",
+   "manager": "s.lindqvist",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "m.ivers",
+   "name": "Marcus Ivers",
+   "title": "IT manager",
+   "team": "IT",
+   "manager": "p.raman",
+   "exec": false,
+   "tags": [],
+   "admin": "adm-ivers"
+  },
+  {
+   "account": "l.chen",
+   "name": "Lin Chen",
+   "title": "systems administrator",
+   "team": "IT",
+   "manager": "m.ivers",
+   "exec": false,
+   "tags": [],
+   "admin": "adm-chen"
+  },
+  {
+   "account": "d.roy",
+   "name": "Daniel Roy",
+   "title": "network administrator",
+   "team": "IT",
+   "manager": "m.ivers",
+   "exec": false,
+   "tags": [],
+   "admin": "adm-roy"
+  },
+  {
+   "account": "a.bello",
+   "name": "Aisha Bello",
+   "title": "service desk",
+   "team": "IT",
+   "manager": "m.ivers",
+   "exec": false,
+   "tags": [
+    "helpdesk"
+   ]
+  },
+  {
+   "account": "e.dahl",
+   "name": "Erik Dahl",
+   "title": "developer",
+   "team": "IT",
+   "manager": "m.ivers",
+   "exec": false,
+   "tags": [
+    "developer"
+   ]
+  },
+  {
+   "account": "s.russo",
+   "name": "Sofia Russo",
+   "title": "developer",
+   "team": "IT",
+   "manager": "m.ivers",
+   "exec": false,
+   "tags": [
+    "developer"
+   ]
+  },
+  {
+   "account": "o.farouk",
+   "name": "Omar Farouk",
+   "title": "security analyst (day shift)",
+   "team": "IT",
+   "manager": "n.okafor",
+   "exec": false,
+   "tags": [
+    "security"
+   ]
+  },
+  {
+   "account": "a.nwosu",
+   "name": "Ada Nwosu",
+   "title": "backup and storage administrator",
+   "team": "IT",
+   "manager": "m.ivers",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "c.bennett",
+   "name": "Chloe Bennett",
+   "title": "sales lead",
+   "team": "Sales",
+   "manager": "p.raman",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "r.menon",
+   "name": "Ravi Menon",
+   "title": "account manager",
+   "team": "Sales",
+   "manager": "c.bennett",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "h.kowalski",
+   "name": "Hanna Kowalski",
+   "title": "customer service",
+   "team": "Sales",
+   "manager": "k.mensah",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "d.alvarez",
+   "name": "Diego Alvarez",
+   "title": "customer service",
+   "team": "Sales",
+   "manager": "k.mensah",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "z.laurent",
+   "name": "Zoe Laurent",
+   "title": "marketing and website content",
+   "team": "Sales",
+   "manager": "c.bennett",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "k.mensah",
+   "name": "Kwame Mensah",
+   "title": "customer service lead",
+   "team": "Sales",
+   "manager": "c.bennett",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "e.petrova",
+   "name": "Elena Petrova",
+   "title": "legal counsel",
+   "team": "Executive",
+   "manager": "h.marsh",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "n.fischer",
+   "name": "Noah Fischer",
+   "title": "procurement",
+   "team": "Finance",
+   "manager": "t.varga",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "m.singh",
+   "name": "Maya Singh",
+   "title": "office manager",
+   "team": "Facilities",
+   "manager": "p.raman",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "t.aziz",
+   "name": "Tariq Aziz",
+   "title": "facilities",
+   "team": "Facilities",
+   "manager": "m.singh",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "j.novak",
+   "name": "Julia Novak",
+   "title": "executive office coordinator",
+   "team": "Executive",
+   "manager": "h.marsh",
+   "exec": false,
+   "tags": []
+  },
+  {
+   "account": "f.wagner",
+   "name": "Felix Wagner",
+   "title": "data analyst",
+   "team": "Sales",
+   "manager": "c.bennett",
+   "exec": false,
+   "tags": []
+  }
+ ],
+ "accounts": [
+  {
+   "account": "svc-backup",
+   "type": "service",
+   "purpose": "nightly backups of db-01, db-02 and files-01",
+   "host": "backup-01",
+   "contact": "a.nwosu",
+   "reaches": [
+    "db-01",
+    "db-02",
+    "files-01"
+   ]
+  },
+  {
+   "account": "svc-print",
+   "type": "service",
+   "purpose": "depot label printing",
+   "host": "print-01",
+   "contact": "m.singh",
+   "reaches": []
+  },
+  {
+   "account": "svc-web",
+   "type": "service",
+   "purpose": "website content sync and order lookups",
+   "host": "web-01",
+   "contact": "z.laurent",
+   "reaches": [
+    "db-01",
+    "files-01"
+   ]
+  },
+  {
+   "account": "svc-payroll",
+   "type": "service",
+   "purpose": "HR portal access to the payroll database",
+   "host": "hr-portal",
+   "contact": "r.ibarra",
+   "reaches": [
+    "db-02"
+   ]
+  },
+  {
+   "account": "svc-scan",
+   "type": "service",
+   "purpose": "security monitoring collector",
+   "host": "monitor-01",
+   "contact": "o.farouk",
+   "reaches": []
+  },
+  {
+   "account": "svc-sync",
+   "type": "service",
+   "purpose": "directory sync to the mail gateway",
+   "host": "mail-01",
+   "contact": "l.chen",
+   "reaches": [
+    "dc-01"
+   ]
+  },
+  {
+   "account": "adm-ivers",
+   "type": "admin",
+   "person": "m.ivers"
+  },
+  {
+   "account": "adm-chen",
+   "type": "admin",
+   "person": "l.chen"
+  },
+  {
+   "account": "adm-roy",
+   "type": "admin",
+   "person": "d.roy"
+  }
+ ],
+ "links": [
+  {
+   "id": "carrier-feed",
+   "kind": "supplier",
+   "label": "parcel carrier booking and tracking feed",
+   "address": "198.51.100.40",
+   "host": "web-01",
+   "flows": [
+    "tracking",
+    "dispatch"
+   ],
+   "contact_role": "carrier-desk"
+  },
+  {
+   "id": "offsite-backup",
+   "kind": "provider",
+   "label": "offsite backup copy",
+   "address": "192.0.2.80",
+   "host": "backup-01",
+   "contact_role": "backup-provider"
+  },
+  {
+   "id": "payroll-bank",
+   "kind": "partner",
+   "label": "payroll bank file transfer",
+   "address": "198.51.100.12",
+   "host": "db-02",
+   "flows": [
+    "payroll-transfer"
+   ],
+   "contact_role": "bank-desk"
+  },
+  {
+   "id": "update-mirror",
+   "kind": "provider",
+   "label": "software update mirror",
+   "address": "192.0.2.15",
+   "host": "monitor-01"
+  }
+ ],
+ "services": [
+  {
+   "id": "support-desk",
+   "kind": "saas",
+   "label": "hosted customer support desk",
+   "criticality": 3,
+   "team": "Sales",
+   "users": [
+    "k.mensah",
+    "h.kowalski",
+    "d.alvarez",
+    "c.bennett"
+   ],
+   "about": "Customer tickets and order notes; staff sign in from the office or home."
+  }
+ ],
+ "flows": [
+  {
+   "id": "orders",
+   "kind": "orders",
+   "label": "customer orders and bookings",
+   "value_per_minute": 4,
+   "hosts": [
+    "web-01",
+    "db-01"
+   ],
+   "contact_role": "sales-lead",
+   "store": "db-01"
+  },
+  {
+   "id": "tracking",
+   "kind": "tracking",
+   "label": "public parcel tracking",
+   "value_per_minute": 1,
+   "hosts": [
+    "web-01"
+   ],
+   "link": "carrier-feed"
+  },
+  {
+   "id": "dispatch",
+   "kind": "other",
+   "label": "carrier dispatch",
+   "value_per_minute": 3,
+   "hosts": [
+    "ws-ops-02",
+    "ws-ops-03"
+   ],
+   "pausable": true,
+   "pause_cost_per_minute": 1,
+   "link": "carrier-feed",
+   "contact_role": "ops-lead"
+  },
+  {
+   "id": "payroll",
+   "kind": "payroll",
+   "label": "payroll batch",
+   "value_per_minute": 2,
+   "hosts": [
+    "db-02",
+    "hr-portal"
+   ],
+   "store": "db-02",
+   "contact_role": "finance-lead"
+  },
+  {
+   "id": "payroll-transfer",
+   "kind": "payments",
+   "label": "payroll bank transfer",
+   "value_per_minute": 3,
+   "hosts": [
+    "db-02"
+   ],
+   "pausable": true,
+   "link": "payroll-bank",
+   "contact_role": "finance-lead"
+  },
+  {
+   "id": "support",
+   "kind": "support",
+   "label": "customer support desk",
+   "value_per_minute": 2,
+   "hosts": [
+    "support-desk"
+   ],
+   "contact_role": "support-lead"
+  }
+ ],
+ "roles": {
+  "security-lead": {
+   "person": "n.okafor"
+  },
+  "legal": {
+   "person": "e.petrova"
+  },
+  "duty-manager": {
+   "person": "p.raman",
+   "title": "duty manager tonight"
+  },
+  "finance-lead": {
+   "person": "t.varga"
+  },
+  "it-lead": {
+   "person": "m.ivers"
+  },
+  "helpdesk": {
+   "person": "a.bello"
+  },
+  "hr": {
+   "person": "r.ibarra"
+  },
+  "sales-lead": {
+   "person": "c.bennett"
+  },
+  "support-lead": {
+   "person": "k.mensah"
+  },
+  "ops-lead": {
+   "person": "s.lindqvist"
+  },
+  "carrier-desk": {
+   "name": "Carrier operations desk",
+   "title": "supplier contact",
+   "external": true
+  },
+  "bank-desk": {
+   "name": "Bank file-transfer desk",
+   "title": "partner contact",
+   "external": true
+  },
+  "backup-provider": {
+   "name": "Offsite backup service desk",
+   "title": "provider contact",
+   "external": true
+  }
+ },
+ "approval": {
+  "decider": "duty-manager",
+  "delay": 15,
+  "expiry": 30,
+  "valid": 60,
+  "rules": [
+   {
+    "actions": [
+     "isolate",
+     "restore"
+    ],
+    "criticality_at_least": 4
+   },
+   {
+    "actions": [
+     "block",
+     "reset"
+    ],
+    "account_types": [
+     "admin"
+    ]
+   },
+   {
+    "actions": [
+     "pause"
+    ],
+    "flows": [
+     "payroll-transfer"
+    ]
+   }
+  ]
+ },
+ "logs": [
+  {
+   "source": "endpoint",
+   "zones": "all",
+   "delay": 0
+  },
+  {
+   "source": "identity",
+   "zones": "all",
+   "delay": 2
+  },
+  {
+   "source": "network",
+   "zones": [
+    "edge",
+    "servers",
+    "core"
+   ],
+   "delay": 5
+  },
+  {
+   "source": "cloud",
+   "zones": [
+    "cloud"
+   ],
+   "delay": 10
+  }
+ ],
+ "calendar": {
+  "windows": [
+   {
+    "id": "payroll",
+    "label": "payroll batch",
+    "start": "07:10",
+    "minutes": 20,
+    "days": [
+     "Fri"
+    ],
+    "flow": "payroll",
+    "multiplier": 3
+   }
+  ]
+ }
+}

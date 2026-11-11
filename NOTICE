@@ -1,0 +1,15 @@
+Flagwake Responder Check
+Copyright (C) 2026 Sid (https://github.com/Sid00011)
+
+This program is free software: you can redistribute it and/or modify it under the terms of the
+GNU Affero General Public License as published by the Free Software Foundation, version 3 only
+(SPDX: AGPL-3.0-only). It is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE. See LICENSE for the full text.
+
+Commercial licenses are available from the copyright holder for uses the AGPL does not suit, for
+example shipping Flagwake inside a closed product or offering it to others as a hosted service
+without publishing the source. See LICENSING.md.
+
+The documentation and data (docs/, the Markdown files at the repository root and
+src/cyberarena/rc/data/) are licensed under CC BY 4.0: see LICENSE-DATA.

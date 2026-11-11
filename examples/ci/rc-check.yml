@@ -1,0 +1,39 @@
+# Run the Responder Check on your responder agent on every pull request, fail when it regresses,
+# and keep the report as an artifact. Copy this to .github/workflows/rc-check.yml in your agent's
+# repository and set AGENT. It needs no secret unless your agent does (pass those through your own
+# repository secrets); the check itself uses no API key.
+name: responder-check
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  AGENT: python agents/my_agent.py   # your program; it speaks the JSON-lines protocol (docs/PROTOCOL.md)
+  FLAGWAKE_REF: main                 # a tag or commit of Flagwake, for reproducible numbers
+  FAIL_UNDER: "40"                   # fail if the business-damage index is worse than this
+
+jobs:
+  responder-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install Flagwake
+        run: pip install "flagwake @ git+https://github.com/Sid00011/Flagwake@${FLAGWAKE_REF}"
+      - name: Check
+        run: flagwake check --agent "$AGENT" --pack practice --seeds 10 --out rc-out --fail-under "$FAIL_UNDER"
+      - name: Verify (re-derives every number from the transcripts; runs no submitted code)
+        run: flagwake verify rc-out/report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: responder-check-report
+          path: rc-out/
+          retention-days: 30
