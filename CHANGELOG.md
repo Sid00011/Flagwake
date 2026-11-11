@@ -9,6 +9,8 @@ the rules hash (see `docs/METHODOLOGY.md`).
   PyPI with trusted publishing, after an approval: no stored token, and PyPI shows for each file
   the repository, workflow and commit that built it. The same files are attached to the GitHub
   release. `SECURITY.md` says how to check a download.
+- **The name.** The Flagwake name and mark are not licensed under the AGPL or CC BY 4.0; a
+  modified version uses another name (`LICENSING.md`, `NOTICE`).
 - **On PyPI.** `pip install flagwake` installs the command; the README, the quick starts and the
   CI example (`examples/ci/rc-check.yml`, now pinned to a release) use it.
 - **CI.** The page tests install Chromium without apt, so they no longer depend on Ubuntu's

@@ -168,6 +168,8 @@ re-checks.
 - **Documentation and data:** CC BY 4.0 ([LICENSE-DATA](LICENSE-DATA)).
 - **Commercial license** for a closed product, a hosted service without source, support or a
   custom evaluation: see [LICENSING.md](LICENSING.md) and open a *License inquiry* issue.
+- **Name and mark:** not covered by these licenses; a modified version uses another name
+  ([LICENSING.md](LICENSING.md)).
 
 Questions and bug reports: open an issue or a Discussion. Security problems: see
 [SECURITY.md](SECURITY.md). Contributions: see [CONTRIBUTING.md](CONTRIBUTING.md). To cite it, see

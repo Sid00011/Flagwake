@@ -123,3 +123,12 @@ def test_release_publishes_from_github_without_a_stored_token() -> None:
     project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]
     version = project["version"]
     assert version == cyberarena.__version__
+
+
+def test_the_name_is_kept_out_of_the_licenses() -> None:
+    """The name and mark are reserved (AGPL section 7(e)) in LICENSING.md, NOTICE and the README."""
+    root = Path(__file__).resolve().parents[2]
+    licensing = (root / "LICENSING.md").read_text(encoding="utf-8")
+    assert "## Name and mark" in licensing and "AGPL section 7(e)" in licensing
+    assert "section 7(e)" in (root / "NOTICE").read_text(encoding="utf-8")
+    assert "**Name and mark:**" in (root / "README.md").read_text(encoding="utf-8")

@@ -37,7 +37,14 @@ By submitting a contribution you agree that it is licensed under AGPL-3.0-only a
 may also license it under other terms, including commercial licenses. This keeps the
 commercial option possible for everyone's benefit. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Name and mark
+
+"Flagwake" and the Flagwake mark (the swallowtail signal flag) identify this project and its
+author. They are not licensed under the AGPL or CC BY 4.0 (AGPL section 7(e); CC BY 4.0 section
+2(b)(2)). You may say that your work is based on Flagwake or works with it. A modified version,
+a fork that you distribute or a service built on it must use a different name and mark, so that
+nobody mistakes it for the original.
+
 ## Copyright
 
-Copyright (C) 2026 Sid. "Flagwake" is the name of this project; please do not use it for a
-modified version in a way that suggests it is the original.
+Copyright (C) 2026 Sid.

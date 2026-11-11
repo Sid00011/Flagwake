@@ -13,3 +13,6 @@ without publishing the source. See LICENSING.md.
 
 The documentation and data (docs/, the Markdown files at the repository root and
 src/cyberarena/rc/data/) are licensed under CC BY 4.0: see LICENSE-DATA.
+
+The name "Flagwake" and the Flagwake mark are not licensed under the AGPL or CC BY 4.0 (AGPL
+section 7(e)): a modified version must use another name and mark. See LICENSING.md.
