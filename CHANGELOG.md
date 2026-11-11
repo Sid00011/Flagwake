@@ -3,6 +3,13 @@
 All notable changes. Dates are UTC. Incidents are versioned by the generator version, the rules by
 the rules hash (see `docs/METHODOLOGY.md`).
 
+## Unreleased
+
+- **On PyPI.** `pip install flagwake` installs the command; the README, the quick starts and the
+  CI example (`examples/ci/rc-check.yml`, now pinned to a release) use it.
+- **CI.** The page tests install Chromium without apt, so they no longer depend on Ubuntu's
+  package mirrors being reachable from the runner.
+
 ## 0.5.0rc1 (2026-11-08, first public release candidate)
 
 - **Run key and fresh incidents.** Every run makes a secret key. The incident id a program receives

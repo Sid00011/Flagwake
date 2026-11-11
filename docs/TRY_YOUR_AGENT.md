@@ -4,7 +4,7 @@ One page, copy-paste steps. Everything runs on your machine; nothing is sent any
 model calls you configure yourself. Python 3.11 or newer.
 
 ```
-pip install flagwake-<version>-py3-none-any.whl     # or: pip install .  (from the repository)
+pip install flagwake                                # or, in a copy of the repository (for examples/): pip install .
 flagwake baselines --pack practice --seeds 2         # the 10 reference programs, a few seconds: what the numbers mean
 ```
 

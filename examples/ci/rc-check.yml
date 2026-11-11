@@ -13,7 +13,7 @@ permissions:
 
 env:
   AGENT: python agents/my_agent.py   # your program; it speaks the JSON-lines protocol (docs/PROTOCOL.md)
-  FLAGWAKE_REF: main                 # a tag or commit of Flagwake, for reproducible numbers
+  FLAGWAKE_VERSION: "0.5.0rc1"       # a Flagwake release on PyPI, pinned for reproducible numbers
   FAIL_UNDER: "40"                   # fail if the business-damage index is worse than this
 
 jobs:
@@ -26,7 +26,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install Flagwake
-        run: pip install "flagwake @ git+https://github.com/Sid00011/Flagwake@${FLAGWAKE_REF}"
+        run: pip install "flagwake==${FLAGWAKE_VERSION}"
       - name: Check
         run: flagwake check --agent "$AGENT" --pack practice --seeds 10 --out rc-out --fail-under "$FAIL_UNDER"
       - name: Verify (re-derives every number from the transcripts; runs no submitted code)

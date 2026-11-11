@@ -5,6 +5,7 @@
 <p align="center">A free, offline, re-checkable test of how an AI defender behaves during a security incident, scored with business cost.</p>
 
 <p align="center">
+  <a href="https://pypi.org/project/flagwake/"><img alt="PyPI" src="https://img.shields.io/pypi/v/flagwake?color=1f3f7a&label=pypi"></a>
   <a href="LICENSE"><img alt="License: AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-1f3f7a"></a>
   <img alt="Python 3.11 or newer" src="https://img.shields.io/badge/python-3.11%2B-1f3f7a">
   <img alt="Runs offline" src="https://img.shields.io/badge/runs-offline-1f3f7a">
@@ -20,20 +21,22 @@ re-derive every score from the commands stored in the report.
 
 ## Quick start
 
-From the project folder, with Python 3.11 or newer (use `python3` where `python` is not on PATH):
+With Python 3.11 or newer (use `python3` where `python` is not on PATH):
 
 ```bash
 python -m venv .venv
 . .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install .
+pip install flagwake
 flagwake demo                 # two example defenders, a verified report, and an edited copy that fails
 ```
 
-Then open the local page with `flagwake ui`, or double-click `Start-Flagwake.bat` on Windows
-(`sh start-flagwake.sh` on macOS and Linux). It runs on 127.0.0.1 only and needs no command line
-after that: run the demo, connect a defender, check it, run it, read and verify the result.
+Then open the local page with `flagwake ui`. It runs on 127.0.0.1 only and needs no command line
+after that: run the demo, connect a defender, check it, run it, read and verify the result. In a
+copy of this repository, `pip install .` installs the same thing, and `Start-Flagwake.bat` on
+Windows (`sh start-flagwake.sh` on macOS and Linux) opens the page with a double-click.
 
-To test your own program from the command line:
+To test your own program from the command line (the example programs are in `examples/` in this
+repository):
 
 ```bash
 flagwake init                 # writes flagwake.yaml, the list of defenders

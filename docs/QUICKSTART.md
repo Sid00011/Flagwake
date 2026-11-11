@@ -1,6 +1,9 @@
 # Responder Check — 10-minute quickstart
 
 You need git and Python 3.11+. The reference programs need no other package and no API key.
+Work in a copy of this repository (`git clone https://github.com/Sid00011/Flagwake`, then its
+folder): step 3 uses the example program in `examples/`. For the demo, the reference programs and
+the local page alone, `pip install flagwake` is enough.
 
 ```bash
 python -m venv .venv
