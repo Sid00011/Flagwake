@@ -35,7 +35,14 @@ From 0.5.0rc2 on, releases are built and published by the `release` workflow of 
 with PyPI trusted publishing. On https://pypi.org/project/flagwake/, each file's **Provenance**
 names this repository, that workflow and the commit it was built from. The same two files are
 attached to the GitHub release, which lists their SHA-256; `pip download flagwake==<version>
---no-deps` and a SHA-256 tool let you compare them.
+--no-deps` and a SHA-256 tool let you compare them. To check the signed provenance itself:
+
+```
+pip install pypi-attestations
+python -m pypi_attestations verify pypi --repository https://github.com/Sid00011/Flagwake pypi:flagwake-<version>-py3-none-any.whl
+```
+
+It prints `OK` for a file built by this repository and fails for any other.
 
 ## Supported versions
 
