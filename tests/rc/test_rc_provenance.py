@@ -246,13 +246,20 @@ def test_the_attempt_history_lists_every_run_and_checks_this_one(tmp_path, monke
     rec = _strong(doc, n=2, log_index="1001")["provenance"]
     rekor = _log((1, 7, 1), (2, 123456789, 2))  # this run's ticket is the second entry: 1001
     problems, lines = attempt_lines(rec, {"time": 100}, rekor.log())
-    assert problems == [] and "1 other run(s)" in lines[0]
+    assert problems == [] and "1 other attempt ticket(s)" in lines[0]
     assert sum("<- this report" in line for line in lines) == 1
 
     rekor.add(ticket_digest(REPO_ID, 2), REPO_ID, run=99)  # another run took the same number
     rekor.add(ticket_digest(REPO_ID, 2), REPO_ID, run=5, trusted=False)  # a forged one
     problems, lines = attempt_lines(rec, {"time": 100}, rekor.log())
-    assert problems == [] and "2 other run(s)" in lines[0]  # listed, and the forgery is not
+    assert problems == [] and "2 other attempt ticket(s)" in lines[0]  # not the forgery
+
+    # Twenty checks in one run are twenty tickets, not one: a best-of-many cannot hide.
+    many = _log((1, 7, 1), *[(2, 123456789, 2)] * 20)
+    own = {**rec, "attempt_log_index": "1005"}
+    problems, lines = attempt_lines(own, {"time": 100}, many.log())
+    assert problems == [] and "20 other attempt ticket(s)" in lines[0]
+    assert sum("<- this report" in line for line in lines) == 1
 
     late = attempt_lines(rec, {"time": 10}, _log((1, 7, 1), (2, 123456789, 2)).log())[0]
     assert any("after the report was signed" in p for p in late)  # the log time is 50

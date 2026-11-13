@@ -96,6 +96,7 @@ class FakeRekor:
         issuer: str = GITHUB_ISSUER,
         trusted: bool = True,
         when: int = 50,
+        cert: str | None = None,
     ) -> int:
         import base64
 
@@ -104,6 +105,8 @@ class FakeRekor:
             "repository_id": repo_id,
             "run_uri": f"https://github.com/example-org/defender/actions/runs/{run}/attempts/{attempt}",
             "trusted": trusted,
+            # Each signing has its own certificate; a replayed signature carries the same one.
+            "certificate": cert or f"cert-{len(self.entries)}",
         }
         verifier = base64.b64encode(json.dumps(facts).encode()).decode()
         body = {"kind": "dsse", "spec": {"signatures": [{"verifier": verifier}]}}

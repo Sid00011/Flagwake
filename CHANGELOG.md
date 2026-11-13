@@ -3,7 +3,7 @@
 All notable changes. Dates are UTC. Incidents are versioned by the generator version, the rules by
 the rules hash (see `docs/METHODOLOGY.md`).
 
-## 0.5.0rc4 (unreleased)
+## 0.5.0rc4 (2026-11-13)
 
 - **Signed results.** Flagwake's signing workflow (`uses:
   Sid00011/Flagwake/.github/workflows/check.yml@v0.5.0rc4`) runs a defender on fresh incidents in

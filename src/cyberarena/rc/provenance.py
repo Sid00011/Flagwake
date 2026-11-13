@@ -319,8 +319,8 @@ def attempt_lines(
     that holds a ticket.
 
     This run's ticket must be in the log under the index the report recorded, and it must have
-    been logged before the report was signed. Other runs are listed, never hidden: two runs
-    sharing a number (they started together) are both attempts."""
+    been logged before the report was signed. Every other ticket is listed, never hidden:
+    signings that share a number (they started together) are each an attempt."""
     from cyberarena.rc.attempt import AttemptError, history
 
     if not rec["attempt"]:
@@ -331,26 +331,29 @@ def attempt_lines(
         attempts = history(log, rec["repository_id"], n)
     except AttemptError as exc:
         return [str(exc)], []
+    recorded = rec["attempt_log_index"]
+    signed_here = [e for k, found in attempts if k == n for e in found
+                   if e.get("run_uri") == run_uri]  # fmt: skip
+    own = [e for e in signed_here if recorded in {str(i) for i in e.get("log_indexes", [])}]
     lines, problems = [], []
     others = 0
     for k, found in attempts:
         for e in found:
-            mine = k == n and e.get("run_uri") == run_uri
+            mine = bool(own) and e is own[0]
             others += not mine
             run = str(e.get("run_uri", "?")).rsplit("/actions/runs/", 1)[-1]
             lines.append(f"  attempt {k}: run {run} (log index {e.get('log_index')})"
                          + ("  <- this report" if mine else ""))  # fmt: skip
         if not found:
             lines.append(f"  attempt {k}: no ticket")
-    own = [e for k, found in attempts if k == n for e in found if e.get("run_uri") == run_uri]
-    if not own:
+    if not signed_here:
         problems.append(f"the public log has no ticket {n} signed by this run")
-    elif rec["attempt_log_index"] not in {str(i) for i in own[0].get("log_indexes", [])}:
+    elif not own:
         problems.append("the ticket's log index is not the one the report recorded")
     elif isinstance(facts.get("time"), int) and (own[0].get("time") or 0) > facts["time"]:
         problems.append("the ticket was logged after the report was signed")
-    lines.insert(0, f"attempt {n} of {rec['repository']}: {others} other run(s) of this "
-                    "repository hold attempt tickets in the public log")  # fmt: skip
+    lines.insert(0, f"attempt {n} of {rec['repository']}: {others} other attempt ticket(s) of "
+                    "this repository are in the public log")  # fmt: skip
     return problems, lines
 
 

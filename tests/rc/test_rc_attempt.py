@@ -59,12 +59,16 @@ def test_only_tickets_sigstore_issued_to_this_repository_count():
     assert next_number(log, REPO) == 3
 
 
-def test_a_runs_own_ticket_logged_twice_counts_once():
+def test_one_signature_logged_twice_counts_once_but_every_signing_counts():
     rekor = FakeRekor()
-    first = rekor.add(ticket_digest(REPO, 1), REPO, run=20)
-    again = rekor.add(ticket_digest(REPO, 1), REPO, run=20)  # the same run's ticket, replayed
+    first = rekor.add(ticket_digest(REPO, 1), REPO, run=20, cert="a")
+    again = rekor.add(ticket_digest(REPO, 1), REPO, run=20, cert="a")  # replayed
     (only,) = tickets(rekor.log(), REPO, 1)
     assert only["log_index"] == first and only["log_indexes"] == [first, again]
+    # Checks started together in one run (a matrix) each sign their own ticket: all count.
+    for _ in range(4):
+        rekor.add(ticket_digest(REPO, 1), REPO, run=20)
+    assert len(tickets(rekor.log(), REPO, 1)) == 5
 
 
 def test_history_shows_earlier_later_and_shared_numbers():

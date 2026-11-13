@@ -77,7 +77,7 @@ OK   report.json
      incidents: drawn in the run; pack fresh, 60 incidents in 20 of 20 families
      world: the default company
      attempt 3: ticket signed and in the public log (index 912345) before the draw; --attempts lists every run
-     attempt 3 of ORG/REPO: 2 other run(s) of this repository hold attempt tickets in the public log
+     attempt 3 of ORG/REPO: 2 other attempt ticket(s) of this repository are in the public log
        attempt 1: run 4100/attempts/1 (log index 900001)
        attempt 2: run 4180/attempts/1 (log index 905500)
        attempt 3: run 4242/attempts/1 (log index 912345)  <- this report
@@ -104,12 +104,13 @@ run has an attempt ticket. GitHub's own tool gives a second opinion on the signa
 - **That nobody chose the incidents.** The key that draws them is made inside the run. A run on
   the public practice seeds, or with a key or a difficulty given by hand, says so and is not
   official.
-- **How many runs came before.** Every run leaves a ticket in Sigstore's public log before its
-  incidents are drawn, and the log cannot be edited. `--attempts` lists every run that holds one,
-  so a result that was the fifth try cannot pass for the first. Tickets are tied to the
-  repository's numeric id, so renaming the repository does not start a new count, and a ticket
-  counts only when Sigstore's certificate authority issued its certificate to that repository:
-  nobody else can add attempts to it.
+- **How many checks came before.** Every check leaves a ticket in Sigstore's public log before its
+  incidents are drawn, and the log cannot be edited. `--attempts` lists every ticket, also
+  several signed in one run (a matrix of twenty checks is twenty tickets), so a result that was
+  the fifth try cannot pass for the first. Tickets are tied to the repository's numeric id, so
+  renaming the repository does not start a new count, and a ticket counts only when Sigstore's
+  certificate authority issued its certificate to that repository: nobody else can add attempts
+  to it.
 - **Which model answered,** when the defender is `reference:model`: Flagwake starts its own model
   agent itself, from its installed code, with only the `FLAGWAKE_LLM_*` settings; the report
   records the model id the model's server returned and that server's address. For any other

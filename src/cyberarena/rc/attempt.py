@@ -12,7 +12,8 @@ repository that holds a ticket, so a result that was the fifth try cannot pass f
 The public log stores whatever certificate comes with an entry; it does not check who issued it.
 So a ticket counts only when its certificate chains to Sigstore's certificate authority, was valid
 when the log took the entry, and names GitHub Actions and this repository's id: nobody else can
-add attempts to a repository, and replaying a run's own ticket does not count twice. Searching the
+add attempts to a repository. Each signing has its own certificate, so every ticket is listed,
+also several signed in one run, and the same signature logged twice counts once. Searching the
 log needs the network; checking certificates needs the optional packages
 (``pip install "flagwake[provenance]"``).
 """
@@ -135,7 +136,9 @@ def trusted_facts(pem: bytes, when: int) -> dict[str, str] | None:
         check(cert, SimpleNamespace(time=at))
     except Exception:  # not issued by Sigstore's authority, or not valid at that time
         return None
-    return cert_facts(pem)
+    from cryptography.hazmat.primitives import hashes
+
+    return {**cert_facts(pem), "certificate": cert.fingerprint(hashes.SHA256()).hex()}
 
 
 Fetch = Callable[[str, bytes | None], Any]
@@ -197,14 +200,17 @@ def _signer_pem(body_b64: str) -> bytes | None:
 
 
 def tickets(log: Log, repo_id: str, n: int) -> list[dict[str, Any]]:
-    """One entry per GitHub Actions run of the repository that signed ticket ``n`` (its first
-    entry in the log: the same run's ticket logged twice counts once)."""
-    runs: dict[str, list[dict[str, Any]]] = {}
+    """One entry per signing of ticket ``n`` by a GitHub Actions run of the repository.
+
+    Every signing has its own short-lived certificate, so several checks in one run are
+    several tickets, while one signature that was logged more than once (the same
+    certificate) counts once, under its first entry in the log."""
+    signings: dict[str, list[dict[str, Any]]] = {}
     for e in log.entries(ticket_digest(repo_id, n)):
         if e.get("issuer") == GITHUB_ISSUER and e.get("repository_id") == repo_id:
-            runs.setdefault(str(e.get("run_uri") or ""), []).append(e)
+            signings.setdefault(str(e.get("certificate") or _index(e)), []).append(e)
     out = []
-    for group in runs.values():
+    for group in signings.values():
         group.sort(key=_index)
         out.append({**group[0], "log_indexes": [_index(e) for e in group]})
     return sorted(out, key=_index)
