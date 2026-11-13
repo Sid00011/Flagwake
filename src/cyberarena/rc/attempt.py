@@ -29,7 +29,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 REKOR = "https://rekor.sigstore.dev"
 GITHUB_ISSUER = "https://token.actions.githubusercontent.com"
@@ -95,10 +95,11 @@ def cert_facts(pem: bytes) -> dict[str, str]:
     out = {}
     for name, oid in OIDS.items():
         try:
-            raw = cert.extensions.get_extension_for_oid(x509.ObjectIdentifier(oid)).value.value
+            ext = cert.extensions.get_extension_for_oid(x509.ObjectIdentifier(oid)).value
         except x509.ExtensionNotFound:
             continue
-        out[name] = _der_text(raw)
+        if isinstance(ext, x509.UnrecognizedExtension):  # Sigstore's own extensions always are
+            out[name] = _der_text(ext.value)
     return out
 
 
@@ -133,7 +134,7 @@ def trusted_facts(pem: bytes, when: int) -> dict[str, str] | None:
     except (ValueError, TypeError, OverflowError, OSError):
         return None
     try:
-        check(cert, SimpleNamespace(time=at))
+        check(cert, cast(Any, SimpleNamespace(time=at)))  # it reads only the time
     except Exception:  # not issued by Sigstore's authority, or not valid at that time
         return None
     from cryptography.hazmat.primitives import hashes
