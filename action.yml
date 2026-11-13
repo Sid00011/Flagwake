@@ -97,7 +97,7 @@ runs:
         OUT: ${{ inputs.out }}
       run: |
         mkdir -p "$OUT"
-        flagwake ci attempt --repo "$GITHUB_REPOSITORY" --write "$OUT/attempt-ticket.txt"
+        flagwake ci attempt --write "$OUT/attempt-ticket.txt"
         echo "path=$OUT/attempt-ticket.txt" >> "$GITHUB_OUTPUT"
 
     - name: Sign the attempt ticket (it enters the public log before the incidents are drawn)
@@ -120,18 +120,19 @@ runs:
         DEFENDER_VARS: ${{ inputs.defender-vars }}
         STEP_TIMEOUT: ${{ inputs.step-timeout }}
         TICKET: ${{ steps.ticket.outputs.path }}
+        TICKET_BUNDLE: ${{ steps.sign-ticket.outputs.bundle-path }}
         ISOLATE: ${{ inputs.isolate }}
         LAUNCH: ${{ github.action_path }}/scripts/ci_launch.py
         DEFENDER_USER: flagwake-defender
         DEFENDER_CWD: /srv/flagwake-defender
         DEFENDER_SRC: .
       run: |
-        python "$LAUNCH"
+        python -I "$LAUNCH"
         if [ "$ISOLATE" = "true" ] && pgrep -u "$DEFENDER_USER" > /dev/null; then
           echo "a defender process outlived the run"; exit 1
         fi
         echo "report=$OUT/report.json" >> "$GITHUB_OUTPUT"
-        python - "$OUT/report.json" >> "$GITHUB_OUTPUT" <<'PY'
+        python -I - "$OUT/report.json" >> "$GITHUB_OUTPUT" <<'PY'
         import json, sys
         doc = json.load(open(sys.argv[1], encoding="utf-8"))
         print(f"index={doc['metrics']['damage_index']['mean_clipped']}")
@@ -189,4 +190,4 @@ runs:
         INDEX: ${{ steps.run.outputs.index }}
         LIMIT: ${{ inputs.fail-under }}
       run: |
-        python -c "import sys; i, lim = float(sys.argv[1]), float(sys.argv[2]); sys.exit(f'damage index {i} is above {lim}' if i > lim else 0)" "$INDEX" "$LIMIT"
+        python -I -c "import sys; i, lim = float(sys.argv[1]), float(sys.argv[2]); sys.exit(f'damage index {i} is above {lim}' if i > lim else 0)" "$INDEX" "$LIMIT"

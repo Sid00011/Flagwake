@@ -149,6 +149,8 @@ def _verify_one(path: str, world: str | None = None) -> tuple[list[str], str | N
     try:
         raw = Path(path).read_bytes()
         doc = json.loads(raw.decode("utf-8"))
+    except RecursionError:
+        return ["cannot read: the file nests too deeply to be a report"], None, b"", {}
     except (OSError, ValueError, UnicodeDecodeError) as exc:
         return [f"cannot read: {exc}"], None, b"", {}
     if not isinstance(doc, dict):
@@ -170,11 +172,9 @@ def _signature(args: argparse.Namespace, raw: bytes, doc: dict) -> tuple[list[st
     if problems:
         return problems, []
     rec = doc["provenance"]
-    lines = prov.summary(
-        rec, facts, doc.get("incidents") if isinstance(doc.get("incidents"), list) else []
-    )
+    lines = prov.summary(rec, facts, doc)
     if args.require_official:
-        problems += prov.official_problems(rec, facts)
+        problems += prov.official_problems(rec, facts, doc)
     if args.attempts:
         from cyberarena.rc.attempt import Log
 

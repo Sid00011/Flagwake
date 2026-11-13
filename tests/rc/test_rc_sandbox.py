@@ -87,10 +87,45 @@ def test_prepare_copies_the_folder_without_excluded_parts_and_hands_it_over(tmp_
             ["flagwake-result"], calls)  # fmt: skip
     commands = [" ".join(c[:4]) for c in calls.seen]
     assert any(c.startswith("sudo -n useradd --create-home") for c in commands)
-    staging = next(c[3] for c in calls.seen if c[:3] == ["sudo", "-n", "mv"])
+    staging = next(c[4] for c in calls.seen if c[:4] == ["sudo", "-n", "mv", "--"])
     copied = {p.name for p in os.scandir(staging)}
     assert copied == {"agents"}  # neither .git nor the output folder
-    assert ["sudo", "-n", "chmod", "700", "/home/flagwake-defender"] in calls.seen
+    assert ["sudo", "-n", "chmod", "700", "--", "/home/flagwake-defender"] in calls.seen
+    assert ["sudo", "-n", "rm", "-rf", "--", "/srv/flagwake-defender"] in calls.seen
+
+
+@pytest.mark.parametrize("dest", ["/", "/srv", "srv/x", "/srv/../etc", "", "/srv/x/../.."])
+def test_prepare_never_replaces_a_top_level_or_relative_folder(tmp_path, dest):
+    calls = Calls()
+    with pytest.raises(SandboxError, match="absolute path two levels deep"):
+        prepare("flagwake-defender", str(tmp_path), dest, "", (), calls)
+    assert calls.seen == []  # nothing ran
+
+
+def test_the_harness_starts_its_own_model_agent_whatever_the_folder_holds(tmp_path, monkeypatch):
+    """reference:model runs the installed agent with the harness's interpreter in isolated mode:
+    a cyberarena package in the working folder or on PYTHONPATH is not what runs."""
+    import json
+
+    from cyberarena.cli import main
+
+    fake = tmp_path / "cyberarena" / "rc"
+    fake.mkdir(parents=True)
+    (tmp_path / "cyberarena" / "__init__.py").write_text("", encoding="utf-8")
+    (fake / "__init__.py").write_text("", encoding="utf-8")
+    (fake / "model_agent.py").write_text(
+        "raise SystemExit('the wrong agent ran')\n", encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("PYTHONPATH", str(tmp_path))
+    out = tmp_path / "out"
+    argv = ["check", "--agent", "reference:model --dry", "--pack", "practice", "--seeds", "1",
+            "--family", "quiet", "--out", str(out)]  # fmt: skip
+    assert main(argv) == 0
+    doc = json.loads((out / "report.json").read_text(encoding="utf-8"))
+    assert doc["agent"]["id"] == "reference:model"
+    assert doc["incidents"][0]["commands"], "the installed agent answered"
+    assert "reference model agent" in doc["integration"]["adapter"]
 
 
 def test_a_failed_setup_stops_the_preparation(tmp_path):

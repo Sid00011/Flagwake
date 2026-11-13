@@ -1,11 +1,12 @@
 """Start ``flagwake check`` for Flagwake's signing workflow and GitHub Action.
 
-The defender sees only what it is given: the secrets named in DEFENDER_ENV (taken from
-SECRETS_JSON, the calling workflow's secrets, or else from the step's own variables) and the
-public NAME=value lines in DEFENDER_VARS. The defender runs as DEFENDER_USER (see
-cyberarena.rc.sandbox) unless ISOLATE is "false", which only the self-test's control run uses.
-Everything else comes from the step's environment: AGENT, PACK, SEEDS, WORLD, OUT, TICKET,
-DEFENDER_SRC, DEFENDER_CWD, STEP_TIMEOUT.
+The defender sees only what it is given: the secrets named in DEFENDER_ENV and the public
+NAME=value lines in DEFENDER_VARS. A DEFENDER_ENV entry is a name, or NAME=SECRET to hand a
+secret to the defender under another name (FLAGWAKE_LLM_KEY=MY_PROVIDER_KEY). Secrets come from
+SECRETS_JSON (the calling workflow's secrets, in the signing workflow) or else from the step's
+own variables (in the action). The defender runs as DEFENDER_USER (see cyberarena.rc.sandbox)
+unless ISOLATE is "false". Everything else comes from the step's environment: AGENT, PACK, SEEDS,
+WORLD, OUT, TICKET, TICKET_BUNDLE, DEFENDER_SRC, DEFENDER_CWD, STEP_TIMEOUT.
 """
 
 from __future__ import annotations
@@ -24,12 +25,16 @@ def defender_env(env: dict[str, str]) -> tuple[dict[str, str], list[str]]:
     """The environment for flagwake, and the names it may pass on to the defender."""
     out = {k: v for k, v in env.items() if k != "SECRETS_JSON"}
     names: list[str] = []
-    # The signing workflow gets the caller's secrets as JSON; the action, as variables of its step.
-    secrets = json.loads(env.get("SECRETS_JSON") or "{}")
-    for name in filter(None, (n.strip() for n in env.get("DEFENDER_ENV", "").split(","))):
-        value = secrets.get(name, env.get(name))
+    # GitHub spells secret names in upper case whatever the workflow wrote; look up likewise.
+    secrets = {k.upper(): v for k, v in json.loads(env.get("SECRETS_JSON") or "{}").items()}
+    for entry in filter(None, (n.strip() for n in env.get("DEFENDER_ENV", "").split(","))):
+        name, _, source = entry.partition("=")
+        name, source = name.strip(), (source.strip() or name.strip())
+        if not NAME.match(name) or not NAME.match(source):
+            raise SystemExit(f"error: not a NAME or NAME=SECRET entry: {entry!r}")
+        value = secrets.get(source.upper(), env.get(source))
         if value is None:
-            raise SystemExit(f"error: {name} is not available (pass it as a secret or variable)")
+            raise SystemExit(f"error: {source} is not available (pass it as a secret or variable)")
         out[name], names = value, [*names, name]
     for line in env.get("DEFENDER_VARS", "").splitlines():
         if not line.strip():
@@ -46,13 +51,17 @@ def argv_for(env: dict[str, str], names: list[str]) -> list[str]:
             "--seeds", env.get("SEEDS") or "3", "--out", env["OUT"], "--record-ci",
             "--step-timeout", env.get("STEP_TIMEOUT") or "60"]  # fmt: skip
     if env.get("TICKET"):
-        argv += ["--attempt-ticket", env["TICKET"]]
+        argv += ["--attempt-ticket", env["TICKET"], "--attempt-bundle", env["TICKET_BUNDLE"]]
     if env.get("ISOLATE", "true") != "false":
         argv += ["--defender-user", env["DEFENDER_USER"], "--defender-cwd", env["DEFENDER_CWD"]]
         if names:
             argv += ["--defender-env", ",".join(names)]
     world = env.get("WORLD", "")
     if world:
+        if world not in SHIPPED and (
+            os.path.isabs(world) or ".." in world.replace("\\", "/").split("/")
+        ):
+            raise SystemExit("error: world is a shipped company or a file inside your repository")
         in_repo = os.path.join(env.get("DEFENDER_SRC") or ".", world)
         argv += ["--world", world if world in SHIPPED else in_repo]
     return argv

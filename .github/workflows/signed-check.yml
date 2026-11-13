@@ -1,14 +1,19 @@
 # End-to-end test of signed results, run on demand and on every release tag.
 #
-# signed:  Flagwake's signing workflow runs the example defender and signs the report.
+# signed:  Flagwake's signing workflow runs Flagwake's own model agent (its dry mode, no model)
+#          and signs the report.
 # redteam: the same workflow runs a defender that tries every way it knows to escape its sandbox
 #          (.github/redteam/attacker.py): sudo, the job's signing token, the harness's memory,
 #          the output folder, the runner's credentials, docker, a process that outlives the run.
+#          It is also handed one public value and one secret, to show both arrive.
+# action:  the GitHub Action runs the same steps inside this workflow.
 # control: the same attacker without the sandbox, to show the attacks are real.
 # check:   with nothing but the downloaded files: the signatures check out with flagwake verify
-#          and with GitHub's own tool, the signer is Flagwake's workflow, the attempt tickets are
-#          in the public log, a changed copy loses its signature, every attack was blocked inside
-#          the sandbox, and at least one worked outside it.
+#          and with GitHub's own tool, the signer is Flagwake's workflow (or, for the action, this
+#          one), the attempt tickets are in the public log, a forged ticket does not count, a
+#          changed copy loses its signature, every attack was blocked inside the sandbox, and the
+#          attacks worked outside it.
+# Each signed run takes an attempt number of this repository in the public log.
 name: signed-check
 
 on:
@@ -27,7 +32,7 @@ jobs:
       attestations: write
     uses: ./.github/workflows/check.yml
     with:
-      agent: python examples/rc_agent.py
+      agent: reference:model --dry
       seeds: "1"
       name: signed-result
 
@@ -42,6 +47,28 @@ jobs:
       agent: python .github/redteam/attacker.py
       seeds: "1"
       name: redteam-result
+      defender-vars: |
+        FLAGWAKE_SELFTEST_VAR=1
+      defender-env: FLAGWAKE_SELFTEST_SECRET=GITHUB_TOKEN
+    secrets: inherit
+
+  action:
+    needs: redteam
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: ./
+        with:
+          agent: python examples/rc_agent.py
+          seeds: "1"
+          package: .[provenance]
 
   control:
     runs-on: ubuntu-24.04
@@ -71,7 +98,7 @@ jobs:
           path: flagwake-result/agent-stderr.log
 
   check:
-    needs: [signed, redteam, control]
+    needs: [signed, redteam, action, control]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -87,12 +114,13 @@ jobs:
       - name: Install Flagwake with the signature check
         run: python -m pip install --disable-pip-version-check --quiet ".[provenance]"
 
-      - name: The signed report, its signer and its attempt
+      - name: The signed report, its signer, its incidents and its attempt
         run: |
           flagwake verify results/signed-result/report.json --provenance results/signed-result/report.sigstore.json --repo "$GITHUB_REPOSITORY" --attempts | tee signed.txt
           grep -q "harness: Flagwake's signing workflow at" signed.txt
-          grep -q "ran as a separate user flagwake-defender, without sudo" signed.txt
-          grep -q "incidents: drawn in the run" signed.txt
+          grep -q "defender: reference:model --dry; ran as a separate user flagwake-defender, without sudo" signed.txt
+          grep -q "incidents: drawn in the run; pack fresh" signed.txt
+          grep -q "<- this report" signed.txt
 
       - name: Official only at a release tag
         run: |
@@ -109,6 +137,9 @@ jobs:
         run: |
           gh attestation verify results/signed-result/report.json --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/check.yml" --bundle results/signed-result/report.sigstore.json
           gh attestation verify results/signed-result/attempt-ticket.txt --repo "$GITHUB_REPOSITORY" --bundle results/signed-result/attempt-ticket.sigstore.json
+
+      - name: A forged attempt ticket does not count
+        run: python .github/redteam/forged_ticket.py results/signed-result/report.sigstore.json "$GITHUB_REPOSITORY_ID"
 
       - name: A changed copy keeps its numbers but loses its signature
         run: |
@@ -129,9 +160,20 @@ jobs:
           if grep -q "SUCCEEDED" "$log"; then echo "an attack worked inside the sandbox"; exit 1; fi
           [ "$(grep -c ': blocked$' "$log")" -ge 8 ]
           grep -q "background-process: started" "$log"
+          grep -q "REDTEAM-INFO passed-variable: visible" "$log"
+          grep -q "REDTEAM-INFO passed-secret: visible" "$log"
           flagwake verify results/redteam-result/report.json --provenance results/redteam-result/report.sigstore.json --repo "$GITHUB_REPOSITORY"
 
-      - name: The same attacks work outside it (the attacks are real)
+      - name: The action signs as this workflow, and verify says so
+        run: |
+          flagwake verify results/flagwake-result/report.json --provenance results/flagwake-result/report.sigstore.json --repo "$GITHUB_REPOSITORY" --attempts | tee action.txt
+          grep -q "harness: the repository's own workflow" action.txt
+          grep -q "ran as a separate user flagwake-defender, without sudo" action.txt
+          if flagwake verify results/flagwake-result/report.json --provenance results/flagwake-result/report.sigstore.json --require-official; then
+            echo "the action's result passed for an official one"; exit 1
+          fi
+
+      - name: The same attacks work outside the sandbox (the attacks are real)
         run: |
           log=results/control-result/agent-stderr.log
           grep "^REDTEAM" "$log"

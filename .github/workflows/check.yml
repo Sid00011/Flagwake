@@ -89,7 +89,11 @@ jobs:
       - name: This workflow's own repository and commit
         id: self
         run: |
-          python - >> "$GITHUB_OUTPUT" <<'PY'
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+            echo "The calling job must grant: permissions: { contents: read, id-token: write, attestations: write }"
+            exit 1
+          fi
+          python -I - >> "$GITHUB_OUTPUT" <<'PY'
           import base64, json, os, urllib.request
           url = os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"] + "&audience=flagwake-workflow"
           auth = {"Authorization": "Bearer " + os.environ["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]}
@@ -132,7 +136,7 @@ jobs:
         id: ticket
         run: |
           mkdir -p "$OUT"
-          flagwake ci attempt --repo "$GITHUB_REPOSITORY" --write "$OUT/attempt-ticket.txt"
+          flagwake ci attempt --write "$OUT/attempt-ticket.txt"
           echo "n=$(sed -n 's/^attempt: //p' "$OUT/attempt-ticket.txt")" >> "$GITHUB_OUTPUT"
 
       - name: Sign the attempt ticket (it enters the public log before the incidents are drawn)
@@ -153,10 +157,11 @@ jobs:
           DEFENDER_VARS: ${{ inputs.defender-vars }}
           STEP_TIMEOUT: ${{ inputs.step-timeout }}
           TICKET: flagwake-result/attempt-ticket.txt
+          TICKET_BUNDLE: ${{ steps.sign-ticket.outputs.bundle-path }}
         run: |
-          python flagwake-src/scripts/ci_launch.py
+          python -I flagwake-src/scripts/ci_launch.py
           if pgrep -u "$DEFENDER_USER" > /dev/null; then echo "a defender process outlived the run"; exit 1; fi
-          python - "$OUT/report.json" >> "$GITHUB_OUTPUT" <<'PY'
+          python -I - "$OUT/report.json" >> "$GITHUB_OUTPUT" <<'PY'
           import json, sys
           doc = json.load(open(sys.argv[1], encoding="utf-8"))
           print(f"index={doc['metrics']['damage_index']['mean_clipped']}")
@@ -202,4 +207,4 @@ jobs:
           INDEX: ${{ steps.run.outputs.index }}
           LIMIT: ${{ inputs.fail-under }}
         run: |
-          python -c "import sys; i, lim = float(sys.argv[1]), float(sys.argv[2]); sys.exit(f'damage index {i} is above {lim}' if i > lim else 0)" "$INDEX" "$LIMIT"
+          python -I -c "import sys; i, lim = float(sys.argv[1]), float(sys.argv[2]); sys.exit(f'damage index {i} is above {lim}' if i > lim else 0)" "$INDEX" "$LIMIT"

@@ -79,7 +79,8 @@ def add_subparsers(sub: argparse._SubParsersAction) -> None:
     c = sub.add_parser("check", help="run a responder agent over the Responder Check and report")
     c.add_argument(
         "--agent",
-        help='a subprocess agent, e.g. --agent "python my_agent.py", '
+        help='a subprocess agent, e.g. --agent "python my_agent.py"; reference:model '
+        "(Flagwake's own model agent; set FLAGWAKE_LLM_BASE_URL and FLAGWAKE_LLM_MODEL); "
         "or baseline:<name> / fixture:<name>",
     )
     c.add_argument("--http", help="a localhost agent endpoint, e.g. http://127.0.0.1:8000/act")
@@ -127,8 +128,11 @@ def add_subparsers(sub: argparse._SubParsersAction) -> None:
     c.add_argument(
         "--attempt-ticket",
         metavar="FILE",
-        help="with --record-ci: the attempt ticket this run signed; it must be in the public log "
-        "before the incidents are drawn (flagwake ci attempt writes it)",
+        help="with --record-ci: the attempt ticket this run signed (flagwake ci attempt writes "
+        "it); its signature is checked before the incidents are drawn",
+    )
+    c.add_argument(
+        "--attempt-bundle", metavar="FILE", help="the signature bundle of the attempt ticket"
     )
 
     r = sub.add_parser(
@@ -256,32 +260,38 @@ def cmd_check(args: argparse.Namespace) -> int:
 
 
 def _ci_record(args: argparse.Namespace) -> dict[str, str] | None:
-    """The provenance block for --record-ci (None without it), with the attempt ticket confirmed
-    in the public log. Raises ValueError with the reason when it cannot be made."""
+    """The provenance block for --record-ci (None without it), with the attempt ticket's signature
+    checked. Raises ValueError with the reason when it cannot be made."""
+    ticket, bundle = getattr(args, "attempt_ticket", None), getattr(args, "attempt_bundle", None)
     if not getattr(args, "record_ci", False):
-        if getattr(args, "attempt_ticket", None):
+        if ticket or bundle:
             raise ValueError("--attempt-ticket needs --record-ci")
         return None
-    from cyberarena.rc.provenance import GIVEN, MAX_COMMAND, ci_record, expected
+    from cyberarena.rc import provenance as prov
 
-    record = ci_record()
-    record["defender_command"] = (args.agent or f"http:{args.http or ''}")[:MAX_COMMAND]
+    record = prov.ci_record()
+    record["defender_command"] = (args.agent or f"http:{args.http or ''}")[: prov.MAX_COMMAND]
     if args.run_key:
-        record["incidents"] = GIVEN
-    if getattr(args, "attempt_ticket", None):
-        from cyberarena.rc.attempt import AttemptError, Log, confirm, read_ticket, ticket_digest
+        record["incidents"] = prov.GIVEN
+    elif args.pack != "fresh" or args.difficulty:
+        record["incidents"] = prov.FIXED
+    if bool(ticket) != bool(bundle):
+        raise ValueError("--attempt-ticket and --attempt-bundle go together")
+    if ticket and bundle:
+        from cyberarena.rc.attempt import AttemptError, read_ticket, ticket_digest
 
         try:
-            repo, n = read_ticket(Path(args.attempt_ticket).read_bytes())
-            if repo.lower() != record["repository"].lower():
-                raise ValueError(f"the ticket names {repo}, not {record['repository']}")
-            entry = confirm(Log(), repo, n, expected(record)["run_uri"])
-        except (AttemptError, OSError) as exc:
+            raw = Path(ticket).read_bytes()
+            repo_id, n = read_ticket(raw)
+            if repo_id != record["repository_id"]:
+                raise ValueError("the ticket is for another repository")
+            facts = prov.verify_ticket(raw, Path(bundle).read_bytes(), record)
+        except (AttemptError, prov.ProvenanceError, OSError) as exc:
             raise ValueError(str(exc)) from exc
-        record.update(attempt=str(n), attempt_ticket=ticket_digest(repo, n),
-                      attempt_log_index=str(entry.get("log_index")))  # fmt: skip
-        print(f"attempt {n} of {repo}: ticket in the public log (index {entry.get('log_index')})",
-              file=sys.stderr)  # fmt: skip
+        record.update(attempt=str(n), attempt_ticket=ticket_digest(repo_id, n),
+                      attempt_log_index=str(facts["log_index"]))  # fmt: skip
+        print(f"attempt {n}: ticket signed by this run, in the public log at index "
+              f"{facts['log_index']}", file=sys.stderr)  # fmt: skip
     return record
 
 
@@ -306,6 +316,13 @@ def _isolate(args: argparse.Namespace, argv: list[str], factory):
         raise ValueError("--defender-user needs --defender-cwd, a folder that user owns")
     home = check_user(user, args.defender_cwd)
     keep = env_names(args.defender_env)
+    if _is_reference(args.agent):
+        # Only the model settings reach Flagwake's own agent: no proxy, certificate or Python
+        # variable that could put another server or other code between it and the model.
+        other = [n for n in keep if not n.startswith("FLAGWAKE_LLM_")]
+        if other:
+            raise ValueError(f"reference:model takes only FLAGWAKE_LLM_* variables, not "
+                             f"{', '.join(other)}")  # fmt: skip
     missing = [n for n in keep if n not in os.environ]
     if missing:
         raise ValueError(f"not set, so not passed to the defender: {', '.join(missing)}")
@@ -321,7 +338,16 @@ def _integration(args: argparse.Namespace) -> dict[str, str]:
         return {"adapter": "HTTP endpoint (native protocol)"}
     if (args.agent or "").startswith(("baseline:", "fixture:")):
         return {"adapter": "built-in program"}
+    if _is_reference(args.agent):
+        return {"adapter": "Flagwake's reference model agent (native protocol)"}
     return {"adapter": "subprocess (native protocol)"}
+
+
+def _is_reference(agent: str | None) -> bool:
+    """``reference:model [options]``: Flagwake's own model agent, started by the harness."""
+    from cyberarena.rc.provenance import REFERENCE_MODEL
+
+    return (agent or "").split()[:1] == [REFERENCE_MODEL]
 
 
 def _agent_factory(args: argparse.Namespace):
@@ -361,6 +387,10 @@ def _agent_factory(args: argparse.Namespace):
     Path(args.out).mkdir(parents=True, exist_ok=True)
 
     argv = split_command(agent)
+    if _is_reference(agent):
+        # The harness's own interpreter in isolated mode: the code that runs is the installed
+        # cyberarena.rc.model_agent, whatever the folder, PYTHONPATH or user packages hold.
+        argv = [sys.executable, "-I", "-m", "cyberarena.rc.model_agent", *argv[1:]]
     factory = subprocess_driver_factory(argv, args.step_timeout, stderr_log, args.incident_timeout)
     try:
         factory = _isolate(args, argv, factory)
@@ -368,7 +398,7 @@ def _agent_factory(args: argparse.Namespace):
         print(f"error: {exc}", file=sys.stderr)
         return None, None
     return factory, {
-        "id": f"subprocess:{argv[0]}",
+        "id": "reference:model" if _is_reference(agent) else f"subprocess:{argv[0]}",
         "note": "self-reported, not verified",
     }
 

@@ -9,6 +9,7 @@ workflow signs before the check. docs/SIGNED_RESULTS.md describes the whole work
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -29,7 +30,11 @@ def add_subparsers(sub: argparse._SubParsersAction) -> None:
     p.add_argument("--setup", default="", help="a shell command to run as that user in its copy")
     p.add_argument("--exclude", action="append", default=[], help="a folder name not to copy")
     a = steps.add_parser("attempt", help="number this run's attempt and write its ticket")
-    a.add_argument("--repo", required=True, help="the repository, org/repo")
+    a.add_argument(
+        "--repo-id",
+        default=os.environ.get("GITHUB_REPOSITORY_ID", ""),
+        help="the repository's numeric id (default: this GitHub Actions job's)",
+    )
     a.add_argument("--write", required=True, help="the ticket file to write")
 
 
@@ -47,10 +52,10 @@ def cmd_ci(args: argparse.Namespace) -> int:
     from cyberarena.rc.attempt import AttemptError, Log, next_number, ticket_text
 
     try:
-        n = next_number(Log(), args.repo)
-        Path(args.write).write_bytes(ticket_text(args.repo, n))
+        n = next_number(Log(), args.repo_id)
+        Path(args.write).write_bytes(ticket_text(args.repo_id, n))
     except (AttemptError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
-    print(f"attempt {n} of {args.repo}: ticket written to {args.write}")
+    print(f"attempt {n} of repository {args.repo_id}: ticket written to {args.write}")
     return 0

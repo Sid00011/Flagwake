@@ -1,8 +1,8 @@
 """Who made a report: a record of the GitHub Actions run, and a check of its signature.
 
-``flagwake check --record-ci`` adds a ``provenance`` block to the report: the repository, commit,
-workflow and run that produced it, the defender command, whether the defender ran as a separate
-user, whether the incidents were drawn inside the run, and the attempt ticket the run logged before
+``flagwake check --record-ci`` adds a ``provenance`` block to the report: the repository (name and
+numeric id), commit, workflow and run that produced it, the defender command, whether the defender
+ran as a separate user, how the incidents were chosen, and the attempt ticket the run logged before
 drawing them. The block is hashed with the rest of the report, and the workflow then signs
 report.json with a GitHub artifact attestation (Sigstore). ``flagwake verify report.json
 --provenance report.sigstore.json`` checks that signature: issued to a GitHub Actions run on a
@@ -12,7 +12,7 @@ exactly these bytes. Without a signature the block is only a claim, and verify s
 The signing certificate also names the workflow that signed. When it is Flagwake's own signing
 workflow (``.github/workflows/check.yml`` of the Flagwake repository) at a release tag, the steps
 of that workflow ran unmodified, whatever the calling repository's workflow says: the defender ran
-as a separate user without sudo, the attempt ticket was in the public log before the incidents
+as a separate user without sudo, the attempt ticket was signed and logged before the incidents
 were drawn, and the incidents were drawn inside the run. verify reports this as the harness.
 
 What a signature cannot show: that the defender is honest (it points to the exact commit, so a
@@ -26,6 +26,7 @@ inside the signature bundle. Only ``--attempts`` reads the public log over the n
 
 from __future__ import annotations
 
+import datetime
 import hashlib
 import json
 import logging
@@ -43,6 +44,7 @@ OFFICIAL = "https://github.com/Sid00011/Flagwake/.github/workflows/check.yml@"
 ENV = {
     "server": "GITHUB_SERVER_URL",
     "repository": "GITHUB_REPOSITORY",
+    "repository_id": "GITHUB_REPOSITORY_ID",
     "commit": "GITHUB_SHA",
     "ref": "GITHUB_REF",
     "workflow_ref": "GITHUB_WORKFLOW_REF",
@@ -50,16 +52,21 @@ ENV = {
     "run_attempt": "GITHUB_RUN_ATTEMPT",
     "runner_environment": "RUNNER_ENVIRONMENT",
 }
+# How the incidents were chosen.
+DRAWN = "drawn in the run"  # fresh seeds from a key made inside the run
+GIVEN = "given (--run-key)"  # the caller supplied the key, so it knew the incidents
+FIXED = "a fixed or custom pack"  # public seeds, or a difficulty set by hand
 # Facts the harness adds about the run itself, with their values when nothing is said.
 EXTRA = {
     "defender_command": "",
     "defender_isolation": "none",
-    "incidents": "drawn in the run",
+    "incidents": DRAWN,
     "attempt": "",
     "attempt_ticket": "",
     "attempt_log_index": "",
 }
-GIVEN = "given (--run-key)"
+# The defender command that means Flagwake's own model agent, started by the harness itself.
+REFERENCE_MODEL = "reference:model"
 # What a job uses to obtain a signing identity. A defender process is never given them.
 SIGNING_ENV = ("ACTIONS_ID_TOKEN_REQUEST_TOKEN", "ACTIONS_ID_TOKEN_REQUEST_URL")
 MAX_FIELD = 300
@@ -103,13 +110,14 @@ def record_problems(rec: Any) -> list[str]:
         return ["a provenance field is empty or too long"]
     checks = [
         (re.fullmatch(r"[0-9a-f]{40}", rec["commit"]), "the commit is not a full commit id"),
+        (_digits(rec["repository_id"]), "the repository id is not a number"),
         (_digits(rec["run_id"]), "the run id is not a number"),
         (_digits(rec["run_attempt"]), "the run attempt is not a number"),
         (re.fullmatch(r"https://[A-Za-z0-9.-]+", rec["server"]), "the server is not https"),
         (rec["defender_isolation"] == "none"
          or re.fullmatch(r"separate user [a-z_][a-z0-9_-]{0,31}", rec["defender_isolation"]),
          "the defender isolation is not a known value"),
-        (rec["incidents"] in (EXTRA["incidents"], GIVEN), "the incident source is unknown"),
+        (rec["incidents"] in (DRAWN, GIVEN, FIXED), "the incident source is unknown"),
         (bool(rec["attempt"]) == bool(rec["attempt_ticket"]) == bool(rec["attempt_log_index"]),
          "the attempt, its ticket and its log index must be all present or all absent"),
         (not rec["attempt"] or (_digits(rec["attempt"]) and _digits(rec["attempt_log_index"])),
@@ -146,6 +154,7 @@ def expected(rec: dict[str, str]) -> dict[str, str]:
     return {
         "issuer": GITHUB_ISSUER,
         "repository_uri": repo_uri,
+        "repository_id": rec["repository_id"],
         "commit": rec["commit"],
         "run_uri": f"{repo_uri}/actions/runs/{rec['run_id']}/attempts/{rec['run_attempt']}",
         "runner": "github-hosted",  # a self-hosted runner is a machine its maintainers control
@@ -164,51 +173,68 @@ def harness(facts: dict[str, Any]) -> tuple[str, bool]:
     return "the repository's own workflow (its steps are what that workflow says)", False
 
 
-REFERENCE_AGENT = "cyberarena.rc.model_agent"
+def _incidents(doc: dict[str, Any]) -> list[dict[str, Any]]:
+    raw = doc.get("incidents")
+    return [i for i in raw if isinstance(i, dict)] if isinstance(raw, list) else []
 
 
-def summary(
-    rec: dict[str, str], facts: dict[str, Any], incidents: list[dict[str, Any]] | None = None
-) -> list[str]:
+def _coverage(doc: dict[str, Any]) -> tuple[int, int, Any]:
+    """(incidents, families run, families the company can host) of a report."""
+    incidents = _incidents(doc)
+    return len(incidents), len({i.get("family") for i in incidents}), doc.get("families_available")
+
+
+def summary(rec: dict[str, str], facts: dict[str, Any], doc: dict[str, Any]) -> list[str]:
     """What a checked signature vouches for, one fact per line. The model line is read from the
     per-incident usage, which the report hash covers (the summed usage in the "agent" block is
     not)."""
+    from cyberarena.rc.report import sum_usage, world_notes
+
     who, _official = harness(facts)
     iso = rec["defender_isolation"]
     ran = f"ran as a {iso}, without sudo" if iso != "none" else "ran as the harness's own user"
+    when = facts.get("time")
+    signed = ""
+    if isinstance(when, int) and when > 0:
+        stamp = datetime.datetime.fromtimestamp(when, datetime.UTC)
+        signed = f"; signed {stamp:%Y-%m-%d %H:%M} UTC"
+    n, ran_families, available = _coverage(doc)
     lines = [
-        "signature: " + describe(rec),
+        "signature: " + describe(rec) + signed,
         "harness: " + who,
         f"defender: {rec['defender_command'] or '(not recorded)'}; {ran}",
-        "incidents: " + rec["incidents"],
+        f"incidents: {rec['incidents']}; pack {doc.get('pack')}, {n} incidents in "
+        f"{ran_families} of {available} families",
+        *(world_notes(doc) or ["world: the default company"]),
     ]
-    from cyberarena.rc.report import sum_usage
-
-    usage = sum_usage(incidents or [])
+    usage = sum_usage([i for i in _incidents(doc) if isinstance(i.get("usage"), dict)])
     if usage.get("model"):
-        who = ("Flagwake's reference model agent" if REFERENCE_AGENT in rec["defender_command"]
-               else "the defender")  # fmt: skip
+        reference = rec["defender_command"].split()[:1] == [REFERENCE_MODEL]
+        relay = "Flagwake's own model agent" if reference else "the defender (its own word)"
         where = f" at {usage['endpoint']}" if usage.get("endpoint") else ""
         lines.append(f"model: {usage['model']}{where}, as the model's server reported it, "
-                     f"relayed by {who}")  # fmt: skip
+                     f"relayed by {relay}")  # fmt: skip
     if rec["attempt"]:
-        at = rec["attempt_log_index"]
-        lines.append(f"attempt {rec['attempt']}: ticket in the public log at index {at}, "
-                     "logged before the draw (--attempts lists them all)")  # fmt: skip
+        at = "index " + rec["attempt_log_index"]
+        lines.append(f"attempt {rec['attempt']}: ticket signed and in the public log ({at}) "
+                     "before the draw; --attempts lists every run")  # fmt: skip
     else:
         lines.append("attempt: no ticket, so the runs before this one are not on record")
     return lines
 
 
-def official_problems(rec: dict[str, str], facts: dict[str, Any]) -> list[str]:
+def official_problems(rec: dict[str, str], facts: dict[str, Any], doc: dict[str, Any]) -> list[str]:
     """For --require-official: everything a citable result needs."""
     problems = []
     if not harness(facts)[1]:
         problems.append("not signed by Flagwake's signing workflow at a release")
     if rec["defender_isolation"] == "none":
         problems.append("the defender was not isolated from the harness")
-    if rec["incidents"] != EXTRA["incidents"]:
-        problems.append("the incidents were not drawn in the run")
+    if rec["incidents"] != DRAWN or doc.get("pack") != "fresh":
+        problems.append("the incidents were not fresh ones drawn in the run")
+    _n, ran_families, available = _coverage(doc)
+    if not isinstance(available, int) or ran_families != available:
+        problems.append("not every incident family the company can host was run")
     if not rec["attempt"]:
         problems.append("the run has no attempt ticket")
     return problems
@@ -241,14 +267,21 @@ def check_signature(
         from cyberarena.rc.attempt import AttemptError, ticket_digest
 
         try:
-            if ticket_digest(rec["repository"], int(rec["attempt"])) != rec["attempt_ticket"]:
+            if ticket_digest(rec["repository_id"], int(rec["attempt"])) != rec["attempt_ticket"]:
                 return ["the attempt ticket does not match the repository and attempt number"], {}
         except AttemptError as exc:
             return [str(exc)], {}
-    digest = hashlib.sha256(report_bytes).hexdigest()
+    return _first_valid(bundle_bytes, rec, hashlib.sha256(report_bytes).hexdigest(), verify_dsse)
+
+
+def _first_valid(
+    bundle_bytes: bytes, rec: dict[str, str], digest: str, verify_dsse: Verifier | None
+) -> tuple[list[str], dict[str, Any]]:
+    """Check each signature in a bundle file against the record; one valid signature over
+    ``digest`` is enough."""
     refused: list[str] = []
     other_bytes: list[str] = []
-    for bundle in split_bundles(bundle_bytes):  # any one valid signature is enough
+    for bundle in split_bundles(bundle_bytes):
         try:
             payload_type, payload, facts = (verify_dsse or _sigstore_verify)(bundle, expected(rec))
         except ProvenanceError as exc:
@@ -261,13 +294,33 @@ def check_signature(
     return (other_bytes or refused or ["the bundle file holds no signature"])[:1], {}
 
 
+def verify_ticket(
+    ticket: bytes, bundle_bytes: bytes, rec: dict[str, str], verify_dsse: Verifier | None = None
+) -> dict[str, Any]:
+    """The certificate facts of an attempt ticket this very run signed (ProvenanceError if not).
+
+    The signature is checked like a report's: Sigstore's authority issued the certificate to this
+    repository, commit and run, and the bundle proves the public log took the entry. So the ticket
+    is on public record before anything else happens."""
+    problems, facts = _first_valid(
+        bundle_bytes, rec, hashlib.sha256(ticket).hexdigest(), verify_dsse
+    )
+    if problems:
+        raise ProvenanceError("the attempt ticket's signature does not check out: " + problems[0])
+    if not isinstance(facts.get("log_index"), int):
+        raise ProvenanceError("the attempt ticket's signature carries no public-log entry")
+    return facts
+
+
 def attempt_lines(
     rec: dict[str, str], facts: dict[str, Any], log: Any
 ) -> tuple[list[str], list[str]]:
-    """(problems, lines) from the public log: this run's ticket, and every attempt of the repo.
+    """(problems, lines) from the public log: this run's ticket, and every run of the repository
+    that holds a ticket.
 
-    The ticket must be signed by this very run and be in the log before the report was signed.
-    """
+    This run's ticket must be in the log under the index the report recorded, and it must have
+    been logged before the report was signed. Other runs are listed, never hidden: two runs
+    sharing a number (they started together) are both attempts."""
     from cyberarena.rc.attempt import AttemptError, history
 
     if not rec["attempt"]:
@@ -275,26 +328,29 @@ def attempt_lines(
     n = int(rec["attempt"])
     run_uri = expected(rec)["run_uri"]
     try:
-        attempts = history(log, rec["repository"], n)
+        attempts = history(log, rec["repository_id"], n)
     except AttemptError as exc:
         return [str(exc)], []
     lines, problems = [], []
+    others = 0
     for k, found in attempts:
-        runs = ", ".join(f"{e.get('run_uri', '?').rsplit('/actions/runs/', 1)[-1]} "
-                         f"(log {e.get('log_index')})" for e in found) or "no ticket"  # fmt: skip
-        lines.append(f"  attempt {k}: {runs}" + ("  <- this report" if k == n else ""))
-        if len(found) > 1:
-            problems.append(f"attempt {k} has {len(found)} tickets: two runs claimed it")
-    mine = [e for k, found in attempts if k == n for e in found if e.get("run_uri") == run_uri]
-    if not mine:
+        for e in found:
+            mine = k == n and e.get("run_uri") == run_uri
+            others += not mine
+            run = str(e.get("run_uri", "?")).rsplit("/actions/runs/", 1)[-1]
+            lines.append(f"  attempt {k}: run {run} (log index {e.get('log_index')})"
+                         + ("  <- this report" if mine else ""))  # fmt: skip
+        if not found:
+            lines.append(f"  attempt {k}: no ticket")
+    own = [e for k, found in attempts if k == n for e in found if e.get("run_uri") == run_uri]
+    if not own:
         problems.append(f"the public log has no ticket {n} signed by this run")
-    elif str(mine[0].get("log_index")) != rec["attempt_log_index"]:
+    elif rec["attempt_log_index"] not in {str(i) for i in own[0].get("log_indexes", [])}:
         problems.append("the ticket's log index is not the one the report recorded")
-    elif facts.get("time") is not None and (mine[0].get("time") or 0) > facts["time"]:
+    elif isinstance(facts.get("time"), int) and (own[0].get("time") or 0) > facts["time"]:
         problems.append("the ticket was logged after the report was signed")
-    earlier = [k for k, found in attempts if k < n and found]
-    lines.insert(0, f"attempt {n} of {rec['repository']}; {len(earlier)} earlier attempt(s) "
-                    "are in the public log:")  # fmt: skip
+    lines.insert(0, f"attempt {n} of {rec['repository']}: {others} other run(s) of this "
+                    "repository hold attempt tickets in the public log")  # fmt: skip
     return problems, lines
 
 
@@ -347,6 +403,7 @@ def _sigstore_verify(
         [
             policy.OIDCIssuerV2(want["issuer"]),
             policy.OIDCSourceRepositoryURI(want["repository_uri"]),
+            policy.OIDCSourceRepositoryIdentifier(want["repository_id"]),
             policy.OIDCSourceRepositoryDigest(want["commit"]),
             policy.OIDCRunInvocationURI(want["run_uri"]),
             policy.OIDCRunnerEnvironment(want["runner"]),
@@ -361,7 +418,10 @@ def _sigstore_verify(
     from cyberarena.rc.attempt import cert_facts
 
     facts: dict[str, Any] = cert_facts(bundle.signing_certificate.public_bytes(Encoding.PEM))
-    entries = json.loads(bundle_bytes).get("verificationMaterial", {}).get("tlogEntries") or []
-    if entries:
-        facts["time"] = int(entries[0].get("integratedTime", 0))
+    try:
+        entry = json.loads(bundle_bytes)["verificationMaterial"]["tlogEntries"][0]
+        facts["time"] = int(entry["integratedTime"])
+        facts["log_index"] = int(entry["logIndex"])
+    except (ValueError, KeyError, IndexError, TypeError):
+        pass  # no public-log entry in the bundle: callers that need one say so
     return payload_type, payload, facts

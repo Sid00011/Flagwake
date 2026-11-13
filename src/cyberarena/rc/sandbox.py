@@ -114,6 +114,13 @@ def isolated_factory(factory: Callable[[], Any], user: str, run: Run = subproces
     return make
 
 
+def _home(user: str, run: Run) -> str:
+    """The user's home folder, as the system records it."""
+    done = run(["getent", "passwd", user], capture_output=True, text=True)
+    fields = str(getattr(done, "stdout", "") or "").strip().split(":")
+    return fields[5] if len(fields) >= 7 and fields[5].startswith("/") else f"/home/{user}"
+
+
 def prepare(
     user: str,
     source: str,
@@ -127,6 +134,12 @@ def prepare(
     """
     if not NAME.match(user):
         raise SandboxError(f"not a user name: {user!r}")
+    parts = Path(dest).as_posix().split("/")
+    if not dest.startswith("/") or len([x for x in parts if x]) < 2 or ".." in parts:
+        # It is removed and replaced below, as root: never a top-level or relative folder.
+        raise SandboxError(
+            f"the defender's folder must be an absolute path two levels deep or more, not {dest!r}"
+        )
 
     def sudo(*args: str) -> None:
         if run(["sudo", "-n", *args], capture_output=True).returncode != 0:
@@ -134,15 +147,15 @@ def prepare(
 
     if run(["id", "-u", user], capture_output=True).returncode != 0:
         sudo("useradd", "--create-home", "--user-group", "--shell", "/usr/sbin/nologin", user)
-    home = f"/home/{user}"
+    home = _home(user, run)
     skip = set(exclude) | {".git"}
     staging = tempfile.mkdtemp(prefix="flagwake-defender-")
     shutil.copytree(source, staging, dirs_exist_ok=True, symlinks=True,
                     ignore=lambda d, names: [n for n in names if n in skip])  # fmt: skip
-    sudo("rm", "-rf", dest)
-    sudo("chown", "-R", f"{user}:{user}", staging)
-    sudo("mv", staging, dest)
-    sudo("chmod", "700", home)
+    sudo("rm", "-rf", "--", dest)
+    sudo("chown", "-R", f"{user}:{user}", "--", staging)  # never follows a link
+    sudo("mv", "--", staging, dest)
+    sudo("chmod", "700", "--", home)
     if setup:
         path = os.environ.get("PATH", "/usr/bin:/bin")
         argv = wrap(["/bin/sh", "-c", setup], user, dest, (), path, home)

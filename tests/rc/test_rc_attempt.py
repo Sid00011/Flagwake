@@ -1,109 +1,79 @@
-"""The attempt log: canonical tickets, and counting a repository's attempts in a public log that
-answers like Sigstore's (here a fake that keeps entries in memory; the real log is used by the
-signed self-test workflow)."""
+"""The attempt log: canonical tickets, and counting a repository's runs in a public log that
+answers like Sigstore's (here one kept in memory; the real log and real certificates are used by
+the signed self-test workflow, and by the last test here when sigstore is installed)."""
 
 from __future__ import annotations
 
-import base64
-import json
+import datetime
 
 import pytest
+from rckit import FakeRekor
 
 from cyberarena.rc.attempt import (
     GITHUB_ISSUER,
+    OIDS,
     AttemptError,
-    Log,
     _der_text,
-    confirm,
+    _signer_pem,
     history,
     next_number,
     read_ticket,
     ticket_digest,
     ticket_text,
+    tickets,
 )
 
-REPO = "example-org/defender"
-
-
-def run_uri(run: int, repo: str = REPO, attempt: int = 1) -> str:
-    return f"https://github.com/{repo}/actions/runs/{run}/attempts/{attempt}"
-
-
-class FakeRekor:
-    """digest -> entries, each signed by a certificate whose facts are given directly."""
-
-    def __init__(self) -> None:
-        self.by_digest: dict[str, list[str]] = {}
-        self.entries: dict[str, dict] = {}
-
-    def add(
-        self,
-        digest: str,
-        repo: str = REPO,
-        run: int = 1,
-        issuer: str = GITHUB_ISSUER,
-        attempt: int = 1,
-    ) -> None:
-        facts = {"issuer": issuer, "repository_uri": f"https://github.com/{repo}",
-                 "run_uri": run_uri(run, repo, attempt)}  # fmt: skip
-        verifier = base64.b64encode(json.dumps(facts).encode()).decode()
-        body = {"kind": "dsse", "spec": {"signatures": [{"verifier": verifier}]}}
-        uuid = f"u{len(self.entries)}"
-        encoded = base64.b64encode(json.dumps(body).encode()).decode()
-        index = 1000 + len(self.entries)
-        self.entries[uuid] = {"body": encoded, "logIndex": index, "integratedTime": 50}
-        self.by_digest.setdefault(digest, []).append(uuid)
-
-    def fetch(self, url: str, body: bytes | None):
-        if url.endswith("/index/retrieve"):
-            return self.by_digest.get(json.loads(body)["hash"].removeprefix("sha256:"), [])
-        uuid = url.rsplit("/", 1)[1]
-        return {uuid: self.entries[uuid]}
-
-    def log(self) -> Log:
-        return Log(fetch=self.fetch, facts=lambda pem: json.loads(pem))
+REPO = "1454082854"  # a repository's numeric id: it does not change when the repository is renamed
 
 
 def test_a_ticket_is_canonical_and_its_digest_predictable():
     text = ticket_text(REPO, 3)
-    assert text == b"flagwake attempt ticket 1\nrepository: example-org/defender\nattempt: 3\n"
+    assert text == b"flagwake attempt ticket 2\nrepository-id: 1454082854\nattempt: 3\n"
     assert read_ticket(text) == (REPO, 3)
     assert ticket_digest(REPO, 3) == ticket_digest(REPO, 3) != ticket_digest(REPO, 4)
-    for bad in (text + b"\n", text.replace(b"3", b"03"), b"hello", text.replace(b"1\n", b"2\n", 1)):
+    for bad in (
+        text + b"\n",
+        text.replace(b": 3", b": 03"),
+        b"hello",
+        text.replace(b"2\n", b"1\n", 1),
+    ):
         with pytest.raises(AttemptError):
             read_ticket(bad)
-    for repo, n in (("no-slash", 1), (REPO, 0), ("a/b c", 1)):
+    for repo, n in (("example-org/defender", 1), (REPO, 0), ("12 34", 1), ("", 1)):
         with pytest.raises(AttemptError):
             ticket_text(repo, n)
 
 
-def test_only_the_repositorys_own_tickets_count():
+def test_only_tickets_sigstore_issued_to_this_repository_count():
     rekor = FakeRekor()
-    rekor.add(ticket_digest(REPO, 1), run=10)
-    rekor.add(ticket_digest(REPO, 2), repo="someone/else", run=11)  # not this repository's
-    rekor.add(ticket_digest(REPO, 2), issuer="https://example.invalid", run=12)
+    rekor.add(ticket_digest(REPO, 1), REPO, run=10)
+    # None of these may use up or fake attempt 2: another repository's certificate, a
+    # certificate from another issuer, and one that says the right things but that Sigstore's
+    # authority never issued (the public log stores any certificate it is given).
+    rekor.add(ticket_digest(REPO, 2), "999", run=11)
+    rekor.add(ticket_digest(REPO, 2), REPO, run=12, issuer="https://example.invalid")
+    rekor.add(ticket_digest(REPO, 2), REPO, run=13, trusted=False)
     log = rekor.log()
-    assert next_number(log, REPO) == 2  # nobody else can use up or fake an attempt number
-    rekor.add(ticket_digest(REPO, 2), run=13)
+    assert next_number(log, REPO) == 2
+    rekor.add(ticket_digest(REPO, 2), REPO, run=14)
     assert next_number(log, REPO) == 3
 
 
-def test_the_check_waits_for_its_own_ticket_and_refuses_without_it():
+def test_a_runs_own_ticket_logged_twice_counts_once():
     rekor = FakeRekor()
-    rekor.add(ticket_digest(REPO, 1), run=20)
-    log = rekor.log()
-    assert confirm(log, REPO, 1, run_uri(20), tries=1)["log_index"] == 1000
-    with pytest.raises(AttemptError, match="not in the public log"):
-        confirm(log, REPO, 1, run_uri(21), tries=2, wait=0)  # another run's ticket is not ours
+    first = rekor.add(ticket_digest(REPO, 1), REPO, run=20)
+    again = rekor.add(ticket_digest(REPO, 1), REPO, run=20)  # the same run's ticket, replayed
+    (only,) = tickets(rekor.log(), REPO, 1)
+    assert only["log_index"] == first and only["log_indexes"] == [first, again]
 
 
-def test_history_shows_earlier_later_and_duplicate_attempts():
+def test_history_shows_earlier_later_and_shared_numbers():
     rekor = FakeRekor()
     for n, run in ((1, 1), (2, 2), (3, 3), (3, 4), (5, 6)):
-        rekor.add(ticket_digest(REPO, n), run=run)
+        rekor.add(ticket_digest(REPO, n), REPO, run=run)
     found = dict(history(rekor.log(), REPO, 2))
     assert sorted(found) == [1, 2, 3, 4, 5]  # numbers after the report's are listed too
-    assert len(found[3]) == 2 and found[4] == []
+    assert len(found[3]) == 2 and found[4] == []  # two runs took number 3: both are attempts
 
 
 def test_der_text_reads_both_certificate_encodings():
@@ -111,3 +81,53 @@ def test_der_text_reads_both_certificate_encodings():
     long = "x" * 200
     assert _der_text(b"\x0c\x81\xc8" + long.encode()) == long
     assert _der_text(b"https://token.actions.githubusercontent.com") == GITHUB_ISSUER
+
+
+def test_the_certificate_is_found_in_each_kind_of_log_entry():
+    import base64
+    import json
+
+    pem = base64.b64encode(b"CERT").decode()
+
+    def body(kind: str, spec: dict) -> str:
+        return base64.b64encode(json.dumps({"kind": kind, "spec": spec}).encode()).decode()
+
+    assert _signer_pem(body("dsse", {"signatures": [{"verifier": pem}]})) == b"CERT"
+    envelope = {"signatures": [{"publicKey": pem}]}
+    assert _signer_pem(body("intoto", {"content": {"envelope": envelope}})) == b"CERT"
+    assert (
+        _signer_pem(body("hashedrekord", {"signature": {"publicKey": {"content": pem}}})) == b"CERT"
+    )
+    assert _signer_pem(body("rekord", {})) is None and _signer_pem("not base64 json") is None
+
+
+def test_a_certificate_sigstore_did_not_issue_is_not_trusted():
+    """With the real libraries: a self-made certificate that says exactly what a real one says."""
+    pytest.importorskip("sigstore")
+    x509 = pytest.importorskip("cryptography.x509")
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from cryptography.x509.oid import NameOID
+
+    from cyberarena.rc.attempt import cert_facts, trusted_facts
+
+    now = datetime.datetime.now(datetime.UTC)
+    key = ec.generate_private_key(ec.SECP256R1())
+    name = x509.Name([x509.NameAttribute(NameOID.ORGANIZATION_NAME, "sigstore.dev")])
+    builder = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - datetime.timedelta(minutes=1))
+        .not_valid_after(now + datetime.timedelta(minutes=10))
+    )
+    for field, value in (("issuer", GITHUB_ISSUER), ("repository_id", REPO)):
+        der = b"\x0c" + bytes([len(value)]) + value.encode()
+        ext = x509.UnrecognizedExtension(x509.ObjectIdentifier(OIDS[field]), der)
+        builder = builder.add_extension(ext, critical=False)
+    pem = builder.sign(key, hashes.SHA256()).public_bytes(serialization.Encoding.PEM)
+    assert cert_facts(pem) == {"issuer": GITHUB_ISSUER, "repository_id": REPO}
+    assert trusted_facts(pem, int(now.timestamp())) is None
+    assert trusted_facts(b"not a certificate", int(now.timestamp())) is None

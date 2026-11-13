@@ -52,8 +52,11 @@ Agent → harness, one per observation:
 {"stop": true}
 ```
 
-`usage` is optional: a few numbers an agent reports about itself (model calls, tokens, seconds).
-The report adds them up and labels them self-reported; they never affect a score. `{"stop": true}`
+`usage` is optional: a few numbers an agent reports about itself (model calls, tokens, seconds),
+and two short texts, `model` and `endpoint` (the model id its server returned and that
+server's host name). The report adds the numbers up, lists the texts, and labels them
+self-reported; they never affect a score. Leave `endpoint` out if the host name of your
+model server should not appear in a report you share. `{"stop": true}`
 (or `{"cmd": null}`) ends the incident without a report, as if the shift ran out.
 
 Close the incident by sending a `report` command; otherwise the shift ends at minute 480 or after

@@ -20,12 +20,21 @@ the rules hash (see `docs/METHODOLOGY.md`).
   run's signing token from the harness, or rewritten report.json before it was signed. A red-team
   self-test runs a defender that tries each of those attacks, on every release.
 - **The attempt log.** Before its incidents are drawn, every signed run leaves a ticket in
-  Sigstore's public log (`flagwake ci attempt`); the check refuses to draw until its ticket is
-  there. `verify --attempts` lists every attempt of the repository, so a best-of-many result cannot
-  pass for a first try.
-- **Which model answered.** The reference model agent reports the model id and the address the
-  model's server returned; a signed report shows them. Rate-limited calls (HTTP 429) are retried
-  within the step's time.
+  Sigstore's public log (`flagwake ci attempt`); the check verifies the ticket's signature and its
+  place in the log before it draws anything. `verify --attempts` lists every run of the repository
+  that holds a ticket, so a best-of-many result cannot pass for a first try. Tickets are tied to
+  the repository's numeric id (a rename does not reset the count), and a ticket counts only when
+  Sigstore's certificate authority issued its certificate: the public log itself accepts any
+  certificate, so without that check anyone could have added attempts to a repository.
+- **Which model answered.** `--agent reference:model` starts Flagwake's own model agent from the
+  installed code, in Python's isolated mode and with only the `FLAGWAKE_LLM_*` settings, so a
+  package in the defender's folder cannot take its place; it reports the model id and the address
+  the model's server returned, and a signed report shows them. For any other defender verify
+  labels the model id as the defender's own word. Rate-limited calls (HTTP 429) are retried within
+  the step's time. The usage a program reports may now name `model` and `endpoint`.
+- **Honest labels.** A signed report says how its incidents were chosen (drawn in the run, a key
+  given by hand, or a fixed or custom pack), its pack, how many families ran, its company and when
+  it was signed; `--require-official` wants fresh incidents and every family.
 - **Fix.** `flagwake check --family` with families in another order than the company's, or named
   twice, wrote a report that 0.5.0rc3's verify refused; the pack now keeps the company's order.
 

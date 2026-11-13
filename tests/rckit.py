@@ -74,3 +74,57 @@ class FakeModel:
     def close(self) -> None:
         self.srv.shutdown()
         self.srv.server_close()
+
+
+GITHUB_ISSUER = "https://token.actions.githubusercontent.com"
+
+
+class FakeRekor:
+    """A public log in memory that answers like Sigstore's: digest -> entries. Each entry carries a
+    "certificate" that is just its facts as JSON; ``trusted`` says whether Sigstore issued it."""
+
+    def __init__(self) -> None:
+        self.by_digest: dict[str, list[str]] = {}
+        self.entries: dict[str, dict] = {}
+
+    def add(
+        self,
+        digest: str,
+        repo_id: str,
+        run: int = 1,
+        attempt: int = 1,
+        issuer: str = GITHUB_ISSUER,
+        trusted: bool = True,
+        when: int = 50,
+    ) -> int:
+        import base64
+
+        facts = {
+            "issuer": issuer,
+            "repository_id": repo_id,
+            "run_uri": f"https://github.com/example-org/defender/actions/runs/{run}/attempts/{attempt}",
+            "trusted": trusted,
+        }
+        verifier = base64.b64encode(json.dumps(facts).encode()).decode()
+        body = {"kind": "dsse", "spec": {"signatures": [{"verifier": verifier}]}}
+        uuid = f"u{len(self.entries)}"
+        index = 1000 + len(self.entries)
+        encoded = base64.b64encode(json.dumps(body).encode()).decode()
+        self.entries[uuid] = {"body": encoded, "logIndex": index, "integratedTime": when}
+        self.by_digest.setdefault(digest, []).append(uuid)
+        return index
+
+    def fetch(self, url: str, body: bytes | None):
+        if url.endswith("/index/retrieve"):
+            return self.by_digest.get(json.loads(body)["hash"].removeprefix("sha256:"), [])
+        uuid = url.rsplit("/", 1)[1]
+        return {uuid: self.entries[uuid]}
+
+    def log(self):
+        from cyberarena.rc.attempt import Log
+
+        def facts(pem: bytes, _when: int):
+            said = json.loads(pem)
+            return {k: v for k, v in said.items() if k != "trusted"} if said["trusted"] else None
+
+        return Log(fetch=self.fetch, facts=facts)

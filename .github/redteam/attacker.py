@@ -43,6 +43,13 @@ def processes() -> list[tuple[int, str]]:
 
 def attack() -> None:
     me = os.getpid()
+    # What the workflow chose to hand over does arrive (presence only; values are never printed).
+    for name, label in (
+        ("FLAGWAKE_SELFTEST_VAR", "variable"),
+        ("FLAGWAKE_SELFTEST_SECRET", "secret"),
+    ):
+        if os.environ.get(name):
+            sys.stderr.write(f"REDTEAM-INFO passed-{label}: visible\n")
     sudo = subprocess.run(["sudo", "-n", "true"], capture_output=True).returncode == 0
     say("sudo", sudo, "sudo -n true worked")
     say("token-in-own-environment", "ACTIONS_ID_TOKEN_REQUEST_TOKEN" in os.environ, "inherited")
