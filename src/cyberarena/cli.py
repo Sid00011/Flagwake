@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 import textwrap
 from collections.abc import Sequence
+from pathlib import Path
 
 from cyberarena import __version__
 
@@ -97,6 +99,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     v.add_argument("files", nargs="+")
     v.add_argument("--world", help="the company file a custom-world report was made from")
+    v.add_argument(
+        "--provenance",
+        metavar="BUNDLE",
+        help="also check the report's signature: the report.sigstore.json the Flagwake GitHub "
+        'Action wrote next to it (needs pip install "flagwake[provenance]"; works offline)',
+    )
+    v.add_argument(
+        "--repo", metavar="ORG/REPO", help="with --provenance: the repository it must come from"
+    )
 
     d = sub.add_parser(
         "demo",
@@ -117,21 +128,52 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _verify_one(path: str, world: str | None = None) -> tuple[list[str], str | None]:
+def _verify_one(
+    path: str, world: str | None = None, bundle: str | None = None, repo: str | None = None
+) -> tuple[list[str], str | None]:
     try:
-        with open(path, encoding="utf-8") as f:
-            doc = json.load(f)
-    except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raw = Path(path).read_bytes()
+        doc = json.loads(raw.decode("utf-8"))
+    except (OSError, ValueError, UnicodeDecodeError) as exc:
         return [f"cannot read: {exc}"], None
+    if not isinstance(doc, dict):
+        return ["not a report"], None
     from cyberarena.rc.verify import made_by, verify
 
-    return verify(doc, world), made_by(doc)
+    errors = verify(doc, world)
+    notes = [n for n in (made_by(doc),) if n]
+    if bundle is not None:
+        errors += _signature_problems(raw, doc, bundle, repo)
+        if not errors:
+            from cyberarena.rc.provenance import describe
+
+            notes.append("signature OK: " + describe(doc["provenance"]))
+    elif isinstance(doc.get("provenance"), dict):
+        notes.append("says it was made in GitHub Actions; check that with --provenance")
+    return errors, "; ".join(notes) or None
+
+
+def _signature_problems(raw: bytes, doc: dict, bundle: str, repo: str | None) -> list[str]:
+    from cyberarena.rc.provenance import check_signature
+
+    try:
+        bundle_bytes = Path(bundle).read_bytes()
+    except OSError as exc:
+        return [f"cannot read the signature bundle: {exc}"]
+    return check_signature(raw, doc, bundle_bytes, repo)
 
 
 def _cmd_verify(args: argparse.Namespace) -> int:
+    bundle, repo = getattr(args, "provenance", None), getattr(args, "repo", None)
+    if (bundle or repo) and len(args.files) != 1:
+        print("error: --provenance and --repo check one report at a time", file=sys.stderr)
+        return 2
+    if repo and not bundle:
+        print("error: --repo needs --provenance (the signature bundle)", file=sys.stderr)
+        return 2
     failed = 0
     for path in args.files:
-        errors, note = _verify_one(path, getattr(args, "world", None))
+        errors, note = _verify_one(path, getattr(args, "world", None), bundle, repo)
         if errors:
             failed += 1
             print(f"FAIL {path}: " + "; ".join(errors))

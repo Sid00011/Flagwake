@@ -62,6 +62,10 @@ and then each save, check and run asks for a confirmation. Its only outbound req
   refuse to send it over plain http to another machine: use https, or a server on this machine.
 - **The machine the tool runs on.** The tool assumes the local machine and the Python it runs are
   not already compromised.
+- **What a signature vouches for.** A signed result (docs/SIGNED_RESULTS.md) shows which GitHub
+  Actions run of which repository and commit wrote the report; it does not vouch for the defender
+  that run executed. The defender process is not given the run's signing tokens
+  (`ACTIONS_ID_TOKEN_REQUEST_*`), and a self-hosted runner's signature is refused.
 
 ## Static hosting caveat
 

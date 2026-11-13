@@ -1,0 +1,66 @@
+# End-to-end test of signed results: the repository's own action runs the example defender on
+# fresh incidents and signs the report; a second job, with nothing but the downloaded files, checks
+# the signature with flagwake verify --provenance and with GitHub's own tool, and checks that an
+# edited copy is refused.
+name: signed-check
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: ./
+        with:
+          agent: python examples/rc_agent.py
+          seeds: "1"
+          package: .
+
+  check:
+    needs: run
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          name: flagwake-result
+          path: result
+      - name: Install Flagwake with the signature check
+        run: python -m pip install --disable-pip-version-check --quiet ".[provenance]"
+      - name: The numbers and the signature check out
+        run: flagwake verify result/report.json --provenance result/report.sigstore.json --repo "$GITHUB_REPOSITORY"
+      - name: GitHub's own tool agrees
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh attestation verify result/report.json --repo "$GITHUB_REPOSITORY" --bundle result/report.sigstore.json
+      - name: A changed copy keeps its numbers but loses its signature
+        run: |
+          python - <<'PY'
+          import json
+          doc = json.load(open("result/report.json", encoding="utf-8"))
+          open("result/copy.json", "w", encoding="utf-8").write(json.dumps(doc, indent=1))
+          PY
+          flagwake verify result/copy.json
+          if flagwake verify result/copy.json --provenance result/report.sigstore.json; then
+            echo "a changed file kept its signature"; exit 1
+          fi

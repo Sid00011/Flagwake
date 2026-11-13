@@ -3,6 +3,19 @@
 All notable changes. Dates are UTC. Incidents are versioned by the generator version, the rules by
 the rules hash (see `docs/METHODOLOGY.md`).
 
+## 0.5.0rc4 (unreleased)
+
+- **Signed results.** The Flagwake GitHub Action (`uses: Sid00011/Flagwake@v0.5.0rc4`) runs a
+  defender on fresh incidents in the defender's own workflow, verifies the report and signs it with
+  a GitHub artifact attestation. `flagwake verify report.json --provenance report.sigstore.json
+  --repo ORG/REPO` checks, offline, that the file is unedited and came from a GitHub Actions run
+  of that repository, at the commit, run and attempt the report names, on a GitHub-hosted runner
+  (`pip install "flagwake[provenance]"`). `flagwake check --record-ci` writes that record into the
+  hashed report. A defender process never gets the run's signing tokens. docs/SIGNED_RESULTS.md
+  says what a signature shows and what it does not.
+- **Fix.** `flagwake check --family` with families in another order than the company's, or named
+  twice, wrote a report that 0.5.0rc3's verify refused; the pack now keeps the company's order.
+
 ## 0.5.0rc3 (2026-11-13)
 
 - **The page's token check.** A request whose target is an absolute URL (`GET http://host/api/...`)

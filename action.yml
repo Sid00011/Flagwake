@@ -1,0 +1,136 @@
+# The Flagwake GitHub Action: run your defender through Flagwake incidents in your own workflow,
+# verify the report, and sign report.json with a GitHub artifact attestation, so anyone can check
+# which repository, commit and run produced it (docs/SIGNED_RESULTS.md).
+#
+# The calling job needs:  permissions: { contents: read, id-token: write, attestations: write }
+# Signing works in public repositories on every GitHub plan.
+name: Flagwake check
+description: Test a security defender on simulated incidents scored in business cost, then verify and sign the report.
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  agent:
+    description: The command that starts your defender; it speaks the JSON-lines protocol (docs/PROTOCOL.md).
+    required: true
+  pack:
+    description: fresh (new incidents drawn for this run, the default), heldout or practice.
+    default: fresh
+  seeds:
+    description: Incidents per family.
+    default: "3"
+  world:
+    description: The company. Empty for the default (harlow-pine); or fenwick-brae, legacy, or a company file in your repository.
+    default: ""
+  fail-under:
+    description: Fail after signing when the damage index is above this number. Empty never fails on the score.
+    default: ""
+  sign:
+    description: Sign report.json with a GitHub artifact attestation.
+    default: "true"
+  package:
+    description: What pip installs. The default is the Flagwake release this version of the action belongs to.
+    default: flagwake==0.5.0rc4
+  python-version:
+    description: The Python that runs Flagwake (and your defender, if it is a Python program).
+    default: "3.12"
+  out:
+    description: The folder for report.json, report.html and report.sigstore.json.
+    default: flagwake-result
+
+outputs:
+  report:
+    description: The path of report.json.
+    value: ${{ steps.run.outputs.report }}
+  bundle:
+    description: The path of the signature bundle (empty when the report was not signed).
+    value: ${{ steps.keep.outputs.path }}
+  damage-index:
+    description: The headline damage index (0 = the best response, 100 = doing nothing).
+    value: ${{ steps.run.outputs.index }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install Flagwake
+      shell: bash
+      env:
+        PACKAGE: ${{ inputs.package }}
+      run: python -m pip install --disable-pip-version-check --quiet "$PACKAGE"
+
+    - name: Run the incidents
+      id: run
+      shell: bash
+      env:
+        AGENT: ${{ inputs.agent }}
+        PACK: ${{ inputs.pack }}
+        SEEDS: ${{ inputs.seeds }}
+        WORLD: ${{ inputs.world }}
+        OUT: ${{ inputs.out }}
+      run: |
+        args=(check --agent "$AGENT" --pack "$PACK" --seeds "$SEEDS" --out "$OUT" --record-ci)
+        if [ -n "$WORLD" ]; then args+=(--world "$WORLD"); fi
+        flagwake "${args[@]}"
+        echo "report=$OUT/report.json" >> "$GITHUB_OUTPUT"
+        python - "$OUT/report.json" >> "$GITHUB_OUTPUT" <<'PY'
+        import json, sys
+        doc = json.load(open(sys.argv[1], encoding="utf-8"))
+        print(f"index={doc['metrics']['damage_index']['mean_clipped']}")
+        PY
+
+    - name: Sign the report
+      id: sign
+      if: inputs.sign == 'true'
+      uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
+      with:
+        subject-path: ${{ steps.run.outputs.report }}
+
+    - name: Keep the signature next to the report
+      id: keep
+      if: inputs.sign == 'true'
+      shell: bash
+      env:
+        BUNDLE: ${{ steps.sign.outputs.bundle-path }}
+        OUT: ${{ inputs.out }}
+      run: |
+        cp "$BUNDLE" "$OUT/report.sigstore.json"
+        echo "path=$OUT/report.sigstore.json" >> "$GITHUB_OUTPUT"
+
+    - name: Summary
+      shell: bash
+      env:
+        INDEX: ${{ steps.run.outputs.index }}
+        OUT: ${{ inputs.out }}
+        SIGNED: ${{ inputs.sign }}
+      run: |
+        {
+          echo "### Flagwake check"
+          echo ""
+          echo "Damage index **$INDEX** (0 = the best response, 100 = doing nothing)."
+          echo ""
+          echo "Re-check the numbers: \`flagwake verify $OUT/report.json\`"
+          if [ "$SIGNED" = "true" ]; then
+            echo ""
+            echo "Check the signature (repository, commit and run): \`flagwake verify $OUT/report.json --provenance $OUT/report.sigstore.json --repo $GITHUB_REPOSITORY\`"
+          fi
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+      with:
+        name: flagwake-result
+        path: ${{ inputs.out }}/
+        retention-days: 90
+
+    - name: Score threshold
+      if: inputs.fail-under != ''
+      shell: bash
+      env:
+        INDEX: ${{ steps.run.outputs.index }}
+        LIMIT: ${{ inputs.fail-under }}
+      run: |
+        python -c "import sys; i, lim = float(sys.argv[1]), float(sys.argv[2]); sys.exit(f'damage index {i} is above {lim}' if i > lim else 0)" "$INDEX" "$LIMIT"

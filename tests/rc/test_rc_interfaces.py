@@ -381,3 +381,14 @@ def test_the_help_groups_every_command_once_and_starts_with_the_demo(capsys):
     with pytest.raises(SystemExit):  # a command keeps its own argparse help
         cli.main(["verify", "--help"])
     assert "usage: flagwake verify" in capsys.readouterr().out
+
+
+def test_cli_check_verifies_whatever_order_the_families_are_given_in(tmp_path):
+    from cyberarena.cli import main
+
+    out = tmp_path / "chk"
+    argv = ["check", "--agent", "baseline:careful", "--pack", "practice", "--seeds", "1",
+            "--family", "quiet", "--family", "cred-reuse", "--family", "quiet",
+            "--out", str(out)]  # fmt: skip
+    assert main(argv) == 0
+    assert main(["verify", str(out / "report.json")]) == 0

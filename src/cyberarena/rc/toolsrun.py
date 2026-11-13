@@ -19,7 +19,6 @@ from __future__ import annotations
 import hmac
 import http.server
 import json
-import os
 import queue
 import secrets
 import socketserver
@@ -37,6 +36,7 @@ from cyberarena import __version__
 from cyberarena.rc import rules
 from cyberarena.rc.engine import MAX_COMMANDS, digits, parse_command
 from cyberarena.rc.protocol import incident_label, new_run_key
+from cyberarena.rc.provenance import child_env
 from cyberarena.rc.report import TOOLS as TOOLS_MODE
 from cyberarena.rc.runner import start_shift
 from cyberarena.rc.scoring import score_shift
@@ -559,7 +559,7 @@ def run_command_as_tools(argv: list[str], desk: TicketDesk, folder: Path, out: P
     """Start a defender with the tool addresses in its environment; wait for the run to end."""
     server = ToolsServer(desk).start()
     out.mkdir(parents=True, exist_ok=True)
-    env = {**os.environ, **server.env()}
+    env = {**child_env(), **server.env()}  # never the job's signing tokens
     with open(out / "agent-stderr.log", "ab") as err:
         proc = subprocess.Popen(argv, cwd=str(folder), env=env, stdin=subprocess.DEVNULL,
                                 stdout=err, stderr=err)  # fmt: skip

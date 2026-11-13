@@ -114,3 +114,19 @@ def test_the_local_page_binds_and_probes_localhost_only() -> None:
     probes = re.findall(r"urlopen\(([^,]+),", text)
     assert probes == ['base + "/models"']  # the one outbound call...
     assert 'base = f"http://127.0.0.1:{port}/v1"' in text  # ...always to this computer
+
+
+def test_the_action_signs_without_secrets_and_never_pastes_inputs_into_scripts() -> None:
+    import re
+
+    action = (ROOT / "action.yml").read_text(encoding="utf-8")
+    assert "secrets." not in action and "--record-ci" in action
+    # Inputs reach a script only through env: never ${{ inputs.x }} inside a run block.
+    for block in re.findall(r"run: \|\n((?:        .*\n|\n)+)", action):
+        assert "${{" not in block
+    for line in re.findall(r"run: (?!\|)(.*)", action):
+        assert "${{" not in line
+    assert all(re.search(r"@[0-9a-f]{40}", u) for u in re.findall(r"uses: (\S+)", action))
+    signed = (ROOT / "examples" / "ci" / "flagwake-signed.yml").read_text(encoding="utf-8")
+    assert "permissions:\n  contents: read" in signed and "secrets." not in signed
+    assert "id-token: write" in signed.split("jobs:", 1)[1]  # only for the job, not the workflow

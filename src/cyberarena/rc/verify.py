@@ -191,6 +191,10 @@ def _derived_problems(
     ):
         # A report from before 0.5.0rc3 has no count; it verifies only if it left none out.
         problems.append("the report leaves out families this company can host and does not say so")
+    if "provenance" in doc:  # a claim until verify --provenance checks its signature
+        from cyberarena.rc.provenance import record_problems
+
+        problems.extend(record_problems(doc["provenance"]))
     for block in ("integration", "traces", "profile", "harness"):
         if block not in doc:  # every report this tool writes has them; a missing one hides findings
             problems.append(f"the report has no {block} block")

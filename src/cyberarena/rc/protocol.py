@@ -39,6 +39,7 @@ from collections.abc import Callable
 from typing import Any, Protocol
 
 from cyberarena.rc.engine import MAX_COMMANDS, RULES1_COMMANDS, Shift
+from cyberarena.rc.provenance import child_env
 
 MAX_LINE = 16384
 NL = chr(10)  # the end of a reply line
@@ -205,7 +206,7 @@ class SubprocessAgent:
                 encoding="utf-8",
                 errors="replace",
                 cwd=cwd,
-                env=env,
+                env=child_env(env),  # never the job's signing tokens
             )
         except (FileNotFoundError, PermissionError) as exc:
             if not isinstance(self._stderr, int):

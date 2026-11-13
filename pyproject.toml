@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "flagwake"
-version = "0.5.0rc3"
+version = "0.5.0rc4"
 description = "A free, offline, re-checkable test of how an AI defender behaves during a security incident, scored with business cost."
 # The package index shows docs/PYPI.md: the README's pictures are files of the repository.
 readme = { file = "docs/PYPI.md", content-type = "text/markdown" }
@@ -45,6 +45,8 @@ dev = [
 ]
 # Browser tests of the report viewer (tests/e2e, Chromium only). Then: python -m playwright install chromium
 e2e = ["playwright==1.64.0"]
+# Checking a signed report: flagwake verify report.json --provenance report.sigstore.json
+provenance = ["sigstore>=4.0,<5"]
 
 [project.scripts]
 flagwake = "cyberarena.cli:main"
@@ -73,6 +75,11 @@ files = ["src/cyberarena"]
 python_version = "3.11"
 warn_unused_ignores = true
 warn_redundant_casts = true
+
+[[tool.mypy.overrides]]
+# Optional (the provenance extra): imported only when a signature is checked.
+module = ["sigstore", "sigstore.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

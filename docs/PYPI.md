@@ -27,6 +27,8 @@ flagwake verify flagwake-runs/mine/fresh/report.json
 
 - **Offline and free.** No model or judge inside the check; nothing leaves your computer.
 - **Fresh incidents for every run**, so a defender cannot have seen them before.
+- **Re-checkable and signable.** `flagwake verify` re-derives every number; the GitHub Action signs
+  a report so anyone can check which repository, commit and run produced it.
 - **Your own company.** Describe your topology in a file and the incidents run in it.
 - **Honest limits.** It is a simulation: a score describes behaviour in this test only.
 

@@ -45,8 +45,12 @@ environment.
 - **Verify proves consistency, not origin.** `flagwake verify` shows that every number follows from
   the commands stored in the report, and that the incidents come from the pack the report names.
   It cannot show which program sent those commands: anyone can produce a consistent report by
-  feeding the harness the commands they choose. Trust a result as much as you trust whoever ran
-  it; for a decision, run the defender yourself on a fresh pack. The report hash is a plain
+  feeding the harness the commands they choose. A signed result (docs/SIGNED_RESULTS.md) narrows
+  this: it shows the report came, unedited, from a GitHub Actions run of a named repository and
+  commit on a GitHub-hosted runner, so the defender and workflow can be read as they were; it
+  cannot show that the defender is honest or how many runs were made before. Otherwise trust a
+  result as much as you trust whoever ran it; for a decision, run the defender yourself on a
+  fresh pack. The report hash is a plain
   checksum, not a signature: it covers the scores, the commands and the tool-mode checks
   (conformance, the contamination warning, an early stop), so an edit that does not recompute it
   is caught, and one that does is caught only where verify re-derives the field.

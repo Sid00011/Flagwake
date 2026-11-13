@@ -462,7 +462,20 @@ def header_notes(doc: dict[str, Any]) -> list[str]:
         lines.append(f"self-reported model: {label}")
     if agent.get("contamination_warning"):
         lines.append("WARNING: " + str(agent["contamination_warning"]))
+    prov = provenance_note(doc)
+    if prov:
+        lines.append(prov)
     return lines
+
+
+def provenance_note(doc: dict[str, Any]) -> str | None:
+    """Where the report says it was made, and how to check the signature (None without a record)."""
+    from cyberarena.rc.provenance import describe, record_problems
+
+    rec = doc.get("provenance")
+    if rec is None or record_problems(rec):
+        return None
+    return describe(rec) + "; check its signature: flagwake verify --provenance"
 
 
 # --------------------------------------------------------------------------- terminal
@@ -502,6 +515,9 @@ def terminal_summary(doc: dict[str, Any], verified: bool | None = None) -> str:
         lines.append(_ascii(integ))
     if agent_block.get("contamination_warning"):
         lines.append(_ascii("WARNING: " + str(agent_block["contamination_warning"])))
+    prov = provenance_note(doc)
+    if prov:
+        lines.append(_ascii(prov))
     lo, hi = di["ci95"]
     lines += [
         "",

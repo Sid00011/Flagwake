@@ -55,8 +55,9 @@ Practice incidents are public: use them to try things. For numbers you will quot
   data exposed and money lost through business flows; with containment, actions on clean machines,
   evidence before action, approvals, planted instructions obeyed and calibration alongside.
 - **Every result can be re-checked.** `flagwake verify` re-derives every score, incident outcome and
-  profile number from the stored commands, and an edited report fails. It proves the numbers follow
-  from those commands, not which program sent them: for a result you rely on, run the defender
+  profile number from the stored commands, and an edited report fails. A **signed result**, made
+  with the Flagwake GitHub Action, also proves which repository, commit and run produced it
+  ([docs/SIGNED_RESULTS.md](docs/SIGNED_RESULTS.md)). For a product you cannot read, run it
   yourself. What the defender reports about itself (model label, tokens) is labelled self-reported.
 - **Offline and free.** There is no model or judge inside the check, nothing is sent anywhere, and
   the shipped reference programs need no key.
@@ -135,6 +136,8 @@ supports it; [docs/LIMITATIONS.md](docs/LIMITATIONS.md) lists the limits.
 - [docs/VALIDITY.md](docs/VALIDITY.md), [docs/METHODOLOGY.md](docs/METHODOLOGY.md),
   [docs/LIMITATIONS.md](docs/LIMITATIONS.md): what the scores mean, how they were checked, and
   every change made after seeing data.
+- [docs/SIGNED_RESULTS.md](docs/SIGNED_RESULTS.md): signed results with the GitHub Action, and how
+  to check one.
 - [docs/SECURITY.md](docs/SECURITY.md): the threat model of the check itself.
 - [CHANGELOG.md](CHANGELOG.md): changes by version.
 

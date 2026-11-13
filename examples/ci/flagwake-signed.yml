@@ -1,0 +1,32 @@
+# A signed Flagwake result for your defender on every push to main and on demand: fresh incidents,
+# a verified report, and a GitHub artifact attestation anyone can check with
+#   flagwake verify report.json --provenance report.sigstore.json --repo ORG/REPO
+# Copy this to .github/workflows/flagwake.yml in your defender's repository and set the defender
+# command. It needs no secret unless your defender does (pass those through your own secrets).
+name: flagwake
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write      # the run's own signing identity
+      attestations: write  # to store the signature with the repository
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: Sid00011/Flagwake@v0.5.0rc4
+        with:
+          agent: python agents/my_agent.py   # your program; it speaks the JSON-lines protocol
+          seeds: "3"                         # incidents per family (20 families)
+          fail-under: "60"                   # fail after signing if the damage index is above this

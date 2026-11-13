@@ -103,6 +103,12 @@ def add_subparsers(sub: argparse._SubParsersAction) -> None:
         "--fail-under", type=float, help="exit non-zero if the damage index exceeds this"
     )
     c.add_argument("--json", action="store_true", help="print the report JSON to stdout")
+    c.add_argument(
+        "--record-ci",
+        action="store_true",
+        help="inside GitHub Actions: record the repository, commit and run in the report, so a "
+        "signature of report.json can vouch for them (the Flagwake GitHub Action does this)",
+    )
 
     r = sub.add_parser(
         "replay", help="print one incident of a report or transcript as a plain transcript"
@@ -151,6 +157,15 @@ def cmd_check(args: argparse.Namespace) -> int:
     world = load_world_arg(getattr(args, "world", None))
     if world is None:
         return 2
+    record = None
+    if getattr(args, "record_ci", False):
+        from cyberarena.rc.provenance import ci_record
+
+        try:
+            record = ci_record()
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
     bound = rules.families(world)
     if args.family:
         missing = [f for f in args.family if f not in bound]
@@ -160,7 +175,8 @@ def cmd_check(args: argparse.Namespace) -> int:
                 print(f"error: {f} cannot run in this world: "
                       f"{why.get(f, 'not part of its rules')}", file=sys.stderr)  # fmt: skip
             return 2
-    families = tuple(args.family) if args.family else bound
+    # The pack's own order (the world's), whatever order --family was given in: verify checks it.
+    families = tuple(f for f in bound if f in args.family) if args.family else bound
     key = args.run_key or new_run_key()
     specs = build_pack(args.pack, per_family=args.seeds, families=families, key=key)
     pack_name = args.pack
@@ -186,6 +202,11 @@ def cmd_check(args: argparse.Namespace) -> int:
         return 2
     doc = build_report(result, meta, pack_name=pack_name, world=world,
                        integration=_integration(args))  # fmt: skip
+    if record is not None:
+        from cyberarena.rc.report import report_hash
+
+        doc["provenance"] = record  # hashed with the rest; a signature of the file vouches
+        doc["report_hash"] = report_hash(doc)
     problems = verify(doc, world_file_arg(getattr(args, "world", None)))
     verified = not problems
     for p in problems:
