@@ -602,7 +602,9 @@ def _list(c: _Check, doc: dict, key: str, required: bool = False, cap: int = MAX
 
 def _is_doc_address(text: str) -> bool:
     parts = text.split(".")
-    if len(parts) != 4 or not all(p.isdigit() and len(p) <= 3 and int(p) <= 255 for p in parts):
+    if len(parts) != 4 or not all(
+        p.isascii() and p.isdigit() and len(p) <= 3 and int(p) <= 255 for p in parts
+    ):
         return False
     return ".".join(parts[:3]) in ("192.0.2", "198.51.100", "203.0.113")
 

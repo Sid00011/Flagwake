@@ -395,3 +395,13 @@ def test_a_client_that_hangs_up_is_not_reported_as_an_error(capsys):
     finally:
         srv.httpd.server_close()
         srv.hooks.close()
+
+
+def test_tools_mode_enforces_the_same_command_cap():
+    specs = pack_specs("practice", 1, world=W)[:2]
+    s = TicketDesk(specs, W, max_commands=3)
+    resp = None
+    for _ in range(3):
+        resp = s.call("get_alerts", {})
+    assert resp is not None and resp["ticket_open"] is False and "cap" in resp["note"]
+    assert len(s.transcripts) == 1 and len(s.transcripts[0]["commands"]) == 3

@@ -38,7 +38,7 @@ def _run(code: str, step: float = 2.0, specs=SPECS):
     t0 = time.monotonic()
     result = run_pack(subprocess_driver_factory(argv, step), specs, key=KEY)
     seconds = time.monotonic() - t0
-    doc = build_report(result, {"id": "fuzz"}, "practice")
+    doc = build_report(result, {"id": "fuzz"}, "custom")  # two incidents chosen by hand
     assert verify(doc) == []
     return result, doc, seconds
 
@@ -131,3 +131,51 @@ def test_repeated_failures_stop_the_run():
 def test_http_endpoint_that_is_not_running_is_a_clear_error():
     with pytest.raises(ProtocolError, match="nothing answered"):
         run_pack(http_driver_factory("http://127.0.0.1:9/act", 2.0), SPECS[:1])
+
+
+# JSON escapes keep each line ASCII, so the child's console encoding cannot change what is read.
+ODD = {
+    "superscript wait": '{"cmd": "wait \\u00b2"}',
+    "superscript isolate": '{"cmd": "isolate web-01 \\u00b2"}',
+    "superscript address": '{"cmd": "block 1.2.3.\\u00b2"}',
+    "deep nesting": "[" * 3000,
+    "huge confidence": '{"cmd": "report {\\"compromised\\": [], \\"confidence\\": {\\"x\\": 1'
+    + "0" * 400
+    + '}}"}',
+}
+
+
+@pytest.mark.parametrize("name", sorted(ODD))
+def test_odd_replies_never_stop_the_run(name):
+    reply = "print(" + repr(ODD[name]) + ", flush=True)"
+    code = LOOP + "    if m.get('type')=='end': break\n    " + reply + "\n"
+    result, _doc, seconds = _run(code)
+    assert seconds < 30 and len(result["transcripts"]) == 2
+    if name.startswith("superscript"):  # read as a command the engine does not recognise
+        assert INVALID_REPLY not in result["transcripts"][0]["commands"]
+
+
+def test_an_overlong_reply_is_one_invalid_reply_and_later_replies_stay_in_step():
+    code = (
+        "import sys, json\nn = 0\nfor line in sys.stdin:\n    m = json.loads(line)\n"
+        "    if m.get('type') == 'end': break\n    n += 1\n"
+        "    if n == 1: print(json.dumps({'cmd': 'look', 'pad': 'x' * 20000}), flush=True)\n"
+        "    else: print(json.dumps({'cmd': f'wait {n}'}), flush=True)\n"
+    )
+    result, _doc, _s = _run(code)
+    cmds = result["transcripts"][0]["commands"]
+    assert cmds[:3] == [INVALID_REPLY, "wait 2", "wait 3"], cmds[:4]
+    assert result["transcripts"][0]["harness"]["invalid_replies"] == 1
+
+
+def test_the_start_message_states_the_cap_actually_enforced():
+    code = (
+        "import sys, json\nfor line in sys.stdin:\n    m = json.loads(line)\n"
+        "    if m.get('type') == 'end': break\n"
+        "    print(json.dumps({'cmd': f\"wait {m.get('limits', {}).get('commands', 1)}\"}),"
+        " flush=True)\n"
+    )
+    argv = [sys.executable, "-I", "-c", code]
+    result = run_pack(subprocess_driver_factory(argv, 2.0), SPECS, key=KEY, max_commands=3)
+    assert result["transcripts"][0]["commands"][0] == "wait 3"
+    assert len(result["transcripts"][0]["commands"]) <= 3

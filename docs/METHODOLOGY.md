@@ -22,7 +22,7 @@ with the run key; the default pack).
 
 Every per-incident number is a count, an integer total or a (numerator, denominator) pair. The
 damage index puts an incident between the oracle (0; a command list built from the ground truth)
-and doing nothing (100); the headline is the mean clipped to [0, 200], with the raw mean and the
+and doing nothing (100); the headline is the mean with each incident capped at 200 (below 0 is kept), with the raw mean and the
 count of incidents worse than doing nothing beside it. Rates carry 95% bootstrap intervals over
 incidents; the bootstrap's random stream is seeded from the rules hash, so the same transcripts
 always give the same intervals, and the intervals move whenever the rules hash moves.
@@ -184,13 +184,13 @@ Two changes followed, both without touching a weight:
 - **The oracle evicts.** Checking a limitation showed that the oracle was not near-optimal: it
   isolated the hosts the intruder held at the start, and an isolation ends after its time box, so
   the intruder held them again. Restoring those hosts instead (after the credential reset and the
-  patch the oracle already made) beat it by a mean raw index of −697 on four families; the
-  headline clips at 0, which hid it. The oracle now restores what the intruder holds at the start
+  patch the oracle already made) beat it by a mean raw index of −697 on four families. The
+  oracle now restores what the intruder holds at the start
   and isolates only a database it has merely read from. A test checks that the isolate-only
   variant never beats it. Every other agent's index rises, because none of the shipped baselines
   evicts: on the practice pack careful went from 26.6 to 71.6 and rule-bot from 61.0 to 85.7.
 
-Mean clipped index, practice seeds 120000–120019 at the difficulty the pack assigns:
+Mean capped index, practice seeds 120000–120019 at the difficulty the pack assigns:
 
 | family | full-early | full-late | partial | none | result |
 |---|---|---|---|---|---|
@@ -242,7 +242,7 @@ Practice seeds 120000–120019; graded lists full-early / full-late / partial / 
 `cred-reuse` 0 / 81.3 / 86.4 / 100, `late-staging` 0 / 43.8 / 71.9 / 100, `misconfig-not-wipe`
 0 / 53.9 / 55.1 / 100 — all three clauses hold. Acting-baseline spread per family: 28.6 to 108.2
 points. Overall index: careful 69.1, thorough 12.4, rule-bot 84.9. `thorough` scores slightly
-below the oracle on `cred-reuse` (−2.0 before clipping): the oracle is near-optimal, not optimal.
+below the oracle on `cred-reuse` (−2.0): the oracle is near-optimal, not optimal.
 
 ### 2026-10-31: version 0.1.0rc3, a plain opening observation
 
@@ -465,3 +465,38 @@ overall means move by 0.1 to 0.3. All eight calibration predictions give the sam
 before (seven hold, the tier sub-prediction is still the reported finding), and the numbers quoted
 in this file are the new ones. The rules-2 golden fingerprint moves (tests/rc/golden2.json); the
 rules-1 fingerprint is unchanged.
+
+
+### 2026-11-13: containment over the hosts the intruder held; checks verify adds
+
+What was seen: a review of the scoring code found that under company files the containment rate
+divided by every host the incident's ground truth lists, including hosts the intruder never
+reached in that run because the response stopped it first. On the practice pack (harlow-pine, 5
+seeds per family) the reference response itself contained only 46 of 60 such hosts, and each
+early stop counted as a missed intrusion. It also found that a live incident where doing nothing
+costs no more than the reference could never count as worse than doing nothing (none occurs in
+the shipped companies; a company file you write could have one), and that the docs said the
+headline index is clipped to [0, 200] when the code only ever capped it at 200.
+
+What changed (company files only; the original rules and their fingerprint are untouched):
+- The containment rate and the missed intrusions count the hosts the intruder held at some minute
+  of the run (`shift.presence_log`), so a host it never reached is neither contained nor missed.
+- A live incident with no index (doing nothing costs no more than the reference) counts as worse
+  than doing nothing when the response costs more than doing nothing.
+- The rules-2 rules hash names these measures (`scoring.MEASURES2`), so a report scored under the
+  earlier ones does not verify; the rules-2 golden fingerprint moves (tests/rc/golden2.json).
+- The docs now say what the code does: the headline caps each incident's index at 200 and keeps a
+  value below 0.
+
+Effect on the numbers (practice pack, 5 seeds per family): the damage index and the
+worse-than-nothing count do not move for any shipped program. The containment rate does: the
+reference 46 of 60 to 46 of 46, careful 42 of 60 to 47 of 54, thorough 41 of 60 to 46 of 51;
+rule-bot (41 of 61) and isolate-on-first-alert (40 of 61) now also count a host the intruder held
+that the ground truth does not list. The home page's example moves from 10 of 13 to 11 of 13
+(careful) and from 7 of 13 to 7 of 14 (gullible).
+
+In the same version `flagwake verify` checks more of a report against the pack it names: the
+exact seeds, their difficulty, the repeat numbers and the family order, that the world's families
+are all there or the report says which were left out, that no command is stored after an incident
+ended, and that the integration, trace, profile and harness blocks are present. A report built
+from incidents chosen by hand says `custom` and gets none of the pack checks.

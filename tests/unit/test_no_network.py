@@ -89,7 +89,7 @@ def test_example_adapters_take_names_not_keys_and_never_write_them() -> None:
             assert "os.environ" in text  # the key, if any, comes from the environment
             # It is never written to disk: no open(..., "w") near a key variable.
             assert "KEY" in text or "TOKEN" in text
-            assert "open(" not in text.replace("urlopen(", "")
+            assert "open(" not in text.replace("urlopen(", "").replace("_OPENER.open(", "")
         else:
             assert not (_imports(f) & NETWORK), f.name
 

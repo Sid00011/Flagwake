@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "flagwake"
-version = "0.5.0rc2"
+version = "0.5.0rc3"
 description = "A free, offline, re-checkable test of how an AI defender behaves during a security incident, scored with business cost."
 # The package index shows docs/PYPI.md: the README's pictures are files of the repository.
 readme = { file = "docs/PYPI.md", content-type = "text/markdown" }

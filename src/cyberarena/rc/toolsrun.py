@@ -35,7 +35,7 @@ from typing import Any
 
 from cyberarena import __version__
 from cyberarena.rc import rules
-from cyberarena.rc.engine import parse_command
+from cyberarena.rc.engine import MAX_COMMANDS, digits, parse_command
 from cyberarena.rc.protocol import incident_label, new_run_key
 from cyberarena.rc.report import TOOLS as TOOLS_MODE
 from cyberarena.rc.runner import start_shift
@@ -60,8 +60,10 @@ class TicketDesk:
         idle_timeout: float = IDLE_TIMEOUT,
         progress: Callable[[int, int], None] | None = None,
         key: str | None = None,
+        max_commands: int = MAX_COMMANDS,
     ) -> None:
         self.world = world or rules.default_world()
+        self.max_commands = max_commands  # the same per-incident cap the native modes enforce
         self.key = key or new_run_key()  # names every ticket; the report records it at the end
         self.queue = [(s, r) for s in specs for r in range(repeat)]
         self.total = len(self.queue)
@@ -136,6 +138,13 @@ class TicketDesk:
                 self._emit({"event": "alert", "ticket": self.current.label, "alert_id": a["id"]})
             if self.current.done:
                 self._close()
+            elif len(self.current.commands) >= self.max_commands:
+                resp = {
+                    **resp,
+                    "ticket_open": False,
+                    "note": f"command cap ({self.max_commands}) reached: the ticket is closed",
+                }
+                self._close()  # fmt: skip
             return resp
 
     def expire(self, reason: str) -> None:
@@ -265,7 +274,7 @@ def serve_stdio(desk: TicketDesk, stdin: Any = None, stdout: Any = None) -> None
             continue
         try:
             msg = json.loads(line[:MAX_BODY])
-        except ValueError:
+        except (ValueError, RecursionError):
             out: dict[str, Any] | None = _rpc_error(None, -32700, "not JSON")
         else:
             out = mcp_handle(desk, msg)
@@ -419,7 +428,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         raw = self.rfile.read(n) if n else b""
         try:
             return json.loads(raw.decode("utf-8")) if raw else {}
-        except (ValueError, UnicodeDecodeError):
+        except (ValueError, UnicodeDecodeError, RecursionError):
             self._send(400, {"ok": False, "error": "the body is not JSON"})
             return ...
 
@@ -484,7 +493,7 @@ def native_to_call(line: str, sources: frozenset[str] = frozenset()) -> tuple[st
         return "list_hosts", {}
     if verb == "logs" and args:
         out: dict[str, Any] = {"source" if one in sources else "host": one}
-        if len(args) > 1 and args[1].isdigit():
+        if len(args) > 1 and digits(args[1]):
             out["minutes"] = int(args[1])
         return "search_logs", out
     if verb == "who":
@@ -498,7 +507,7 @@ def native_to_call(line: str, sources: frozenset[str] = frozenset()) -> tuple[st
     if verb in simple and args:
         tool, key = simple[verb]
         out = {key: one}
-        if verb == "isolate" and len(args) > 1 and args[1].isdigit():
+        if verb == "isolate" and len(args) > 1 and digits(args[1]):
             out["minutes"] = int(args[1])
         return tool, out
     if verb == "block" and args:
@@ -515,12 +524,12 @@ def native_to_call(line: str, sources: frozenset[str] = frozenset()) -> tuple[st
     if verb == "notify":
         role, _, text = rest.partition(" ")
         return "notify_role", {"role": role, "message": text or "-"}
-    if verb == "wait" and args and args[0].isdigit():
+    if verb == "wait" and args and digits(args[0]):
         return "wait", {"minutes": int(args[0])}
     if verb == "report":
         try:
             body = json.loads(rest) if rest.startswith("{") else {"summary": rest}
-        except ValueError:
+        except (ValueError, RecursionError):
             body = {"summary": rest}
         keep = {k: body[k] for k in ("summary", "compromised", "confidence", "suspicious_text")
                 if k in body}  # fmt: skip
@@ -588,7 +597,8 @@ def run_tools_entry(
     from cyberarena.rc.registry import caps_of
 
     caps = caps_of(entry)
-    desk = TicketDesk(specs, world, repeat, idle_timeout=float(caps["incident_timeout"]), key=key)
+    desk = TicketDesk(specs, world, repeat, idle_timeout=float(caps["incident_timeout"]), key=key,
+                      max_commands=int(caps["max_commands"]))  # fmt: skip
     if entry["kind"] == "baseline":
         run_program_as_tools(entry["baseline"], desk)
         adapter = "built-in program (environment as tools)"

@@ -543,7 +543,7 @@ class App:
         from cyberarena.rc.protocol import new_run_key
         from cyberarena.rc.registry import caps_of, driver_factory, manifest
         from cyberarena.rc.registry_cli import contamination_warning, stored_conformance
-        from cyberarena.rc.report import build_report, dumps
+        from cyberarena.rc.report import build_report, dumps, report_hash
         from cyberarena.rc.runner import build_pack, run_pack
         from cyberarena.rc.verify import verify
 
@@ -586,6 +586,7 @@ class App:
         warning = contamination_warning(self.runs_dir() / name, pack, doc)
         if warning:
             doc["agent"]["contamination_warning"] = warning
+            doc["report_hash"] = report_hash(doc)  # the warning is covered by the hash
         problems = verify(doc, world_file)
         for folder in (out, self.runs_dir() / name / pack):  # the page's history, the CLI's latest
             folder.mkdir(parents=True, exist_ok=True)
@@ -906,7 +907,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         hosts, origins = self._hosts()
         if self.headers.get("Host", "") not in hosts:
             return self._fail(421, "This page only answers on its own local address.")
-        if self.path.startswith("/api/"):
+        # Only a plain "/path" target: the routes look at the parsed path, so an absolute-form
+        # target ("http://host/api/...") would otherwise reach them without the token check.
+        if not self.path.startswith("/") or self.path.startswith("//"):
+            return self._fail(400, "Bad request target.")
+        if urllib.parse.urlsplit(self.path).path.startswith("/api/"):
             token = self.headers.get(TOKEN_HEADER, "")
             if not hmac.compare_digest(token.encode(), self.app.token.encode()):
                 return self._fail(403, "Open the page with the address printed when it started.")

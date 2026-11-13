@@ -62,7 +62,7 @@ class McpAgent(SubprocessAgent):
                 continue
             try:
                 msg = json.loads(line)
-            except ValueError:
+            except (ValueError, RecursionError):
                 continue
             if isinstance(msg, dict) and msg.get("id") == rid:
                 return msg

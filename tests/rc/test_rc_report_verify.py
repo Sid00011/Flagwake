@@ -125,3 +125,75 @@ def test_repeated_runs_verify():
     specs = pack_specs("practice", 1)[:3]
     res = run_pack(lambda: baseline_driver("careful"), specs, repeat=2)
     assert verify(build_report(res, pack_name="practice")) == []
+
+
+# --------------------------------------------------------------------------- pack and record holes
+
+
+def _rehash(d):
+    from cyberarena.rc.report import report_hash
+
+    d["report_hash"] = report_hash(d)
+    return d
+
+
+def _report(specs, pack="heldout", **kw):
+    return build_report(run_baseline_pack("careful", specs, **kw), {"id": "baseline:careful"},
+                        pack_name=pack)  # fmt: skip
+
+
+def test_an_unknown_pack_name_is_refused(doc):
+    for name in ("fresh (seeds drawn for this run: use these for claims)", "Fresh", "fresh "):
+        d = _rehash({**copy.deepcopy(doc), "pack": name})
+        assert any("unknown pack" in p for p in verify(d)), name
+
+
+def test_a_changed_difficulty_cannot_keep_the_pack_name():
+    specs = [{**s, "difficulty": "trivial"} for s in pack_specs("heldout", 2)]
+    problems = verify(_report(specs))
+    assert any("not the difficulty the heldout pack gives" in p for p in problems), problems
+    assert verify(_report(specs, pack="custom")) == []  # honest: chosen by hand
+
+
+def test_duplicated_or_float_seeded_incidents_are_refused():
+    specs = pack_specs("heldout", 2)
+    dup = _report(specs + specs[:1])
+    assert any("appears more than once" in p for p in verify(dup)), verify(dup)
+    floats = _report([{**s, "seed": float(s["seed"])} for s in specs])
+    assert any("not a whole number" in p for p in verify(floats)), verify(floats)
+
+
+def test_skipped_families_are_allowed_but_shown():
+    from cyberarena.rc.report import header_notes
+
+    specs = pack_specs("heldout", 2)
+    first = specs[0]["family"]
+    d = _report([s for s in specs if s["family"] != first])
+    assert verify(d) == []
+    assert any(n.startswith("families: ") and "left out" in n for n in header_notes(d))
+    short = _report([s for s in specs if s["family"] != first] + [specs[0]])  # out of order
+    assert any("pack's order" in p or "different numbers" in p for p in verify(short))
+
+
+def test_commands_after_the_end_are_refused(doc):
+    d = copy.deepcopy(doc)
+    d["incidents"][0]["commands"] += ["(no reply)", "(no reply)"]
+    assert any("stored after the incident ended" in p for p in verify(d)), verify(d)
+
+
+def test_every_derived_block_must_be_present(doc):
+    for block in ("traces", "profile", "harness", "integration"):
+        d = copy.deepcopy(doc)
+        del d[block]
+        assert any(f"no {block} block" in p for p in verify(_rehash(d))), block
+
+
+def test_the_tools_own_checks_are_covered_by_the_hash(doc):
+    d = copy.deepcopy(doc)
+    d["agent"]["conformance"] = {"status": "failed", "passed": 3, "total": 9}
+    d["agent"]["contamination_warning"] = "practice scores far better than fresh"
+    _rehash(d)
+    assert verify(d) == []
+    d["agent"]["conformance"] = {"status": "passed", "passed": 9, "total": 9}
+    del d["agent"]["contamination_warning"]
+    assert any("report hash" in p for p in verify(d)), verify(d)

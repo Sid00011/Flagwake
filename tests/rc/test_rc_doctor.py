@@ -9,6 +9,7 @@ import argparse
 import io
 import sys
 import time
+import urllib.error
 
 import pytest
 from rckit import FakeModel
@@ -124,3 +125,75 @@ def test_a_broken_agent_gets_a_plain_diagnosis(monkeypatch, tmp_path, code_text,
     agent = _agent_file(tmp_path, code_text)
     code, text, _ = _doctor(monkeypatch, agent=agent)
     assert code == 1 and expect in text, text
+
+
+def _redirecting_pair():
+    """Server A answers every POST with a redirect to server B; B records Authorization."""
+    import http.server
+    import threading
+
+    seen: list[str] = []
+
+    class B(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *_a):
+            pass
+
+        def _any(self):
+            seen.append(self.headers.get("Authorization", ""))
+            self.send_response(200)
+            self.send_header("Content-Length", "2")
+            self.end_headers()
+            self.wfile.write(b"{}")
+
+        do_GET = do_POST = _any  # noqa: N815
+
+    b = http.server.ThreadingHTTPServer(("127.0.0.1", 0), B)
+    target = f"http://127.0.0.1:{b.server_address[1]}/stolen"
+
+    class A(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *_a):
+            pass
+
+        def do_POST(self):  # noqa: N802
+            self.rfile.read(int(self.headers.get("Content-Length", "0")))
+            self.send_response(302)
+            self.send_header("Location", target)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+    a = http.server.ThreadingHTTPServer(("127.0.0.1", 0), A)
+    for s in (a, b):
+        threading.Thread(target=s.serve_forever, daemon=True).start()
+    return f"http://127.0.0.1:{a.server_address[1]}/v1", seen, (a, b)
+
+
+def test_a_redirect_never_carries_the_key_elsewhere(monkeypatch):
+    from cyberarena.rc.doctor import probe_endpoint
+    from cyberarena.rc.model_agent import Model
+
+    base, seen, servers = _redirecting_pair()
+    try:
+        level, what, _fix, _t = probe_endpoint(base, "m", "test-token-redirect", 5.0)
+        assert level == "FAIL" and "redirected" in what
+        monkeypatch.setenv("FLAGWAKE_LLM_BASE_URL", base)
+        monkeypatch.setenv("FLAGWAKE_LLM_MODEL", "m")
+        monkeypatch.setenv("FLAGWAKE_LLM_KEY", "test-token-redirect")
+        monkeypatch.delenv("FLAGWAKE_LLM_EXTRA_BODY", raising=False)
+        model = Model(argparse.Namespace(max_tokens=16))
+        with pytest.raises(urllib.error.HTTPError):  # a 302 is an error, never a hop elsewhere
+            model.ask([{"role": "user", "content": "hi"}], 5.0)
+        assert not any("REDIRECT" in a for a in seen), seen
+    finally:
+        for s in servers:
+            s.shutdown()
+            s.server_close()
+
+
+def test_doctor_never_sends_a_key_over_plain_http_to_another_machine(monkeypatch):
+    import cyberarena.rc.doctor as d
+
+    calls = []
+    monkeypatch.setattr(d, "probe_endpoint", lambda *a, **k: calls.append(a) or ("PASS", "", "", 0))
+    code, text, _ = _doctor(monkeypatch, url="http://remote.example/v1", key="test-token-plain")
+    assert code == 1 and calls == []
+    assert "refusing to send the key" in text and "test-token-plain" not in text

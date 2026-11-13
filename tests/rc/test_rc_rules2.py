@@ -397,3 +397,29 @@ def test_generated_routine_lines_are_plausible(name):
                     assert kind == "workstation" and of_day in OFFICE_HOURS, (text, of_day)
                 if "nightly" in text:
                     assert any(of_day in r for r in NIGHT_HOURS), (text, of_day)
+
+
+def test_containment_counts_only_hosts_the_intruder_actually_held():
+    from cyberarena.rc.runner import run_incident
+
+    spec = {"family": "cred-reuse", "seed": 120000, "difficulty": "standard"}
+    shift, _tr, sc = run_incident(spec, baseline_driver("oracle"), world=rules.default_world())
+    held = {h for _t, h, present in shift.presence_log if present}
+    truth = set(shift.incident["truth"]["compromised"]) & set(shift.world.host)
+    assert truth - held, "the oracle stops the intruder before it reaches every listed host"
+    cont = sc["containment"]
+    assert cont["true_compromised_hosts"] == len(held) and cont["missed"] == []
+
+
+def test_worse_than_nothing_counts_when_doing_nothing_costs_no_more_than_the_oracle(monkeypatch):
+    from cyberarena.rc import scoring
+    from cyberarena.rc.runner import run_incident
+
+    spec = {"family": "cred-reuse", "seed": 120000, "difficulty": "standard"}
+    w = rules.default_world()
+    inc = rules.generate(w, spec["family"], spec["seed"], spec["difficulty"])
+    nothing = scoring.do_nothing_damage(inc, w)
+    monkeypatch.setattr(scoring, "oracle_damage", lambda *_a: nothing)  # a flat company file
+    _shift, _tr, sc = run_incident(spec, baseline_driver("gullible"), world=w)
+    assert sc["index"] is None and sc["damage"] > nothing
+    assert sc["worse_than_nothing"] is True

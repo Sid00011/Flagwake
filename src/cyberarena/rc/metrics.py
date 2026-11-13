@@ -4,10 +4,10 @@ Rates carry a Wilson 95% interval; the damage index carries a seeded bootstrap i
 mean. Everything is broken down per family. No wall clock and no unseeded randomness: the bootstrap
 draws from a fixed ``random.Random`` so the same outcomes always give the same intervals.
 
-The headline damage index is the mean of the per-incident index clipped to [0, INDEX_CLIP]; the raw
-mean and the count of incidents worse than doing nothing are reported alongside it, because the
-normalised index is unbounded above when an incident's do-nothing and oracle damage are close
-(documented in docs/SCORING.md).
+The headline damage index is the mean of the per-incident index capped at INDEX_CLIP (a value below
+0, better than the oracle, is kept as it is); the raw mean and the count of incidents worse than
+doing nothing are reported alongside it, because the normalised index is unbounded above when an
+incident's do-nothing and oracle damage are close (documented in docs/SCORING.md).
 """
 
 from __future__ import annotations

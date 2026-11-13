@@ -62,6 +62,7 @@ def rules_hash(rules: int = 1) -> str:
             "integrity": scoring.W_INTEGRITY,
         }
         payload["reference"] = scoring.REFERENCE2
+        payload["measures"] = scoring.MEASURES2
     blob = json.dumps(payload, sort_keys=True).encode("utf-8")
     return hashlib.sha256(blob).hexdigest()
 
@@ -151,6 +152,7 @@ def build_report(
         "gen_version": rules.gen_version(w),
         "pack_version": rules.pack_version(w),
         "pack": pack_name,
+        "families_available": len(rules.families(w)),
         "rules_hash": rh,
         **rules.header(w),
         "integration": integration_block(
@@ -215,10 +217,18 @@ def sum_usage(incidents: list[dict[str, Any]]) -> dict[str, float]:
     return dict(sorted(total.items()))
 
 
+# Results the tool itself records in the "agent" block (not self-reported): covered by the hash.
+TOOL_CHECKS = ("conformance", "contamination_warning", "stopped_early")
+
+
 def report_hash(doc: dict[str, Any]) -> str:
     """Hash of the score-bearing parts: all but the self-reported metadata, the hash itself and
-    the parts derived from the rest (traces, profile), which verify recomputes instead."""
+    the parts derived from the rest (traces, profile), which verify recomputes instead. The
+    checks the tool records in the "agent" block (conformance, warnings) are covered too."""
     core = {k: v for k, v in doc.items() if k not in ("agent", "report_hash", "traces", "profile")}
+    raw = doc.get("agent")
+    agent: dict[str, Any] = raw if isinstance(raw, dict) else {}
+    core["agent_checks"] = {k: agent[k] for k in TOOL_CHECKS if k in agent}
     blob = json.dumps(core, sort_keys=True, ensure_ascii=True).encode("utf-8")
     return hashlib.sha256(blob).hexdigest()
 
@@ -276,6 +286,11 @@ def _trace(transcript: dict[str, Any], o: dict[str, Any]) -> dict[str, Any]:
         verdict = "worse than doing nothing" if o["worse_than_nothing"] else "costly"
         lines.append(
             f"Business damage index {o['index']} (0 = oracle, 100 = do-nothing): {verdict}."
+        )
+    elif o["worse_than_nothing"]:
+        lines.append(
+            f"It caused more business damage than doing nothing ({o['damage']} against "
+            f"{o['do_nothing_damage']})."
         )
     right = _right_response(fam)
     return {
@@ -385,6 +400,17 @@ def world_notes(doc: dict[str, Any]) -> list[str]:
     return out
 
 
+def family_coverage(doc: dict[str, Any]) -> str | None:
+    """A line when the run left out families this company can host (None when it ran them all)."""
+    raw = doc.get("incidents")
+    incs: list[Any] = raw if isinstance(raw, list) else []
+    ran = {i.get("family") for i in incs if isinstance(i, dict)}
+    available = doc.get("families_available")
+    if not isinstance(available, int) or len(ran) >= available:
+        return None
+    return f"families: {len(ran)} of {available} (the others were left out of this run)"
+
+
 def integration_note(doc: dict[str, Any]) -> str | None:
     """One line: how the defender was connected and whether the harness sent instruction text."""
     i = doc.get("integration") if isinstance(doc.get("integration"), dict) else None
@@ -408,6 +434,9 @@ def header_notes(doc: dict[str, Any]) -> list[str]:
     raw = doc.get("agent")
     agent: dict[str, Any] = raw if isinstance(raw, dict) else {}
     lines = [f"pack: {pack_label(doc.get('pack'))}", conformance_line(doc)]
+    cover = family_coverage(doc)
+    if cover:
+        lines.append(cover)
     lines += world_notes(doc)
     integ = integration_note(doc)
     if integ:

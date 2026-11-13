@@ -41,6 +41,7 @@ from typing import Any, Protocol
 from cyberarena.rc.engine import MAX_COMMANDS, RULES1_COMMANDS, Shift
 
 MAX_LINE = 16384
+NL = chr(10)  # the end of a reply line
 MAX_BAD_LINES = 20
 DEFAULT_STEP_TIMEOUT = 60.0
 DEFAULT_WALL_TIMEOUT = 900.0
@@ -98,9 +99,11 @@ def shift_label(shift: Named) -> str:
     return shift.label
 
 
-def _limits(step_timeout: float = DEFAULT_STEP_TIMEOUT) -> dict[str, Any]:
+def _limits(
+    step_timeout: float = DEFAULT_STEP_TIMEOUT, commands: int = MAX_COMMANDS
+) -> dict[str, Any]:
     return {
-        "commands": MAX_COMMANDS,
+        "commands": commands,
         "shift_minutes": 480,
         "obs_bytes": 8192,
         "step_seconds": step_timeout,
@@ -114,7 +117,7 @@ def _start_message(shift: Shift, step_timeout: float = DEFAULT_STEP_TIMEOUT) -> 
         "incident": shift_label(shift),
         "text": shift.observations[0] if shift.observations else "",
         "commands": list(getattr(shift, "commands_known", RULES1_COMMANDS)),
-        "limits": _limits(step_timeout),
+        "limits": _limits(step_timeout, getattr(shift, "command_cap", MAX_COMMANDS)),
     }
 
 
@@ -138,7 +141,7 @@ def parse_reply(line: str) -> tuple[str, str | None, dict[str, float] | None]:
     """Classify one reply: ("cmd", command, usage), ("stop", None, usage) or ("bad", None, None)."""
     try:
         obj = json.loads(line)
-    except ValueError:
+    except (ValueError, RecursionError):
         return "bad", None, None
     if not isinstance(obj, dict):
         return "bad", None, None
@@ -254,7 +257,19 @@ class SubprocessAgent:
     def _readline(self) -> str | None:
         stdout = self.proc.stdout
         assert stdout is not None
-        done, line = self._timed(lambda: stdout.readline(MAX_LINE + 1))
+
+        def read() -> str:
+            line = stdout.readline(MAX_LINE + 1)
+            if len(line) > MAX_LINE and not line.endswith(NL):
+                # Drop the rest of the overlong line, or it would be read as the next reply and
+                # every later command would answer the observation before it.
+                while True:
+                    more = stdout.readline(MAX_LINE + 1)
+                    if more == "" or more.endswith(NL):
+                        break
+            return line
+
+        done, line = self._timed(read)
         if not done:
             self._stop(f"no answer within {self.step_timeout:.0f}s", kill=True)
             return None

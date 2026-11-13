@@ -59,6 +59,7 @@ def page(tmp_path):
             time.sleep(0.1)
         raise AssertionError("the job did not finish")
 
+    call.port = port
     yield app, call, wait_job, fake, tmp_path
     server.shutdown()
     server.server_close()
@@ -127,6 +128,15 @@ def test_missing_or_wrong_token_is_refused(page):
     assert call("GET", "/api/state", token=False)[0] == 403
     assert call("GET", "/api/state", headers={ui.TOKEN_HEADER: "guess"})[0] == 403
     assert call("GET", "/")[0] == 200  # the page itself needs no token
+
+
+def test_an_absolute_request_target_cannot_skip_the_token(page):
+    app, call, *_ = page
+    base = f"http://127.0.0.1:{call.port}"
+    assert call("GET", base + "/api/state", token=False)[0] == 400
+    body = {"name": "x1", "kind": "http", "url": "http://127.0.0.1:9/act"}
+    assert call("POST", base + "/api/defenders", body, token=False)[0] == 400
+    assert "x1" not in (app.path.read_text() if app.path.exists() else "")
 
 
 def test_a_request_from_another_site_cannot_change_anything(page):

@@ -3,6 +3,31 @@
 All notable changes. Dates are UTC. Incidents are versioned by the generator version, the rules by
 the rules hash (see `docs/METHODOLOGY.md`).
 
+## 0.5.0rc3 (2026-11-13)
+
+- **The page's token check.** A request whose target is an absolute URL (`GET http://host/api/...`)
+  no longer reaches the page's API without the token.
+- **Keys never follow a redirect.** The reference model agent, `flagwake doctor` and the tool
+  example send the key only to the address you set: a redirect is refused, and doctor says so.
+  `flagwake doctor` also refuses to send a key over plain http to another machine, as a run does.
+- **Containment counts the hosts the intruder held.** Under company files a host the intruder
+  never reached, because the response stopped it first, no longer counts as a missed intrusion
+  (the reference response contained 46 of 60 listed hosts on the practice pack; now 46 of 46). A
+  live incident where doing nothing costs no more than the reference can count as worse than
+  doing nothing. The damage index does not move for any shipped program. Rules hash and rules-2
+  fingerprint move; the original rules are untouched (docs/METHODOLOGY.md, 2026-11-13).
+- **Verify checks more.** The exact seeds, difficulty, repeats and family order of the pack a
+  report names; which of the world's families were left out (also said in the report's header);
+  no command stored after an incident ended; the required blocks present. The tool-mode checks
+  are covered by the report hash, which is recomputed after the contamination warning is added.
+  A report of hand-picked incidents, or one run with a difficulty override, says `custom`.
+- **Odd replies end one command, not the run.** Superscript digits, deeply nested JSON, a huge
+  number in a report's confidence and a reply line over the size limit are unrecognised or
+  invalid commands; an over-long line no longer shifts the replies after it. The start message
+  states the command cap a run actually enforces, and the tools mode enforces it too.
+- **Docs.** The headline index caps each incident at 200 and keeps a value below 0; the docs said
+  it was clipped to [0, 200].
+
 ## 0.5.0rc2 (2026-11-11)
 
 - **Verified releases.** A version tag builds the package on GitHub Actions and publishes it to

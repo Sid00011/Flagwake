@@ -20,6 +20,7 @@ can be wrong, the rate at which a siphon draws value, and the severity of the on
 from __future__ import annotations
 
 import random
+import threading
 from typing import Any
 
 from cyberarena.rc import text2
@@ -31,9 +32,11 @@ GEN_VERSION = "rc-gen-8"
 # The wording style of the incident being generated: every line is drawn from its paraphrases
 # (text2.VARIANTS) by this seed, so the same event reads one way in this incident and another way
 # in the next, and a defender cannot memorise one fixed string per event. ``generate`` sets it;
-# generation is sequential, so a module global is deterministic. An empty style (a direct ``t``
-# call outside ``generate``) still picks a stable wording.
+# a lock keeps generation sequential (the local page generates in several threads), so a module
+# global is deterministic. An empty style (a direct ``t`` call outside ``generate``) still picks a
+# stable wording.
 _STYLE = ""
+_GENERATING = threading.Lock()
 
 
 def t(text_id: str, **slots: str) -> str:
@@ -1634,6 +1637,12 @@ def generate(family: str, seed: int, difficulty: str = "standard",
     good, why = binds(w, family)
     if not good:
         raise Missing(f"{family}: {why}")
+    with _GENERATING:
+        return _build(w, family, seed, difficulty)
+
+
+def _build(w: World, family: str, seed: int, difficulty: str) -> dict[str, Any]:
+    """The body of :func:`generate`, run under the lock that keeps :data:`_STYLE` sequential."""
     global _STYLE
     _STYLE = f"{w.name}/{family}/{difficulty}/{seed}"
     rng = seed_rng(w, family, difficulty, seed)

@@ -127,10 +127,15 @@ def parse_command(line: str) -> tuple[str, list[str], str]:
     return verb, rest.split(), rest
 
 
+def digits(text: str) -> bool:
+    """Only the digits 0-9: ``str.isdigit`` also accepts characters such as ² that int() refuses."""
+    return text.isascii() and text.isdigit()
+
+
 def looks_like_ip(text: str) -> bool:
     """A dotted IPv4 address (the only address form in this world)."""
     parts = text.split(".")
-    return len(parts) == 4 and all(p.isdigit() and len(p) <= 3 and int(p) <= 255 for p in parts)
+    return len(parts) == 4 and all(digits(p) and len(p) <= 3 and int(p) <= 255 for p in parts)
 
 
 class Host:
@@ -165,6 +170,7 @@ class Shift:
         self.world = world
         # The opaque name this incident goes by in what a program is sent (the runner sets it).
         self.label = ""
+        self.command_cap = MAX_COMMANDS  # the runner sets the cap it enforces
         self.start: int = inc["start"]
         self.now = 0
         self.done = False
@@ -748,7 +754,7 @@ class Shift:
             return f"No host named '{args[0][:40]}'. Type hosts for the list.{extra}"
         back = LOGS_DEFAULT
         if len(args) > 1:
-            if not args[1].isdigit():
+            if not digits(args[1]):
                 return "Usage: logs <host> [minutes]; minutes is a whole number from 1 to 600."
             back = max(1, min(LOGS_MAX, int(args[1])))
         lo = self.now - back
@@ -796,7 +802,7 @@ class Shift:
         """logs <source>: the lines one log source carries now, across hosts (rules 2)."""
         back = LOGS_MAX
         if len(args) > 1:
-            if not args[1].isdigit():
+            if not digits(args[1]):
                 return "Usage: logs <source> [minutes]; minutes is a whole number from 1 to 600."
             back = max(1, min(LOGS_MAX, int(args[1])))
         lo = self.now - back
@@ -1017,7 +1023,7 @@ class Shift:
             return f"No {noun} named '{args[0][:40]}'.", 0
         minutes = ISOLATE_DEFAULT
         if verb == "isolate" and len(args) > 1:
-            if not args[1].isdigit():
+            if not digits(args[1]):
                 return f"Usage: isolate <host> [minutes]; minutes from {ISOLATE_MIN} to " \
                     f"{ISOLATE_MAX}.", 0  # fmt: skip
             minutes = max(ISOLATE_MIN, min(ISOLATE_MAX, int(args[1])))
@@ -1205,7 +1211,7 @@ class Shift:
         if rest.startswith("{"):
             try:
                 parsed = json.loads(rest)
-            except ValueError:
+            except (ValueError, RecursionError):  # malformed or absurdly nested: not a report
                 parsed = None
         self.report = normalise_report(parsed, rest)
         return (
@@ -1262,7 +1268,7 @@ class Shift:
         elif verb == "escalate":
             text = self._escalate(rest)
         elif verb == "wait":
-            if len(args) != 1 or not args[0].isdigit() or int(args[0]) < 1:
+            if len(args) != 1 or not digits(args[0]) or int(args[0]) < 1:
                 text = f"Usage: wait <minutes>, from 1 to {WAIT_MAX}."
             else:
                 cost = min(WAIT_MAX, int(args[0]))
@@ -1341,7 +1347,10 @@ def normalise_report(parsed: Any, raw: str) -> dict[str, Any]:
         clean: dict[str, float] = {}
         for k, v in list(conf.items())[:40]:
             if isinstance(k, str) and isinstance(v, int | float) and not isinstance(v, bool):
-                fv = float(v)
+                try:
+                    fv = float(v)
+                except OverflowError:  # an integer too large for a float
+                    continue
                 if fv == fv and abs(fv) != float("inf"):
                     clean[k.lower()[:40]] = round(min(1.0, max(0.0, fv)), 6)
         out["confidence"] = dict(sorted(clean.items()))

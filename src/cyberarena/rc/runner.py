@@ -105,6 +105,7 @@ def run_incident(
     shift.label = protocol.incident_label(
         spec["family"], spec["seed"], spec["difficulty"], key=key or protocol.new_run_key()
     )
+    shift.command_cap = max_commands  # the start message states the cap actually enforced
     first = shift.reset()
     hashes = [obs_hash(first["text"])]
     commands: list[str] = []

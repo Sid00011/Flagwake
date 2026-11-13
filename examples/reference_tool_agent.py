@@ -41,6 +41,16 @@ KEEP = 24  # latest messages kept after the instruction and the opening ticket
 TIMEOUT = float(os.environ.get("FLAGWAKE_TOOL_LOOP_TIMEOUT", "120"))
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Never follow a redirect: urllib would carry the Authorization header to the new address."""
+
+    def redirect_request(self, *_args, **_kwargs):  # noqa: ANN002, ANN003
+        return None
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def _post(url: str, body: dict, headers: dict[str, str]) -> dict:
     req = urllib.request.Request(
         url,
@@ -48,7 +58,7 @@ def _post(url: str, body: dict, headers: dict[str, str]) -> dict:
         method="POST",
         headers={"Content-Type": "application/json", **headers},
     )
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as r:  # noqa: S310 (configured endpoints)
+    with _OPENER.open(req, timeout=TIMEOUT) as r:  # configured endpoints; no redirects
         return json.loads(r.read().decode("utf-8"))
 
 
@@ -65,7 +75,7 @@ def catalogue() -> list[dict]:
     req = urllib.request.Request(
         f"{api}/tools", headers={"Authorization": f"Bearer {os.environ['FLAGWAKE_TOOLS_TOKEN']}"}
     )
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as r:  # noqa: S310
+    with _OPENER.open(req, timeout=TIMEOUT) as r:  # the token never follows a redirect
         tools = json.loads(r.read())["tools"]
     return [
         {

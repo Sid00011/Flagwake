@@ -72,7 +72,7 @@ intruder returns to the hosts they cut off; that is why they sit far from the or
 Baselines can tie on a family simply because none of them makes the decisive move, so the gate
 also runs four command lists built from the ground truth: the oracle's list (*full-early*), the same
 after a 60-minute wait (*full-late*), the oracle's first containment action only (*partial*) and
-do-nothing (*none*). Mean clipped index, practice seeds 120000–120019:
+do-nothing (*none*). Mean capped index, practice seeds 120000–120019:
 
 | family | full-early | full-late | partial | none |
 |---|---|---|---|---|
@@ -106,5 +106,5 @@ attacker.
   2.0 comes from an earlier prototype's rules, the rest are debatable.
 - The attacker is scripted with one adaptive rule per incident; it is not a free adversary.
 - The oracle is near-optimal, not optimal: `thorough` scores slightly below it on `cred-reuse`
-  (mean −2.0 before clipping). Indices below 0 are clipped in the headline mean.
+  (mean −2.0). Indices below 0 are kept in the headline mean, which caps only above.
 - See [LIMITATIONS.md](LIMITATIONS.md) for the full list.

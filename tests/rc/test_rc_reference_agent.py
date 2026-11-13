@@ -100,7 +100,7 @@ BAD_SCRIPT = [
 def test_bad_slow_and_unparseable_replies_are_failed_commands(monkeypatch, tmp_path):
     result, fake, log, seconds = _run(monkeypatch, tmp_path, BAD_SCRIPT, "--timeout", "1")
     assert seconds < 60
-    doc = build_report(result, {"id": "reference-agent"}, "practice")
+    doc = build_report(result, {"id": "reference-agent"}, "custom")  # chosen incidents
     assert verify(doc) == []
     unrec = doc["metrics"]["cost"]["unrecognised_commands"]
     assert unrec >= 5  # HTTP 500, not JSON, no command, too slow, no choices

@@ -22,6 +22,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from cyberarena.rc.model_agent import key_transport_problem, open_keyed
 from cyberarena.rc.protocol import NET_ERRORS
 
 SPECS = [
@@ -70,7 +71,7 @@ def _probe(req: urllib.request.Request, timeout: float) -> tuple[str, str, str]:
     t0 = time.monotonic()
     key = req.get_header("Authorization")
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 (user's endpoint)
+        with open_keyed(req, timeout) as resp:  # the user's endpoint; no redirects
             raw = resp.read(1_000_000)
     except urllib.error.HTTPError as exc:
         if exc.code in (401, 403):
@@ -84,6 +85,15 @@ def _probe(req: urllib.request.Request, timeout: float) -> tuple[str, str, str]:
                 "FAIL",
                 f"the endpoint wants a key (HTTP {exc.code})",
                 ("set FLAGWAKE_LLM_KEY to your key (it is read from the environment only)"),
+            )
+        if 300 <= exc.code < 400:
+            return (
+                "FAIL",
+                f"the endpoint redirected the request (HTTP {exc.code})",
+                (
+                    "use the final address as FLAGWAKE_LLM_BASE_URL: Flagwake does not follow "
+                    "redirects, so the key never goes to an address you did not choose"
+                ),
             )
         if exc.code == 404:
             return (
@@ -161,7 +171,7 @@ def run_smoke(factory: Any, f: Findings, label: str) -> dict[str, Any] | None:
             ))  # fmt: skip
         return None
     seconds = time.monotonic() - t0
-    doc = build_report(result, {"id": label}, pack_name="practice")
+    doc = build_report(result, {"id": label}, pack_name="custom")  # three chosen incidents
     cmds = doc["metrics"]["cost"]["commands"]
     unrec = doc["metrics"]["cost"]["unrecognised_commands"]
     h = doc["harness"]
@@ -236,6 +246,10 @@ def doctor(args: Any, out: Any = None) -> int:
                 "PASS" if key else "INFO",
                 "a key is set" if key else "no key set (fine for a local server)",
             )
+            refused = key_transport_problem(base, key)
+            if refused:
+                f.say("FAIL", refused, "use an https:// address (no key is needed locally)")
+                return 1
             level, what, fix, latency = probe_endpoint(base, model, key, args.timeout)
             f.say(level, what, fix)
             if level == "FAIL":

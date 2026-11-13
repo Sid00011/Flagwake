@@ -51,6 +51,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from typing import Any
 
 from cyberarena.rc.engine import ASK_TOPICS, COMMANDS
 
@@ -219,6 +220,22 @@ def _prob(v: object) -> float | None:
 LOCAL_HOSTS = ("127.0.0.1", "localhost", "::1")
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Refuse redirects: urllib would carry the Authorization header to the new address, which
+    may be another host or plain http."""
+
+    def redirect_request(self, *_args: Any, **_kwargs: Any) -> None:
+        return None
+
+
+_NO_REDIRECT = urllib.request.build_opener(_NoRedirect)
+
+
+def open_keyed(req: urllib.request.Request, timeout: float) -> Any:
+    """Open ``req`` without following any redirect (a 3xx answer raises HTTPError)."""
+    return _NO_REDIRECT.open(req, timeout=timeout)
+
+
 def key_transport_problem(base_url: str, key: str | None) -> str | None:
     """Why the key must not be sent to ``base_url`` (None when it may).
 
@@ -291,7 +308,7 @@ class Model:
         self.calls += 1
         t0 = time.monotonic()
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 (user's endpoint)
+            with open_keyed(req, timeout) as resp:  # the user's endpoint; no redirects
                 raw = resp.read(2_000_000)
         finally:
             self.seconds += time.monotonic() - t0

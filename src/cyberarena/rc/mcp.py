@@ -225,7 +225,7 @@ def serve(
             continue
         try:
             msg = json.loads(line)
-        except ValueError:
+        except (ValueError, RecursionError):
             stdout.write(json.dumps(_err(None, -32700, "parse error")) + "\n")
             stdout.flush()
             continue

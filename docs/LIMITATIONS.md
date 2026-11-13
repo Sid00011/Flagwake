@@ -28,9 +28,9 @@ environment.
   (`W_HOLD`, `W_DOWN`, `W_ISOLATE`, `W_EXPOSURE`, `W_REACH`, the payroll multiplier). The downtime
   weight 2.0 is carried over from an earlier prototype's rules; the rest are ours and debatable. The
   index moves if you change them; it is a comparison within this fixed ruleset, not an absolute.
-- **The index is normalised and clipped.** When an incident's do-nothing and oracle damage are
-  close, the per-incident index can be large for a small absolute mistake, so the headline mean is
-  clipped to [0, 200]. The raw mean and the count of incidents worse than doing nothing are also
+- **The index is normalised and capped.** When an incident's do-nothing and oracle damage are
+  close, the per-incident index can be large for a small absolute mistake, so the headline mean caps
+  each incident at 200 (a value below 0, better than the oracle, is kept). The raw mean and the count of incidents worse than doing nothing are also
   reported. See [SCORING.md](SCORING.md).
 - **Fixed seed sets can be learned.** The practice seeds are public and the held-out seeds
   (130000–130999) are fixed: both come from the same open code, so a determined reader can
@@ -46,7 +46,10 @@ environment.
   the commands stored in the report, and that the incidents come from the pack the report names.
   It cannot show which program sent those commands: anyone can produce a consistent report by
   feeding the harness the commands they choose. Trust a result as much as you trust whoever ran
-  it; for a decision, run the defender yourself on a fresh pack.
+  it; for a decision, run the defender yourself on a fresh pack. The report hash is a plain
+  checksum, not a signature: it covers the scores, the commands and the tool-mode checks
+  (conformance, the contamination warning, an early stop), so an edit that does not recompute it
+  is caught, and one that does is caught only where verify re-derives the field.
 - **What skipping an approval costs is a design choice.** A critical action taken without the
   required approval is carried out, and the damage index adds the cost of a change-control review
   (`W_UNAPPROVED`, the cost of a 30-minute outage of a criticality-5 system). Skipping is never
@@ -75,7 +78,13 @@ environment.
   without approval, and no shipped program does better than it on any family (tested); a defender
   with a cleverer order could still beat it. Under the original rules it is one fixed list, and
   the `thorough` reference program does slightly better on `cred-reuse` (up to 3 index points).
-  Per-incident indices below 0 are reported raw and clipped to 0 in the headline.
+  Per-incident indices below 0 are kept as they are in the headline mean, which caps only above.
+- **The original rules keep their first-published measures.** Under the original rules
+  (`--world legacy`) the containment rate counts every host the ground truth lists, so a
+  response that stops the intruder before it reaches a host counts that host as missed, and an
+  incident where doing nothing costs no more than the oracle is never worse than doing nothing.
+  They are kept so that earlier reports still verify; the default company files use the
+  corrected measures (docs/SCORING.md).
 - **A restore takes two simulated hours** and evicts the intruder for good only once its credential
   is reset and any flaw patched; real rebuilds vary widely.
 - **`flagwake doctor` is a smoke test.** Three practice incidents; passing it means an agent or

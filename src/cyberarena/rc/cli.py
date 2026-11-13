@@ -163,8 +163,10 @@ def cmd_check(args: argparse.Namespace) -> int:
     families = tuple(args.family) if args.family else bound
     key = args.run_key or new_run_key()
     specs = build_pack(args.pack, per_family=args.seeds, families=families, key=key)
-    if args.difficulty:
+    pack_name = args.pack
+    if args.difficulty:  # no longer the pack's own mix, so it cannot claim the pack's name
         specs = [{**s, "difficulty": args.difficulty} for s in specs]
+        pack_name = "custom"
 
     factory, meta = _agent_factory(args)
     if factory is None:
@@ -182,7 +184,7 @@ def cmd_check(args: argparse.Namespace) -> int:
             print("last lines of its stderr:\n  " + "\n  ".join(tail), file=sys.stderr)
         print("Check the --agent command; see docs/PROTOCOL.md for the protocol.", file=sys.stderr)
         return 2
-    doc = build_report(result, meta, pack_name=args.pack, world=world,
+    doc = build_report(result, meta, pack_name=pack_name, world=world,
                        integration=_integration(args))  # fmt: skip
     problems = verify(doc, world_file_arg(getattr(args, "world", None)))
     verified = not problems
@@ -415,7 +417,13 @@ def transcript_text(incident: dict[str, Any], world: Any = None) -> str:
         f"commands; the incident window is {SHIFT_MINUTES} simulated minutes.",
         f"Business cost: damage {sc['damage']} (oracle {sc['oracle_damage']}, do-nothing "
         f"{sc['do_nothing_damage']}); damage index "
-        + ("n/a (no intruder)" if sc["index"] is None else str(sc["index"]))
+        + (
+            str(sc["index"])
+            if sc["index"] is not None
+            else "n/a (no intruder)"
+            if sc["quiet"]
+            else "n/a (doing nothing costs no more than the best response)"
+        )
         + " (0 = oracle, 100 = do-nothing).",
         f"Containment: {cont['contained']}/{cont['true_compromised_hosts']} compromised hosts; "
         f"{cont['false_containment_actions']} action(s) on benign targets; planted orders "

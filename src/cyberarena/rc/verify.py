@@ -66,11 +66,14 @@ def _replay(incident_doc: dict[str, Any], world: World, key: str = "") -> tuple[
         if ti.sent_hashes != spec.get("sent_hashes"):
             raise ValueError("the hashes of what was sent do not match a replay of the calls")
         return ti.shift, ti.obs_hashes
+    commands = spec["commands"]
+    if not isinstance(commands, list) or not all(isinstance(c, str) for c in commands):
+        raise ValueError("the commands are not a list of text lines")
     first = shift.reset()
     hashes = [obs_hash(first["text"])]
-    for cmd in spec["commands"][:MAX_COMMANDS]:
-        if shift.done:
-            break
+    for n, cmd in enumerate(commands):
+        if shift.done or n >= MAX_COMMANDS:  # nothing after the end was ever sent to the world
+            raise ValueError(f"{len(commands) - n} command(s) are stored after the incident ended")
         obs, _ = shift.step(cmd)
         hashes.append(obs_hash(obs["text"]))
     shift.finish()
@@ -140,6 +143,10 @@ def _replay_all(
     replayed: list[dict[str, Any]] = []
     for inc in incidents:
         label = f"{inc.get('family')}:{inc.get('seed')}" if isinstance(inc, dict) else "?"
+        seed = inc.get("seed") if isinstance(inc, dict) else None
+        if not isinstance(seed, int) or isinstance(seed, bool):  # 120000.0 is another incident
+            problems.append(f"incident {label}: the seed is not a whole number")
+            continue
         try:
             shift, hashes = _replay(inc, world, key)
         except Exception as exc:  # a bad family/seed/command in the record
@@ -173,7 +180,12 @@ def _derived_problems(
     seeds = sorted({inc["seed"] for inc in incidents})
     if doc.get("seeds") != seeds:
         problems.append("the seed list does not match the incidents in the report")
-    problems.extend(pack_problems(doc.get("pack"), incidents, key))
+    problems.extend(pack_problems(doc.get("pack"), incidents, key, rules.families(world)))
+    if doc.get("families_available") != len(rules.families(world)):
+        problems.append("the number of families this company can host does not match the report")
+    for block in ("integration", "traces", "profile", "harness"):
+        if block not in doc:  # every report this tool writes has them; a missing one hides findings
+            problems.append(f"the report has no {block} block")
     rh = rules_hash(world.rules)
     where = _first_diff(aggregate(outcomes, seed="rc-" + rh[:8]), doc.get("metrics"))
     if where:
@@ -206,33 +218,96 @@ def _derived_problems(
     return problems
 
 
-def pack_problems(pack: Any, incidents: list[dict[str, Any]], key: str) -> list[str]:
-    """Whether the incidents come from the pack the report names.
+UNCHECKED_PACKS = ("custom", "mcp")  # incidents chosen by hand, or an MCP client's log
 
-    A fixed pack's seeds must lie in its range. A fresh pack's seeds must be the start of the draw
-    its run key makes for each family, in order (a run stopped early holds a shorter start), so a
-    report cannot call hand-picked seeds fresh. Other packs (an MCP log) are not checked.
+
+def pack_problems(
+    pack: Any, incidents: list[dict[str, Any]], key: str, order: tuple[str, ...] = ()
+) -> list[str]:
+    """Whether the incidents are exactly what the named pack gives.
+
+    For each family the seeds must be the start of the pack's sequence (a fixed pack's first
+    seeds, or the draw a fresh pack's run key makes), each with the difficulty the pack gives that
+    seed, repeats numbered from 0 with no duplicates, every family with the same number of seeds
+    and in the pack's family order (only the last family of a run stopped early may end short).
+    A family left out entirely is allowed and shown in the report's header. "custom" and "mcp"
+    claim no pack; any other name is refused.
     """
     from cyberarena.rc import packs
 
-    spaces = {"practice": (packs.PRACTICE,), "heldout": (packs.HELDOUT,),
-              "full": (packs.PRACTICE, packs.HELDOUT)}  # fmt: skip
-    if pack in spaces:
-        outside = [i["seed"] for i in incidents if not any(i["seed"] in r for r in spaces[pack])]
-        return [f"seed {outside[0]} is not part of the {pack} pack"] if outside else []
-    if pack != "fresh":
+    if pack in UNCHECKED_PACKS:
         return []
-    if not key:
+    if pack not in packs.PACKS:
+        known = ", ".join((*packs.PACKS, *UNCHECKED_PACKS))
+        return [f"unknown pack {str(pack)[:40]!r} (known: {known})"]
+    if pack == "fresh" and not key:
         return ["a fresh pack needs the run key it was drawn from; the report has none"]
     by_family: dict[str, list[int]] = {}
+    runs: dict[tuple[str, int], list[Any]] = {}
     for inc in incidents:
-        seen = by_family.setdefault(inc["family"], [])
-        if inc["seed"] not in seen:
-            seen.append(inc["seed"])
+        family, seed = inc["family"], inc["seed"]
+        if inc.get("difficulty") != packs.difficulty_for(family, seed):
+            return [f"incident {family}:{seed}: not the difficulty the {pack} pack gives this seed"]
+        seen = by_family.setdefault(family, [])
+        if seed not in seen:
+            seen.append(seed)
+        runs.setdefault((family, seed), []).append(inc.get("repeat"))
+    problem = _repeat_problem(runs) or _order_problem(list(by_family), order)
+    if problem:
+        return [problem]
+    sizes = [len(seeds) for seeds in by_family.values()]
+    if len(set(sizes[:-1])) > 1 or (len(sizes) > 1 and sizes[-1] > sizes[0]):
+        return ["the families have different numbers of incidents (only the last family of a run "
+                "stopped early may end short)"]  # fmt: skip
     for family, got in by_family.items():
-        if got != packs.draw(key, family, len(got)):
-            return [f"the {family} seeds are not the ones the run key draws for the fresh pack"]
+        if got != _pack_seeds(pack, family, got, key):
+            if pack == "fresh":
+                return [f"the {family} seeds are not the fresh pack's draw from the run key"]
+            return [f"the {family} seeds are not the start of the {pack} pack's seeds"]
     return []
+
+
+def _pack_seeds(pack: str, family: str, got: list[int], key: str) -> list[int]:
+    """The seeds the pack gives ``family``, as many as ``got`` holds."""
+    from cyberarena.rc import packs
+
+    n = len(got)
+    if pack == "fresh":
+        return packs.draw(key, family, n)
+    if pack == "full":  # the practice seeds, then the held-out ones
+        p = sum(1 for s in got if s in packs.PRACTICE)
+        return [packs.PRACTICE.start + i for i in range(p)] + [
+            packs.HELDOUT.start + i for i in range(n - p)
+        ]
+    space = packs.PRACTICE if pack == "practice" else packs.HELDOUT
+    return [space.start + i for i in range(n)]
+
+
+def _repeat_problem(runs: dict[tuple[str, int], list[Any]]) -> str | None:
+    """Each incident once, or its repeats numbered 0, 1, 2 ... (a run stopped early may end one
+    incident's repeats short, but every earlier incident has the full number)."""
+    counts = []
+    for (family, seed), reps in runs.items():
+        if reps == [None]:
+            counts.append(1)
+            continue
+        if None in reps or sorted(reps) != list(range(len(reps))):
+            return f"incident {family}:{seed} appears more than once without distinct repeats"
+        counts.append(len(reps))
+    if len(set(counts[:-1])) > 1 or (len(counts) > 1 and counts[-1] > counts[0]):
+        return "the incidents were not all repeated the same number of times"
+    return None
+
+
+def _order_problem(families: list[str], order: tuple[str, ...]) -> str | None:
+    """The families appear in the pack's order (so the one that may end short is the last)."""
+    if not order:
+        return None
+    unknown = [f for f in families if f not in order]
+    if unknown:
+        return f"family {unknown[0]!r} is not part of this company's families"
+    idx = [order.index(f) for f in families]
+    return None if idx == sorted(idx) else "the families are not in the pack's order"
 
 
 def _first_hash_gap(replay: list[str], claimed: Any, inc: dict[str, Any]) -> str:

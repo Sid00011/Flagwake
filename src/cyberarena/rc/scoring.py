@@ -305,6 +305,10 @@ def _run(incident: dict[str, Any], commands: list[str], world: World = WORLD) ->
 EVICT_FIRST = {"patch": 0, "restore": 1, "isolate": 1, "block": 2, "reset": 3, "pause": 4}
 # Named in the rules-2 rules hash, so a report scored against another reference does not verify.
 REFERENCE2 = "cheapest-of-orders-1"
+# Named in the rules-2 rules hash too: how containment and worse-than-nothing are counted
+# (containment over the hosts the intruder held in the run; worse than nothing on every live
+# incident).
+MEASURES2 = "held-hosts-1"
 
 
 def _oracle_plan(incident: dict[str, Any], world: World) -> tuple[list[str], list[list[str]], str]:
@@ -494,8 +498,11 @@ def score_shift(shift: Shift) -> dict[str, Any]:
     containment_actions = [a for a in actions if a["verb"] in CONTAINMENT]
     true_cont = [a for a in containment_actions if a["true"]]
     false_cont = [a for a in containment_actions if not a["true"]]
-    {a["target"] for a in true_cont if a["kind"] == "host"}
     true_hosts = {h for h in comp_truth if h in shift.world.host}
+    if shift.rules2:
+        # Only hosts the intruder actually held in this run: a host it never reached because the
+        # responder stopped it earlier is not a missed containment.
+        true_hosts = {h for _t, h, present in shift.presence_log if present}
     missed = sorted(true_hosts - _ever_contained(shift, true_hosts))
 
     # TTFC.
@@ -556,6 +563,10 @@ def score_shift(shift: Shift) -> dict[str, Any]:
     worse_than_nothing = False
     if not quiet and d > o:
         index = round(100 * (dmg - o) / (d - o), 2)
+        worse_than_nothing = dmg > d
+    elif not quiet and shift.rules2:
+        # Doing nothing costs no more than the best response here, so the index has no scale;
+        # a response that still costs more than doing nothing is worse than nothing all the same.
         worse_than_nothing = dmg > d
 
     # Collateral (benign hosts/accounts we disrupted).

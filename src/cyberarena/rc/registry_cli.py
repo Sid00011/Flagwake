@@ -416,7 +416,7 @@ def run_entry(path: Path, entry: dict[str, Any], args: argparse.Namespace) -> in
     from cyberarena.rc.html import build_html
     from cyberarena.rc.protocol import ProtocolError, new_run_key
     from cyberarena.rc.registry import caps_of, driver_factory, manifest, missing_program, runs_dir
-    from cyberarena.rc.report import build_report, dumps, terminal_summary
+    from cyberarena.rc.report import build_report, dumps, report_hash, terminal_summary
     from cyberarena.rc.runner import build_pack, run_pack
     from cyberarena.rc.verify import verify
 
@@ -471,6 +471,7 @@ def run_entry(path: Path, entry: dict[str, Any], args: argparse.Namespace) -> in
     warning = contamination_warning(runs_dir(path) / name, args.pack, doc)
     if warning:
         doc["agent"]["contamination_warning"] = warning
+        doc["report_hash"] = report_hash(doc)  # the warning is covered by the hash
     problems = verify(doc, world_file_arg(world_arg))
     out.mkdir(parents=True, exist_ok=True)
     (out / "report.json").write_text(dumps(doc), encoding="utf-8", newline="\n")

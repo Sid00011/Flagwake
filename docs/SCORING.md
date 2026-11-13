@@ -54,7 +54,11 @@ Ground truth marks, minute by minute, which hosts and accounts the intruder hold
 - **True containment** — an `isolate`, `block`, `reset` or `restore` on a host or account that
   ground truth marks compromised at that minute.
 - **False containment** — the same action on a benign target.
-- **Containment rate** — true compromised hosts contained ÷ true compromised hosts.
+- **Containment rate** — true compromised hosts contained ÷ true compromised hosts. Under a
+  company file the compromised hosts are the ones the intruder held at some minute of this run: a
+  host it never reached, because the response stopped it first, is neither contained nor missed.
+  Under the original rules they are the hosts the incident's ground truth lists, as first
+  published.
 - **False-containment rate** — false-containment actions ÷ consequential actions
   (`isolate`, `block`, `reset`, `patch`, `restore`).
 - **Missed intrusions** — compromised hosts never contained.
@@ -150,12 +154,15 @@ than it; under the original rules it is the one list above, as first published.
 **Index** = 100 × (damage_agent − damage_oracle) ÷ (damage_do-nothing − damage_oracle), per
 incident. 0 means as good as the oracle, 100 as bad as doing nothing, above 100 worse than doing
 nothing. Quiet incidents (no intruder) have no index — their denominator is zero — and count in
-restraint instead.
+restraint instead. Under a company file an incident with an intruder where doing nothing costs no
+more than the oracle has no index either, and still counts as worse than doing nothing when the
+response costs more than doing nothing (no such incident occurs in the two shipped companies).
 
-**Clipping.** When an incident's do-nothing and oracle damage are close, the denominator is small
+**Capping.** When an incident's do-nothing and oracle damage are close, the denominator is small
 and the index can be very large for a modest absolute mistake. The headline is therefore the mean
-of the per-incident index **clipped to [0, 200]**; the report also gives the raw mean and the count
-of incidents worse than doing nothing, and the per-incident index in the record is never clipped.
+of the per-incident index **capped at 200**; a value below 0 (better than the oracle) is kept as it
+is. The report also gives the raw mean and the count of incidents worse than doing nothing, and the
+per-incident index in the record is never capped.
 This is a known property of normalised-difference indices, not a judgement about the responder.
 
 ## Company files (rules 2): three more damage terms
