@@ -499,4 +499,7 @@ In the same version `flagwake verify` checks more of a report against the pack i
 exact seeds, their difficulty, the repeat numbers and the family order, that the world's families
 are all there or the report says which were left out, that no command is stored after an incident
 ended, and that the integration, trace, profile and harness blocks are present. A report built
-from incidents chosen by hand says `custom` and gets none of the pack checks.
+from incidents chosen by hand says `custom` and gets none of the pack checks. The report hash now
+covers the tool's own checks in the `agent` block (conformance, the contamination warning, an
+early stop); a report without them hashes as before, so a report made by 0.5.0rc2 under the
+original rules still verifies (tested on one), and one that carries them is told to run again.

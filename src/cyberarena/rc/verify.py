@@ -32,6 +32,7 @@ from cyberarena.rc.report import (
     harness_summary,
     integration_block,
     report_hash,
+    report_hash_before_rc3,
     rules_hash,
     worst_traces,
 )
@@ -181,8 +182,15 @@ def _derived_problems(
     if doc.get("seeds") != seeds:
         problems.append("the seed list does not match the incidents in the report")
     problems.extend(pack_problems(doc.get("pack"), incidents, key, rules.families(world)))
-    if doc.get("families_available") != len(rules.families(world)):
-        problems.append("the number of families this company can host does not match the report")
+    available = len(rules.families(world))
+    if "families_available" in doc:
+        if doc["families_available"] != available:
+            problems.append("the number of families this company can host does not match")
+    elif doc.get("pack") not in UNCHECKED_PACKS and len({i["family"] for i in incidents}) < (
+        available
+    ):
+        # A report from before 0.5.0rc3 has no count; it verifies only if it left none out.
+        problems.append("the report leaves out families this company can host and does not say so")
     for block in ("integration", "traces", "profile", "harness"):
         if block not in doc:  # every report this tool writes has them; a missing one hides findings
             problems.append(f"the report has no {block} block")
@@ -214,7 +222,11 @@ def _derived_problems(
     if "harness" in doc and doc["harness"] != harness_summary(incidents):
         problems.append("the summary of agent problems does not match the incidents")
     if doc.get("report_hash") != report_hash(doc):
-        problems.append("report hash does not match the report's own contents")
+        if doc.get("report_hash") == report_hash_before_rc3(doc):
+            problems.append("report hash made by 0.5.0rc2 or earlier, which did not cover the "
+                            "tool's own checks (conformance, warnings): run it again")  # fmt: skip
+        else:
+            problems.append("report hash does not match the report's own contents")
     return problems
 
 

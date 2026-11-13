@@ -197,3 +197,26 @@ def test_the_tools_own_checks_are_covered_by_the_hash(doc):
     d["agent"]["conformance"] = {"status": "passed", "passed": 9, "total": 9}
     del d["agent"]["contamination_warning"]
     assert any("report hash" in p for p in verify(d)), verify(d)
+
+
+def _rc2_report() -> dict:
+    """Made by 0.5.0rc2: `careful` on the practice pack, one seed per family, original rules."""
+    import json
+    from pathlib import Path
+
+    path = Path(__file__).parent / "report_0.5.0rc2_legacy.json"
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_a_report_made_by_the_previous_version_under_the_original_rules_still_verifies():
+    doc = _rc2_report()
+    assert doc["tool_version"] == "0.5.0rc2" and "families_available" not in doc
+    assert verify(doc) == []
+
+
+def test_an_older_report_carrying_the_tools_own_checks_is_told_to_run_again():
+    doc = _rc2_report()
+    doc["agent"]["conformance"] = "7 of 7 checks passed"  # what the older hash left out
+    assert any("run it again" in p for p in verify(doc))
+    doc["seeds"] = doc["seeds"][1:]
+    assert any("seed list" in p for p in verify(doc))

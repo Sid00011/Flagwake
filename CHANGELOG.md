@@ -21,6 +21,8 @@ the rules hash (see `docs/METHODOLOGY.md`).
   no command stored after an incident ended; the required blocks present. The tool-mode checks
   are covered by the report hash, which is recomputed after the contamination warning is added.
   A report of hand-picked incidents, or one run with a difficulty override, says `custom`.
+  A report made by 0.5.0rc2 under the original rules still verifies, unless it carries the
+  tool's own checks (a `flagwake run` or the page): verify then says to run it again.
 - **Odd replies end one command, not the run.** Superscript digits, deeply nested JSON, a huge
   number in a report's confidence and a reply line over the size limit are unrecognised or
   invalid commands; an over-long line no longer shifts the replies after it. The start message

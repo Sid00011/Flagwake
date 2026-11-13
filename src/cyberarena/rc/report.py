@@ -224,11 +224,27 @@ TOOL_CHECKS = ("conformance", "contamination_warning", "stopped_early")
 def report_hash(doc: dict[str, Any]) -> str:
     """Hash of the score-bearing parts: all but the self-reported metadata, the hash itself and
     the parts derived from the rest (traces, profile), which verify recomputes instead. The
-    checks the tool records in the "agent" block (conformance, warnings) are covered too."""
-    core = {k: v for k, v in doc.items() if k not in ("agent", "report_hash", "traces", "profile")}
+    checks the tool records in the "agent" block (conformance, warnings) are covered too; a report
+    without any hashes exactly as before 0.5.0rc3, so those reports still verify."""
+    core = _core(doc)
     raw = doc.get("agent")
     agent: dict[str, Any] = raw if isinstance(raw, dict) else {}
-    core["agent_checks"] = {k: agent[k] for k in TOOL_CHECKS if k in agent}
+    checks = {k: agent[k] for k in TOOL_CHECKS if k in agent}
+    if checks:
+        core["agent_checks"] = checks
+    return _sha(core)
+
+
+def report_hash_before_rc3(doc: dict[str, Any]) -> str:
+    """The hash as 0.5.0rc2 and earlier made it (no tool checks): only to explain a mismatch."""
+    return _sha(_core(doc))
+
+
+def _core(doc: dict[str, Any]) -> dict[str, Any]:
+    return {k: v for k, v in doc.items() if k not in ("agent", "report_hash", "traces", "profile")}
+
+
+def _sha(core: dict[str, Any]) -> str:
     blob = json.dumps(core, sort_keys=True, ensure_ascii=True).encode("utf-8")
     return hashlib.sha256(blob).hexdigest()
 
