@@ -87,11 +87,24 @@ jobs:
       DEFENDER_CWD: /srv/flagwake-defender
       DEFENDER_SRC: defender
     steps:
-      - name: This workflow's own commit is known
-        if: github.job_workflow_sha == ''
+      # The job's own signing identity names the workflow file and commit that run it (the
+      # job_workflow_ref and job_workflow_sha claims); Flagwake is installed from exactly that
+      # commit. The token is read here and never printed.
+      - name: This workflow's own repository and commit
+        id: self
         run: |
-          echo "github.job_workflow_sha is empty; call this workflow with uses"
-          exit 1
+          python - >> "$GITHUB_OUTPUT" <<'PY'
+          import base64, json, os, urllib.request
+          url = os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"] + "&audience=flagwake-workflow"
+          auth = {"Authorization": "Bearer " + os.environ["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]}
+          with urllib.request.urlopen(urllib.request.Request(url, headers=auth), timeout=30) as r:
+              token = json.load(r)["value"]
+          part = token.split(".")[1]
+          claims = json.loads(base64.urlsafe_b64decode(part + "=" * (-len(part) % 4)))
+          ref, sha = claims["job_workflow_ref"], claims["job_workflow_sha"]
+          print(f"repo={ref.split('/.github/workflows/')[0]}")
+          print(f"sha={sha}")
+          PY
 
       - name: The defender's repository
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
@@ -102,8 +115,8 @@ jobs:
       - name: Flagwake, at the commit of this workflow
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
         with:
-          repository: Sid00011/Flagwake
-          ref: ${{ github.job_workflow_sha }}
+          repository: ${{ steps.self.outputs.repo }}
+          ref: ${{ steps.self.outputs.sha }}
           path: flagwake-src
           persist-credentials: false
 
