@@ -137,7 +137,8 @@ def test_the_name_is_kept_out_of_the_licenses() -> None:
 def test_the_action_and_the_signed_example_use_this_version() -> None:
     root = Path(__file__).resolve().parents[2]
     action = (root / "action.yml").read_text(encoding="utf-8")
-    assert f"default: flagwake=={cyberarena.__version__}" in action
-    for name in ("examples/ci/flagwake-signed.yml", "docs/SIGNED_RESULTS.md"):
-        text = (root / name).read_text(encoding="utf-8")
-        assert f"Sid00011/Flagwake@v{cyberarena.__version__}" in text, name
+    assert f"default: flagwake[provenance]=={cyberarena.__version__}" in action
+    workflow = f"Sid00011/Flagwake/.github/workflows/check.yml@v{cyberarena.__version__}"
+    for name in (".github/workflows/check.yml", "examples/ci/flagwake-signed.yml",
+                 "docs/SIGNED_RESULTS.md"):  # fmt: skip
+        assert workflow in (root / name).read_text(encoding="utf-8"), name

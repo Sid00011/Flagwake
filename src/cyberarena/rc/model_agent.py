@@ -263,6 +263,7 @@ class Model:
         self.extra = extra_body(os.environ.get("FLAGWAKE_LLM_EXTRA_BODY", ""))
         self.args = args
         self.calls = self.failed = self.no_command = 0
+        self.served = ""  # the model id the endpoint says answered (its own word)
         self.prompt_tokens = self.reply_tokens = 0
         self.seconds = 0.0
 
@@ -272,8 +273,10 @@ class Model:
             return self.base
         return self.base + "/chat/completions"
 
-    def usage(self) -> dict[str, float]:
+    def usage(self) -> dict[str, Any]:
         return {
+            **({"model": self.served} if self.served else {}),
+            **({"endpoint": urllib.parse.urlsplit(self.base).hostname or ""} if self.base else {}),
             "calls": self.calls,
             "failed_calls": self.failed,
             "no_command": self.no_command,
@@ -308,11 +311,13 @@ class Model:
         self.calls += 1
         t0 = time.monotonic()
         try:
-            with open_keyed(req, timeout) as resp:  # the user's endpoint; no redirects
-                raw = resp.read(2_000_000)
+            raw = self._post(req, timeout, t0)
         finally:
             self.seconds += time.monotonic() - t0
         data = json.loads(raw)
+        served = data.get("model") if isinstance(data, dict) else None
+        if isinstance(served, str) and served:
+            self.served = served[:100]
         usage = data.get("usage") if isinstance(data, dict) else None
         if isinstance(usage, dict):
             self.prompt_tokens += _int(usage.get("prompt_tokens"))
@@ -327,6 +332,36 @@ class Model:
         if not isinstance(usage, dict):
             self.reply_tokens += len(content) // 4
         return content
+
+    def _post(self, req: urllib.request.Request, timeout: float, t0: float) -> bytes:
+        """The reply body; a rate-limited call waits as the endpoint asks and tries again, as long
+        as the wait still fits in ``timeout``."""
+        for attempt in range(RETRIES + 1):
+            try:
+                with open_keyed(req, timeout) as resp:  # the user's endpoint; no redirects
+                    body: bytes = resp.read(2_000_000)
+                    return body
+            except urllib.error.HTTPError as exc:
+                wait = _retry_after(
+                    exc.headers.get("Retry-After") if exc.headers else None, attempt
+                )
+                late = time.monotonic() - t0 + wait > timeout
+                if exc.code != 429 or attempt == RETRIES or late:
+                    raise
+                time.sleep(wait)
+        raise AssertionError("unreachable")  # pragma: no cover
+
+
+def _retry_after(value: str | None, attempt: int) -> float:
+    """Seconds to wait before retrying: the endpoint's Retry-After, else 2, 4, 8 s (at most 30)."""
+    try:
+        seconds = float(value) if value is not None else 2.0 ** (attempt + 1)
+    except ValueError:
+        seconds = 2.0 ** (attempt + 1)
+    return min(max(seconds, 0.0), 30.0)
+
+
+RETRIES = 3  # a rate-limited call (HTTP 429) is retried this many times within its timeout
 
 
 def extra_body(text: str) -> dict[str, object]:

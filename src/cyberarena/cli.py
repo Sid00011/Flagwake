@@ -48,6 +48,7 @@ GROUPS: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
         ("mcp", "the check as a stdio MCP server (score its logs with report)"),
         ("report", "score MCP transcripts into report.json and report.html"),
         ("serve", "serve the report viewer on 127.0.0.1"),
+        ("ci", "steps of the signing workflow: the defender's user, the attempt ticket"),
     )),
 )  # fmt: skip
 
@@ -93,6 +94,9 @@ def build_parser() -> argparse.ArgumentParser:
     from cyberarena.rc.tools_cli import add_subparsers as _tools_add
 
     _tools_add(sub)
+    from cyberarena.rc.ci_cli import add_subparsers as _ci_add
+
+    _ci_add(sub)
 
     v = sub.add_parser(
         "verify", help="re-derive every number of a report.json from its transcripts"
@@ -107,6 +111,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     v.add_argument(
         "--repo", metavar="ORG/REPO", help="with --provenance: the repository it must come from"
+    )
+    v.add_argument(
+        "--attempts",
+        action="store_true",
+        help="with --provenance: list every attempt of the report's repository from "
+        "Sigstore's public log (needs the network)",
+    )
+    v.add_argument(
+        "--require-official",
+        action="store_true",
+        help="with --provenance: fail unless Flagwake's own signing workflow at a release "
+        "made it, with the defender isolated, the incidents drawn in the run and an attempt "
+        "ticket",
     )
 
     d = sub.add_parser(
@@ -128,57 +145,71 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _verify_one(
-    path: str, world: str | None = None, bundle: str | None = None, repo: str | None = None
-) -> tuple[list[str], str | None]:
+def _verify_one(path: str, world: str | None = None) -> tuple[list[str], str | None, bytes, dict]:
     try:
         raw = Path(path).read_bytes()
         doc = json.loads(raw.decode("utf-8"))
     except (OSError, ValueError, UnicodeDecodeError) as exc:
-        return [f"cannot read: {exc}"], None
+        return [f"cannot read: {exc}"], None, b"", {}
     if not isinstance(doc, dict):
-        return ["not a report"], None
+        return ["not a report"], None, b"", {}
     from cyberarena.rc.verify import made_by, verify
 
-    errors = verify(doc, world)
-    notes = [n for n in (made_by(doc),) if n]
-    if bundle is not None:
-        errors += _signature_problems(raw, doc, bundle, repo)
-        if not errors:
-            from cyberarena.rc.provenance import describe
-
-            notes.append("signature OK: " + describe(doc["provenance"]))
-    elif isinstance(doc.get("provenance"), dict):
-        notes.append("says it was made in GitHub Actions; check that with --provenance")
-    return errors, "; ".join(notes) or None
+    return verify(doc, world), made_by(doc), raw, doc
 
 
-def _signature_problems(raw: bytes, doc: dict, bundle: str, repo: str | None) -> list[str]:
-    from cyberarena.rc.provenance import check_signature
+def _signature(args: argparse.Namespace, raw: bytes, doc: dict) -> tuple[list[str], list[str]]:
+    """(problems, lines) for --provenance: the signature, what it vouches for, the attempts."""
+    from cyberarena.rc import provenance as prov
 
     try:
-        bundle_bytes = Path(bundle).read_bytes()
+        bundle_bytes = Path(args.provenance).read_bytes()
     except OSError as exc:
-        return [f"cannot read the signature bundle: {exc}"]
-    return check_signature(raw, doc, bundle_bytes, repo)
+        return [f"cannot read the signature bundle: {exc}"], []
+    problems, facts = prov.check_signature(raw, doc, bundle_bytes, args.repo)
+    if problems:
+        return problems, []
+    rec = doc["provenance"]
+    lines = prov.summary(
+        rec, facts, doc.get("incidents") if isinstance(doc.get("incidents"), list) else []
+    )
+    if args.require_official:
+        problems += prov.official_problems(rec, facts)
+    if args.attempts:
+        from cyberarena.rc.attempt import Log
+
+        more, listed = prov.attempt_lines(rec, facts, Log())
+        problems += more
+        lines += listed
+    return problems, lines
 
 
 def _cmd_verify(args: argparse.Namespace) -> int:
-    bundle, repo = getattr(args, "provenance", None), getattr(args, "repo", None)
-    if (bundle or repo) and len(args.files) != 1:
-        print("error: --provenance and --repo check one report at a time", file=sys.stderr)
+    signed = getattr(args, "provenance", None)
+    extras = [o for o in ("repo", "attempts", "require_official") if getattr(args, o, None)]
+    if extras and not signed:
+        print("error: --repo, --attempts and --require-official need --provenance", file=sys.stderr)
         return 2
-    if repo and not bundle:
-        print("error: --repo needs --provenance (the signature bundle)", file=sys.stderr)
+    if signed and len(args.files) != 1:
+        print("error: --provenance checks one report at a time", file=sys.stderr)
         return 2
     failed = 0
     for path in args.files:
-        errors, note = _verify_one(path, getattr(args, "world", None), bundle, repo)
+        errors, note, raw, doc = _verify_one(path, getattr(args, "world", None))
+        lines: list[str] = []
+        if signed and raw:
+            more, lines = _signature(args, raw, doc)
+            errors = errors + more
+        elif isinstance(doc.get("provenance"), dict):
+            note = "; ".join(filter(None, [note, "says it was made in GitHub Actions; check that "
+                                           "with --provenance"]))  # fmt: skip
         if errors:
             failed += 1
             print(f"FAIL {path}: " + "; ".join(errors))
         else:
             print(f"OK   {path}" + (f" ({note})" if note else ""))
+        for line in lines:
+            print("     " + line)
     return 1 if failed else 0
 
 
@@ -212,6 +243,12 @@ def _cmd_tools(args: argparse.Namespace) -> int:
     return tools_cli.cmd_tools(args)
 
 
+def _cmd_ci(args: argparse.Namespace) -> int:
+    from cyberarena.rc import ci_cli
+
+    return ci_cli.cmd_ci(args)
+
+
 def _cmd_world(args: argparse.Namespace) -> int:
     from cyberarena.rc import world_cli
 
@@ -235,6 +272,7 @@ COMMANDS = {
     "ui": _registry("cmd_ui"),
     "world": _cmd_world,
     "tools": _cmd_tools,
+    "ci": _cmd_ci,
 }
 
 

@@ -431,3 +431,23 @@ def test_errors_are_described_without_details():
     assert ref._error(urllib.error.URLError("refused")) == "cannot connect"
     assert ref._error(KeyError("choices")) == "not a chat-completions reply"
     assert ref._error(RuntimeError("boom")) == "RuntimeError"
+
+
+def test_a_rate_limited_call_waits_and_succeeds_and_the_served_model_is_reported(
+    monkeypatch, tmp_path
+):
+    script = [("rate", 0), ("ok", "look"), ("ok", 'report {"compromised": []}')]
+    specs = [{"family": "quiet", "seed": 120000, "difficulty": "standard"}]
+    result, fake, _log, _s = _run(monkeypatch, tmp_path, script, specs=specs)
+    tr = result["transcripts"][0]
+    assert tr["commands"][0] == "look"  # the 429 was retried, not counted as a failed command
+    assert tr["usage"]["failed_calls"] == 0 and fake.i >= 3
+    assert tr["usage"]["model"] == "fake-model-2026-01"
+    assert tr["usage"]["endpoint"] == "127.0.0.1"
+    doc = build_report(result, {"id": "reference-agent"}, "custom")
+    assert doc["agent"]["usage"]["model"] == "fake-model-2026-01" and verify(doc) == []
+
+
+def test_retry_waits_are_bounded():
+    assert ref._retry_after("5", 0) == 5 and ref._retry_after("900", 0) == 30
+    assert ref._retry_after(None, 0) == 2 and ref._retry_after("soon", 2) == 8

@@ -32,6 +32,10 @@ NETWORKED = {
     # The company as tools: binds 127.0.0.1 only, and posts events only to callback URLs on this
     # machine that the defender registered.
     "src/cyberarena/rc/toolsrun.py",
+    # The attempt log: reads Sigstore's public transparency log, only in the signing workflow
+    # (flagwake ci attempt, check --attempt-ticket) and for verify --attempts; it sends a
+    # ticket's sha256 and nothing else.
+    "src/cyberarena/rc/attempt.py",
 }
 
 
@@ -116,17 +120,46 @@ def test_the_local_page_binds_and_probes_localhost_only() -> None:
     assert 'base = f"http://127.0.0.1:{port}/v1"' in text  # ...always to this computer
 
 
-def test_the_action_signs_without_secrets_and_never_pastes_inputs_into_scripts() -> None:
+def _run_scripts(text: str) -> list[str]:
+    """Every shell script of a workflow or action file (the lines under each run key)."""
     import re
 
-    action = (ROOT / "action.yml").read_text(encoding="utf-8")
-    assert "secrets." not in action and "--record-ci" in action
-    # Inputs reach a script only through env: never ${{ inputs.x }} inside a run block.
-    for block in re.findall(r"run: \|\n((?:        .*\n|\n)+)", action):
-        assert "${{" not in block
-    for line in re.findall(r"run: (?!\|)(.*)", action):
-        assert "${{" not in line
-    assert all(re.search(r"@[0-9a-f]{40}", u) for u in re.findall(r"uses: (\S+)", action))
+    lines, out, i = text.splitlines(), [], 0
+    while i < len(lines):
+        m = re.match(r"(\s*)(- )?run: ?(.*)", lines[i])
+        i += 1
+        if not m:
+            continue
+        if m.group(3).strip() != "|":
+            out.append(m.group(3))
+            continue
+        indent, block = len(m.group(1)) + (2 if m.group(2) else 0), []
+        while i < len(lines) and (not lines[i].strip() or _indent(lines[i]) > indent):
+            block.append(lines[i])
+            i += 1
+        out.append("\n".join(block))
+    return out
+
+
+def _indent(line: str) -> int:
+    return len(line) - len(line.lstrip())
+
+
+def test_the_signing_steps_never_paste_inputs_into_scripts_and_pin_every_action() -> None:
+    import re
+
+    files = ["action.yml", ".github/workflows/check.yml", ".github/workflows/signed-check.yml",
+             ".github/workflows/results.yml"]  # fmt: skip
+    for name in files:
+        text = (ROOT / name).read_text(encoding="utf-8")
+        scripts = _run_scripts(text)
+        assert scripts, name
+        for script in scripts:  # inputs reach a script only through env
+            assert "${{" not in script, (name, script[:80])
+        for use in re.findall(r"^\s*(?:- )?uses: (\S+)", text, re.M):  # comments aside
+            assert use.startswith("./") or re.search(r"@[0-9a-f]{40}$", use), (name, use)
+    launch = (ROOT / "scripts" / "ci_launch.py").read_text(encoding="utf-8")
+    assert "--record-ci" in launch and "--defender-user" in launch
     signed = (ROOT / "examples" / "ci" / "flagwake-signed.yml").read_text(encoding="utf-8")
-    assert "permissions:\n  contents: read" in signed and "secrets." not in signed
+    assert "permissions:\n  contents: read" in signed
     assert "id-token: write" in signed.split("jobs:", 1)[1]  # only for the job, not the workflow

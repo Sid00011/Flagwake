@@ -78,7 +78,7 @@ warn_redundant_casts = true
 
 [[tool.mypy.overrides]]
 # Optional (the provenance extra): imported only when a signature is checked.
-module = ["sigstore", "sigstore.*"]
+module = ["sigstore", "sigstore.*", "cryptography", "cryptography.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

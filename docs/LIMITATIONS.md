@@ -46,9 +46,10 @@ environment.
   the commands stored in the report, and that the incidents come from the pack the report names.
   It cannot show which program sent those commands: anyone can produce a consistent report by
   feeding the harness the commands they choose. A signed result (docs/SIGNED_RESULTS.md) narrows
-  this: it shows the report came, unedited, from a GitHub Actions run of a named repository and
-  commit on a GitHub-hosted runner, so the defender and workflow can be read as they were; it
-  cannot show that the defender is honest or how many runs were made before. Otherwise trust a
+  this: it shows the report came, unedited, from Flagwake's signing workflow in a GitHub Actions
+  run of a named repository and commit, with the defender unable to reach the harness and every
+  attempt of the repository in a public log. It cannot show that the defender is honest (for a
+  public repository it can be read as it was) or what a closed product does on its own. Otherwise trust a
   result as much as you trust whoever ran it; for a decision, run the defender yourself on a
   fresh pack. The report hash is a plain
   checksum, not a signature: it covers the scores, the commands and the tool-mode checks

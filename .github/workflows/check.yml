@@ -1,0 +1,198 @@
+# Flagwake's signing workflow. Call it from your defender's repository:
+#
+#   jobs:
+#     flagwake:
+#       permissions: { contents: read, id-token: write, attestations: write }
+#       uses: Sid00011/Flagwake/.github/workflows/check.yml@v0.5.0rc4
+#       with:
+#         agent: python my_defender.py
+#
+# The signing certificate names this workflow at that tag as the signer, so anyone can check that
+# these steps ran unmodified, whatever the calling workflow says: the defender ran as its own user
+# without sudo, the attempt ticket was in Sigstore's public log before the incidents were drawn,
+# the incidents were drawn inside the run, and report.json was signed as written. Flagwake itself is
+# installed from this workflow's own commit. docs/SIGNED_RESULTS.md explains every step.
+name: flagwake-check
+
+on:
+  workflow_call:
+    inputs:
+      agent:
+        description: The command that starts your defender (docs/PROTOCOL.md), run from your repository's root.
+        type: string
+        required: true
+      setup:
+        description: A shell command run as the defender's user before the check, e.g. pip install --user -r requirements.txt
+        type: string
+        default: ""
+      pack:
+        description: fresh (the default), heldout or practice.
+        type: string
+        default: fresh
+      seeds:
+        description: Incidents per family.
+        type: string
+        default: "3"
+      world:
+        description: The company. Empty for the default; or fenwick-brae, legacy, or a company file in your repository.
+        type: string
+        default: ""
+      defender-env:
+        description: Comma-separated names of your secrets the defender may read (call with secrets inherit).
+        type: string
+        default: ""
+      defender-vars:
+        description: Public NAME=value lines for the defender, one per line (they are part of the signed workflow inputs).
+        type: string
+        default: ""
+      github-token-as:
+        description: Give the defender this job's GitHub token under this name (for GitHub Models; grant models read).
+        type: string
+        default: ""
+      step-timeout:
+        description: Seconds the defender has for each command.
+        type: string
+        default: "60"
+      fail-under:
+        description: Fail after signing when the damage index is above this number. Empty never fails on the score.
+        type: string
+        default: ""
+      name:
+        description: The artifact name (change it when one workflow calls this more than once).
+        type: string
+        default: flagwake-result
+      python-version:
+        type: string
+        default: "3.12"
+    outputs:
+      damage-index:
+        description: The headline damage index (0 = the best response, 100 = doing nothing).
+        value: ${{ jobs.check.outputs.index }}
+      attempt:
+        description: This run's attempt number in the repository's public attempt log.
+        value: ${{ jobs.check.outputs.attempt }}
+
+# No permissions block: the job runs with what the calling job grants (id-token and attestations
+# write to sign; models read only when the defender uses GitHub Models).
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    outputs:
+      index: ${{ steps.run.outputs.index }}
+      attempt: ${{ steps.ticket.outputs.n }}
+    env:
+      OUT: flagwake-result
+      DEFENDER_USER: flagwake-defender
+      DEFENDER_CWD: /srv/flagwake-defender
+      DEFENDER_SRC: defender
+    steps:
+      - name: This workflow's own commit is known
+        if: github.job_workflow_sha == ''
+        run: |
+          echo "github.job_workflow_sha is empty; call this workflow with uses"
+          exit 1
+
+      - name: The defender's repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+        with:
+          path: defender
+          persist-credentials: false
+
+      - name: Flagwake, at the commit of this workflow
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+        with:
+          repository: Sid00011/Flagwake
+          ref: ${{ github.job_workflow_sha }}
+          path: flagwake-src
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Install Flagwake
+        run: python -m pip install --disable-pip-version-check --quiet "./flagwake-src[provenance]"
+
+      - name: The defender's own user, without sudo
+        env:
+          SETUP: ${{ inputs.setup }}
+        run: flagwake ci prepare --user "$DEFENDER_USER" --source defender --dest "$DEFENDER_CWD" --setup "$SETUP"
+
+      - name: Number this attempt
+        id: ticket
+        run: |
+          mkdir -p "$OUT"
+          flagwake ci attempt --repo "$GITHUB_REPOSITORY" --write "$OUT/attempt-ticket.txt"
+          echo "n=$(sed -n 's/^attempt: //p' "$OUT/attempt-ticket.txt")" >> "$GITHUB_OUTPUT"
+
+      - name: Sign the attempt ticket (it enters the public log before the incidents are drawn)
+        id: sign-ticket
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
+        with:
+          subject-path: flagwake-result/attempt-ticket.txt
+
+      - name: Run the incidents
+        id: run
+        env:
+          SECRETS_JSON: ${{ toJSON(secrets) }}
+          JOB_TOKEN: ${{ github.token }}
+          AGENT: ${{ inputs.agent }}
+          PACK: ${{ inputs.pack }}
+          SEEDS: ${{ inputs.seeds }}
+          WORLD: ${{ inputs.world }}
+          DEFENDER_ENV: ${{ inputs.defender-env }}
+          DEFENDER_VARS: ${{ inputs.defender-vars }}
+          TOKEN_AS: ${{ inputs.github-token-as }}
+          STEP_TIMEOUT: ${{ inputs.step-timeout }}
+          TICKET: flagwake-result/attempt-ticket.txt
+        run: |
+          python flagwake-src/scripts/ci_launch.py
+          if pgrep -u "$DEFENDER_USER" > /dev/null; then echo "a defender process outlived the run"; exit 1; fi
+          python - "$OUT/report.json" >> "$GITHUB_OUTPUT" <<'PY'
+          import json, sys
+          doc = json.load(open(sys.argv[1], encoding="utf-8"))
+          print(f"index={doc['metrics']['damage_index']['mean_clipped']}")
+          PY
+
+      - name: Sign the report
+        id: sign
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
+        with:
+          subject-path: flagwake-result/report.json
+
+      - name: Keep the signatures next to the report
+        env:
+          REPORT_BUNDLE: ${{ steps.sign.outputs.bundle-path }}
+          TICKET_BUNDLE: ${{ steps.sign-ticket.outputs.bundle-path }}
+        run: |
+          cp "$REPORT_BUNDLE" "$OUT/report.sigstore.json"
+          cp "$TICKET_BUNDLE" "$OUT/attempt-ticket.sigstore.json"
+          flagwake verify "$OUT/report.json" --provenance "$OUT/report.sigstore.json" --repo "$GITHUB_REPOSITORY"
+
+      - name: Summary
+        env:
+          INDEX: ${{ steps.run.outputs.index }}
+          N: ${{ steps.ticket.outputs.n }}
+        run: |
+          {
+            echo "### Flagwake check (signed by Flagwake's workflow)"
+            echo ""
+            echo "Damage index **$INDEX** (0 = the best response, 100 = doing nothing); attempt $N of this repository."
+            echo ""
+            echo "Check it: \`flagwake verify report.json --provenance report.sigstore.json --repo $GITHUB_REPOSITORY --attempts --require-official\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: ${{ inputs.name }}
+          path: flagwake-result/
+          retention-days: 90
+
+      - name: Score threshold
+        if: inputs.fail-under != ''
+        env:
+          INDEX: ${{ steps.run.outputs.index }}
+          LIMIT: ${{ inputs.fail-under }}
+        run: |
+          python -c "import sys; i, lim = float(sys.argv[1]), float(sys.argv[2]); sys.exit(f'damage index {i} is above {lim}' if i > lim else 0)" "$INDEX" "$LIMIT"

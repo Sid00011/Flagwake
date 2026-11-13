@@ -347,7 +347,7 @@ def test_the_command_has_only_the_checker_subcommands():
 
     assert set(COMMANDS) == {
         "check", "replay", "baselines", "doctor", "mcp", "serve", "verify", "report",
-        "init", "defenders", "run", "view", "ui", "world", "tools", "demo",
+        "init", "defenders", "run", "view", "ui", "world", "tools", "demo", "ci",
     }  # fmt: skip
     parser = build_parser()
     assert parser.parse_args(["demo"]).out == "flagwake-demo"  # the checker's own demo

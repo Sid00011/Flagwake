@@ -1,9 +1,12 @@
 # The Flagwake GitHub Action: run your defender through Flagwake incidents in your own workflow,
-# verify the report, and sign report.json with a GitHub artifact attestation, so anyone can check
-# which repository, commit and run produced it (docs/SIGNED_RESULTS.md).
+# with the defender as its own user without sudo, an attempt ticket in Sigstore's public log before
+# the incidents are drawn, and report.json signed with a GitHub artifact attestation.
 #
 # The calling job needs:  permissions: { contents: read, id-token: write, attestations: write }
-# Signing works in public repositories on every GitHub plan.
+# Signing works in public repositories on every GitHub plan. As an action, its steps run inside your
+# workflow, so the signature names your workflow as the signer. For a signature that names
+# Flagwake's own workflow, which proves these steps ran unmodified, call the signing workflow
+# instead: uses: Sid00011/Flagwake/.github/workflows/check.yml@<tag> (docs/SIGNED_RESULTS.md).
 name: Flagwake check
 description: Test a security defender on simulated incidents scored in business cost, then verify and sign the report.
 branding:
@@ -14,6 +17,9 @@ inputs:
   agent:
     description: The command that starts your defender; it speaks the JSON-lines protocol (docs/PROTOCOL.md).
     required: true
+  setup:
+    description: A shell command run as the defender's user before the check, e.g. pip install --user -r requirements.txt
+    default: ""
   pack:
     description: fresh (new incidents drawn for this run, the default), heldout or practice.
     default: fresh
@@ -23,20 +29,35 @@ inputs:
   world:
     description: The company. Empty for the default (harlow-pine); or fenwick-brae, legacy, or a company file in your repository.
     default: ""
+  defender-env:
+    description: Comma-separated names of variables of this step (set them from your secrets with env) the defender may read.
+    default: ""
+  defender-vars:
+    description: Public NAME=value lines for the defender, one per line.
+    default: ""
+  github-token-as:
+    description: Give the defender this job's GitHub token under this name (for GitHub Models; grant models read).
+    default: ""
+  isolate:
+    description: Run the defender as its own user without sudo (needs a Linux runner).
+    default: "true"
+  sign:
+    description: Number the attempt and sign report.json with a GitHub artifact attestation.
+    default: "true"
+  step-timeout:
+    description: Seconds the defender has for each command.
+    default: "60"
   fail-under:
     description: Fail after signing when the damage index is above this number. Empty never fails on the score.
     default: ""
-  sign:
-    description: Sign report.json with a GitHub artifact attestation.
-    default: "true"
   package:
     description: What pip installs. The default is the Flagwake release this version of the action belongs to.
-    default: flagwake==0.5.0rc4
+    default: flagwake[provenance]==0.5.0rc4
   python-version:
     description: The Python that runs Flagwake (and your defender, if it is a Python program).
     default: "3.12"
   out:
-    description: The folder for report.json, report.html and report.sigstore.json.
+    description: The folder for report.json, report.html and the signatures.
     default: flagwake-result
 
 outputs:
@@ -44,7 +65,7 @@ outputs:
     description: The path of report.json.
     value: ${{ steps.run.outputs.report }}
   bundle:
-    description: The path of the signature bundle (empty when the report was not signed).
+    description: The path of the report's signature bundle (empty when the report was not signed).
     value: ${{ steps.keep.outputs.path }}
   damage-index:
     description: The headline damage index (0 = the best response, 100 = doing nothing).
@@ -63,19 +84,57 @@ runs:
         PACKAGE: ${{ inputs.package }}
       run: python -m pip install --disable-pip-version-check --quiet "$PACKAGE"
 
+    - name: The defender's own user, without sudo
+      if: inputs.isolate == 'true'
+      shell: bash
+      env:
+        SETUP: ${{ inputs.setup }}
+        OUT: ${{ inputs.out }}
+      run: flagwake ci prepare --user flagwake-defender --source . --dest /srv/flagwake-defender --setup "$SETUP" --exclude "$OUT"
+
+    - name: Number this attempt
+      id: ticket
+      if: inputs.sign == 'true'
+      shell: bash
+      env:
+        OUT: ${{ inputs.out }}
+      run: |
+        mkdir -p "$OUT"
+        flagwake ci attempt --repo "$GITHUB_REPOSITORY" --write "$OUT/attempt-ticket.txt"
+        echo "path=$OUT/attempt-ticket.txt" >> "$GITHUB_OUTPUT"
+
+    - name: Sign the attempt ticket (it enters the public log before the incidents are drawn)
+      id: sign-ticket
+      if: inputs.sign == 'true'
+      uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
+      with:
+        subject-path: ${{ steps.ticket.outputs.path }}
+
     - name: Run the incidents
       id: run
       shell: bash
       env:
+        JOB_TOKEN: ${{ github.token }}
         AGENT: ${{ inputs.agent }}
         PACK: ${{ inputs.pack }}
         SEEDS: ${{ inputs.seeds }}
         WORLD: ${{ inputs.world }}
         OUT: ${{ inputs.out }}
+        DEFENDER_ENV: ${{ inputs.defender-env }}
+        DEFENDER_VARS: ${{ inputs.defender-vars }}
+        TOKEN_AS: ${{ inputs.github-token-as }}
+        STEP_TIMEOUT: ${{ inputs.step-timeout }}
+        TICKET: ${{ steps.ticket.outputs.path }}
+        ISOLATE: ${{ inputs.isolate }}
+        LAUNCH: ${{ github.action_path }}/scripts/ci_launch.py
+        DEFENDER_USER: flagwake-defender
+        DEFENDER_CWD: /srv/flagwake-defender
+        DEFENDER_SRC: .
       run: |
-        args=(check --agent "$AGENT" --pack "$PACK" --seeds "$SEEDS" --out "$OUT" --record-ci)
-        if [ -n "$WORLD" ]; then args+=(--world "$WORLD"); fi
-        flagwake "${args[@]}"
+        python "$LAUNCH"
+        if [ "$ISOLATE" = "true" ] && pgrep -u "$DEFENDER_USER" > /dev/null; then
+          echo "a defender process outlived the run"; exit 1
+        fi
         echo "report=$OUT/report.json" >> "$GITHUB_OUTPUT"
         python - "$OUT/report.json" >> "$GITHUB_OUTPUT" <<'PY'
         import json, sys
@@ -90,15 +149,17 @@ runs:
       with:
         subject-path: ${{ steps.run.outputs.report }}
 
-    - name: Keep the signature next to the report
+    - name: Keep the signatures next to the report
       id: keep
       if: inputs.sign == 'true'
       shell: bash
       env:
-        BUNDLE: ${{ steps.sign.outputs.bundle-path }}
+        REPORT_BUNDLE: ${{ steps.sign.outputs.bundle-path }}
+        TICKET_BUNDLE: ${{ steps.sign-ticket.outputs.bundle-path }}
         OUT: ${{ inputs.out }}
       run: |
-        cp "$BUNDLE" "$OUT/report.sigstore.json"
+        cp "$REPORT_BUNDLE" "$OUT/report.sigstore.json"
+        cp "$TICKET_BUNDLE" "$OUT/attempt-ticket.sigstore.json"
         echo "path=$OUT/report.sigstore.json" >> "$GITHUB_OUTPUT"
 
     - name: Summary
@@ -116,7 +177,7 @@ runs:
           echo "Re-check the numbers: \`flagwake verify $OUT/report.json\`"
           if [ "$SIGNED" = "true" ]; then
             echo ""
-            echo "Check the signature (repository, commit and run): \`flagwake verify $OUT/report.json --provenance $OUT/report.sigstore.json --repo $GITHUB_REPOSITORY\`"
+            echo "Check the signature and the attempts: \`flagwake verify $OUT/report.json --provenance $OUT/report.sigstore.json --repo $GITHUB_REPOSITORY --attempts\`"
           fi
         } >> "$GITHUB_STEP_SUMMARY"
 

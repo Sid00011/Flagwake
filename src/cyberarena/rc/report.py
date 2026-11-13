@@ -208,12 +208,19 @@ def harness_summary(incidents: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def sum_usage(incidents: list[dict[str, Any]]) -> dict[str, float]:
-    """Self-reported usage added up over incidents (the responder's own numbers, never trusted)."""
-    total: dict[str, float] = {}
+def sum_usage(incidents: list[dict[str, Any]]) -> dict[str, Any]:
+    """Self-reported usage added up over incidents (the responder's own numbers, never trusted);
+    the text fields (model, endpoint) list their distinct values."""
+    total: dict[str, Any] = {}
+    texts: dict[str, set[str]] = {}
     for t in incidents:
         for k, v in (t.get("usage") or {}).items():
-            total[k] = round(total.get(k, 0) + v, 3)
+            if isinstance(v, str):
+                texts.setdefault(k, set()).add(v)
+            else:
+                total[k] = round(total.get(k, 0) + v, 3)
+    for k, values in texts.items():
+        total[k] = "; ".join(sorted(values)[:3])
     return dict(sorted(total.items()))
 
 

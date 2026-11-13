@@ -126,7 +126,7 @@ class McpAgent(SubprocessAgent):
         self._stop("")
 
 
-def reply_from_result(resp: dict[str, Any]) -> tuple[str, str | None, dict[str, float] | None]:
+def reply_from_result(resp: dict[str, Any]) -> tuple[str, str | None, dict[str, Any] | None]:
     """Classify a tools/call response like a JSON-lines reply (see ``protocol.parse_reply``)."""
     result = resp.get("result")
     if not isinstance(result, dict) or result.get("isError"):

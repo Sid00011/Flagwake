@@ -5,14 +5,29 @@ the rules hash (see `docs/METHODOLOGY.md`).
 
 ## 0.5.0rc4 (unreleased)
 
-- **Signed results.** The Flagwake GitHub Action (`uses: Sid00011/Flagwake@v0.5.0rc4`) runs a
-  defender on fresh incidents in the defender's own workflow, verifies the report and signs it with
-  a GitHub artifact attestation. `flagwake verify report.json --provenance report.sigstore.json
-  --repo ORG/REPO` checks, offline, that the file is unedited and came from a GitHub Actions run
-  of that repository, at the commit, run and attempt the report names, on a GitHub-hosted runner
-  (`pip install "flagwake[provenance]"`). `flagwake check --record-ci` writes that record into the
-  hashed report. A defender process never gets the run's signing tokens. docs/SIGNED_RESULTS.md
-  says what a signature shows and what it does not.
+- **Signed results.** Flagwake's signing workflow (`uses:
+  Sid00011/Flagwake/.github/workflows/check.yml@v0.5.0rc4`) runs a defender on fresh incidents in
+  GitHub Actions and signs the report with a GitHub artifact attestation. The signing certificate
+  names Flagwake's workflow at its release tag, so a reader can check that its steps ran
+  unmodified. `flagwake verify report.json --provenance report.sigstore.json --repo ORG/REPO`
+  checks the signature offline (`pip install "flagwake[provenance]"`); `--require-official` fails
+  unless every guarantee holds. docs/SIGNED_RESULTS.md says what a signature shows and what it does
+  not. The Flagwake GitHub Action runs the same steps inside the caller's own workflow.
+- **The defender cannot reach the harness.** `flagwake check --defender-user` runs every defender
+  process as its own user, without sudo, in its own folder, with only the variables named by
+  `--defender-env`; the user's leftover processes are stopped before each incident and after the
+  run. Without it, a defender running as the harness's user could have read the incident key or the
+  run's signing token from the harness, or rewritten report.json before it was signed. A red-team
+  self-test runs a defender that tries each of those attacks, on every release.
+- **The attempt log.** Before its incidents are drawn, every signed run leaves a ticket in
+  Sigstore's public log (`flagwake ci attempt`); the check refuses to draw until its ticket is
+  there. `verify --attempts` lists every attempt of the repository, so a best-of-many result cannot
+  pass for a first try.
+- **Which model answered.** The reference model agent reports the model id and the address the
+  model's server returned; a signed report shows them. Rate-limited calls (HTTP 429) are retried
+  within the step's time.
+- **Signed results for models** (`.github/workflows/results.yml`, `docs/RESULTS.md`): every run
+  listed, none left out.
 - **Fix.** `flagwake check --family` with families in another order than the company's, or named
   twice, wrote a report that 0.5.0rc3's verify refused; the pack now keeps the company's order.
 

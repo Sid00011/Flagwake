@@ -47,7 +47,8 @@ MAX_BAD_LINES = 20
 DEFAULT_STEP_TIMEOUT = 60.0
 DEFAULT_WALL_TIMEOUT = 900.0
 INVALID_REPLY = "(invalid reply)"  # run in place of a line the harness could not read
-USAGE_KEYS = 12  # at most this many numeric fields of a self-reported usage object
+USAGE_KEYS = 12  # at most this many fields of a self-reported usage object
+IDENTITY_KEYS = ("model", "endpoint")  # the text fields: what answered, and where
 # The handshake: every start message tells the program it is the defender and lists the only
 # commands it has. Anything else it sends is run as a command the interpreter does not know.
 ROLE = "defender"
@@ -126,19 +127,25 @@ def _obs_message(shift: Shift) -> dict[str, Any]:
     return {"type": "obs", "text": shift.observations[-1], "t": shift.now, "done": shift.done}
 
 
-def clean_usage(obj: Any) -> dict[str, float] | None:
-    """A self-reported usage object reduced to a few non-negative numbers (never trusted)."""
+def clean_usage(obj: Any) -> dict[str, Any] | None:
+    """A self-reported usage object reduced to a few non-negative numbers, plus the model and
+    endpoint as short plain text (never trusted: a signed report says which program reported
+    them)."""
     if not isinstance(obj, dict):
         return None
-    out: dict[str, float] = {}
+    out: dict[str, Any] = {}
     for k, v in list(obj.items())[:USAGE_KEYS]:
-        if isinstance(k, str) and isinstance(v, int | float) and not isinstance(v, bool):
+        if k in IDENTITY_KEYS and isinstance(v, str):
+            text = "".join(ch for ch in v if ch.isascii() and ch.isprintable())[:100]
+            if text:
+                out[k] = text
+        elif isinstance(k, str) and isinstance(v, int | float) and not isinstance(v, bool):
             if v == v and 0 <= v < 1e12:
                 out[k[:40]] = round(float(v), 3) if isinstance(v, float) else v
     return out or None
 
 
-def parse_reply(line: str) -> tuple[str, str | None, dict[str, float] | None]:
+def parse_reply(line: str) -> tuple[str, str | None, dict[str, Any] | None]:
     """Classify one reply: ("cmd", command, usage), ("stop", None, usage) or ("bad", None, None)."""
     try:
         obj = json.loads(line)
@@ -160,7 +167,7 @@ class _Notes:
     def __init__(self) -> None:
         self.invalid = 0
         self.error = ""
-        self.usage: dict[str, float] | None = None
+        self.usage: dict[str, Any] | None = None
         self.answered = 0
 
     def as_dict(self) -> dict[str, Any] | None:

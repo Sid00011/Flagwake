@@ -1,7 +1,14 @@
-# End-to-end test of signed results: the repository's own action runs the example defender on
-# fresh incidents and signs the report; a second job, with nothing but the downloaded files, checks
-# the signature with flagwake verify --provenance and with GitHub's own tool, and checks that an
-# edited copy is refused.
+# End-to-end test of signed results, run on demand and on every release tag.
+#
+# signed:  Flagwake's signing workflow runs the example defender and signs the report.
+# redteam: the same workflow runs a defender that tries every way it knows to escape its sandbox
+#          (.github/redteam/attacker.py): sudo, the job's signing token, the harness's memory,
+#          the output folder, the runner's credentials, docker, a process that outlives the run.
+# control: the same attacker without the sandbox, to show the attacks are real.
+# check:   with nothing but the downloaded files: the signatures check out with flagwake verify
+#          and with GitHub's own tool, the signer is Flagwake's workflow, the attempt tickets are
+#          in the public log, a changed copy loses its signature, every attack was blocked inside
+#          the sandbox, and at least one worked outside it.
 name: signed-check
 
 on:
@@ -13,27 +20,52 @@ permissions:
   contents: read
 
 jobs:
-  run:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
+  signed:
     permissions:
       contents: read
       id-token: write
       attestations: write
+    uses: ./.github/workflows/check.yml
+    with:
+      agent: python examples/rc_agent.py
+      seeds: "1"
+      name: signed-result
+
+  redteam:
+    needs: signed  # one attempt at a time, so the attempt numbers are in order
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/check.yml
+    with:
+      agent: python .github/redteam/attacker.py
+      seeds: "1"
+      name: redteam-result
+
+  control:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
         with:
           persist-credentials: false
-      - uses: ./
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
         with:
-          agent: python examples/rc_agent.py
-          seeds: "1"
-          package: .
+          python-version: "3.12"
+      - run: python -m pip install --disable-pip-version-check --quiet .
+      - name: The attacker as the harness's own user (no sandbox, nothing signed)
+        run: flagwake check --agent "python .github/redteam/attacker.py" --pack practice --seeds 1 --family quiet --out control-result || true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        if: always()
+        with:
+          name: control-result
+          path: control-result/agent-stderr.log
 
   check:
-    needs: run
+    needs: [signed, redteam, control]
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
         with:
@@ -43,24 +75,55 @@ jobs:
           python-version: "3.12"
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
-          name: flagwake-result
-          path: result
+          path: results
       - name: Install Flagwake with the signature check
         run: python -m pip install --disable-pip-version-check --quiet ".[provenance]"
-      - name: The numbers and the signature check out
-        run: flagwake verify result/report.json --provenance result/report.sigstore.json --repo "$GITHUB_REPOSITORY"
-      - name: GitHub's own tool agrees
+
+      - name: The signed report, its signer and its attempt
+        run: |
+          flagwake verify results/signed-result/report.json --provenance results/signed-result/report.sigstore.json --repo "$GITHUB_REPOSITORY" --attempts | tee signed.txt
+          grep -q "harness: Flagwake's signing workflow at" signed.txt
+          grep -q "ran as a separate user flagwake-defender, without sudo" signed.txt
+          grep -q "incidents: drawn in the run" signed.txt
+
+      - name: Official only at a release tag
+        run: |
+          if flagwake verify results/signed-result/report.json --provenance results/signed-result/report.sigstore.json --require-official > official.txt; then ok=yes; else ok=no; fi
+          cat official.txt
+          case "$GITHUB_REF" in
+            refs/tags/v*) [ "$ok" = yes ] ;;
+            *) [ "$ok" = no ] && grep -q "not signed by Flagwake's signing workflow at a release" official.txt ;;
+          esac
+
+      - name: GitHub's own tool agrees on the report and the signer
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh attestation verify result/report.json --repo "$GITHUB_REPOSITORY" --bundle result/report.sigstore.json
+        run: |
+          gh attestation verify results/signed-result/report.json --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/check.yml" --bundle results/signed-result/report.sigstore.json
+          gh attestation verify results/signed-result/attempt-ticket.txt --repo "$GITHUB_REPOSITORY" --bundle results/signed-result/attempt-ticket.sigstore.json
+
       - name: A changed copy keeps its numbers but loses its signature
         run: |
           python - <<'PY'
           import json
-          doc = json.load(open("result/report.json", encoding="utf-8"))
-          open("result/copy.json", "w", encoding="utf-8").write(json.dumps(doc, indent=1))
+          doc = json.load(open("results/signed-result/report.json", encoding="utf-8"))
+          open("copy.json", "w", encoding="utf-8").write(json.dumps(doc, indent=1))
           PY
-          flagwake verify result/copy.json
-          if flagwake verify result/copy.json --provenance result/report.sigstore.json; then
+          flagwake verify copy.json
+          if flagwake verify copy.json --provenance results/signed-result/report.sigstore.json; then
             echo "a changed file kept its signature"; exit 1
           fi
+
+      - name: Every attack was blocked inside the sandbox
+        run: |
+          log=results/redteam-result/agent-stderr.log
+          grep "^REDTEAM" "$log"
+          if grep -q "SUCCEEDED" "$log"; then echo "an attack worked inside the sandbox"; exit 1; fi
+          [ "$(grep -c ': blocked$' "$log")" -ge 8 ]
+          grep -q "background-process: started" "$log"
+          flagwake verify results/redteam-result/report.json --provenance results/redteam-result/report.sigstore.json --repo "$GITHUB_REPOSITORY"
+
+      - name: The same attacks work outside it (the attacks are real)
+        run: |
+          grep "^REDTEAM" results/control-result/agent-stderr.log
+          grep -q "SUCCEEDED" results/control-result/agent-stderr.log

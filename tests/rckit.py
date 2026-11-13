@@ -44,12 +44,18 @@ class FakeModel:
                     self.send_response(int(arg))
                     self.end_headers()
                     return
+                if kind == "rate":  # rate limited: try again after arg seconds
+                    self.send_response(429)
+                    self.send_header("Retry-After", str(arg))
+                    self.end_headers()
+                    return
                 if kind == "raw":
                     data = bytes(arg)
                 else:
                     reply = {
                         "choices": [{"message": {"role": "assistant", "content": arg}}],
                         "usage": {"prompt_tokens": 100, "completion_tokens": 7},
+                        "model": "fake-model-2026-01",  # the id the server says answered
                     }
                     data = json.dumps(reply if kind == "ok" else {"unexpected": arg}).encode()
                 self.send_response(200)

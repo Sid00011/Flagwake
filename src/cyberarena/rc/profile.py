@@ -396,7 +396,8 @@ def _cost(incidents: list[dict[str, Any]], outcomes: list[dict[str, Any]]) -> di
     usage: dict[str, float] = {}
     for inc in incidents:
         for k, v in (inc.get("usage") or {}).items():
-            usage[k] = round(usage.get(k, 0) + v, 3)
+            if not isinstance(v, str):  # model and endpoint are text, not amounts
+                usage[k] = round(usage.get(k, 0) + v, 3)
     tokens = usage.get("prompt_tokens", 0) + usage.get("completion_tokens", 0)
     cmds = sum(o["cost"]["commands"] for o in outcomes)
     return {

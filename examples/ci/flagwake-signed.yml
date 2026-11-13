@@ -1,8 +1,9 @@
 # A signed Flagwake result for your defender on every push to main and on demand: fresh incidents,
-# a verified report, and a GitHub artifact attestation anyone can check with
-#   flagwake verify report.json --provenance report.sigstore.json --repo ORG/REPO
+# the defender as its own user without sudo, an attempt ticket in Sigstore's public log before the
+# incidents are drawn, and a report signed by Flagwake's own workflow. Anyone can check it with
+#   flagwake verify report.json --provenance report.sigstore.json --repo ORG/REPO --attempts --require-official
 # Copy this to .github/workflows/flagwake.yml in your defender's repository and set the defender
-# command. It needs no secret unless your defender does (pass those through your own secrets).
+# command. Pass a secret your defender needs by naming it in defender-env (secrets: inherit).
 name: flagwake
 
 on:
@@ -15,18 +16,14 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write      # the run's own signing identity
-      attestations: write  # to store the signature with the repository
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          persist-credentials: false
-      - uses: Sid00011/Flagwake@v0.5.0rc4
-        with:
-          agent: python agents/my_agent.py   # your program; it speaks the JSON-lines protocol
-          seeds: "3"                         # incidents per family (20 families)
-          fail-under: "60"                   # fail after signing if the damage index is above this
+      attestations: write  # to store the signatures with the repository
+    uses: Sid00011/Flagwake/.github/workflows/check.yml@v0.5.0rc4
+    with:
+      agent: python agents/my_agent.py           # your program; it speaks the JSON-lines protocol
+      setup: pip install --user -r requirements.txt
+      seeds: "3"                                 # incidents per family (20 families)
+      fail-under: "60"                           # fail after signing if the damage index is above this
+    # secrets: inherit                           # with defender-env: MY_MODEL_KEY

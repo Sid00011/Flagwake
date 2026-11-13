@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import functools
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -109,6 +110,26 @@ def add_subparsers(sub: argparse._SubParsersAction) -> None:
         help="inside GitHub Actions: record the repository, commit and run in the report, so a "
         "signature of report.json can vouch for them (the Flagwake GitHub Action does this)",
     )
+    c.add_argument(
+        "--defender-user",
+        metavar="NAME",
+        help="run each defender process as this unprivileged user (Linux/macOS, through sudo), so "
+        "it cannot read the harness's memory or environment or touch its files",
+    )
+    c.add_argument("--defender-cwd", metavar="DIR", help="with --defender-user: its folder")
+    c.add_argument(
+        "--defender-env",
+        default="",
+        metavar="NAMES",
+        help="with --defender-user: comma-separated variables the defender may see (for example "
+        "its model key); nothing else is passed",
+    )
+    c.add_argument(
+        "--attempt-ticket",
+        metavar="FILE",
+        help="with --record-ci: the attempt ticket this run signed; it must be in the public log "
+        "before the incidents are drawn (flagwake ci attempt writes it)",
+    )
 
     r = sub.add_parser(
         "replay", help="print one incident of a report or transcript as a plain transcript"
@@ -157,15 +178,11 @@ def cmd_check(args: argparse.Namespace) -> int:
     world = load_world_arg(getattr(args, "world", None))
     if world is None:
         return 2
-    record = None
-    if getattr(args, "record_ci", False):
-        from cyberarena.rc.provenance import ci_record
-
-        try:
-            record = ci_record()
-        except ValueError as exc:
-            print(f"error: {exc}", file=sys.stderr)
-            return 2
+    try:
+        record = _ci_record(args)  # before the draw: an attempt ticket must already be logged
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     bound = rules.families(world)
     if args.family:
         missing = [f for f in args.family if f not in bound]
@@ -187,12 +204,16 @@ def cmd_check(args: argparse.Namespace) -> int:
     factory, meta = _agent_factory(args)
     if factory is None:
         return 2
+    user = getattr(args, "defender_user", None)
+    if record is not None and user:
+        record["defender_isolation"] = f"separate user {user}"
     for line in world_lines(world):
         print(line, file=sys.stderr)
     print(f"Running {len(specs)} incidents x {args.repeat} ...", file=sys.stderr)
     try:
         result = run_pack(factory, specs, repeat=args.repeat, world=world, key=key)
     except (OSError, ProtocolError) as exc:
+        _stop_defender(user)
         print(f"error: the responder could not be run: {exc}", file=sys.stderr)
         log = Path(args.out) / "agent-stderr.log"
         if log.is_file() and log.stat().st_size:
@@ -200,6 +221,7 @@ def cmd_check(args: argparse.Namespace) -> int:
             print("last lines of its stderr:\n  " + "\n  ".join(tail), file=sys.stderr)
         print("Check the --agent command; see docs/PROTOCOL.md for the protocol.", file=sys.stderr)
         return 2
+    _stop_defender(user)  # nothing of the defender's keeps running while the report is written
     doc = build_report(result, meta, pack_name=pack_name, world=world,
                        integration=_integration(args))  # fmt: skip
     if record is not None:
@@ -233,6 +255,66 @@ def cmd_check(args: argparse.Namespace) -> int:
     return 0 if verified else 1
 
 
+def _ci_record(args: argparse.Namespace) -> dict[str, str] | None:
+    """The provenance block for --record-ci (None without it), with the attempt ticket confirmed
+    in the public log. Raises ValueError with the reason when it cannot be made."""
+    if not getattr(args, "record_ci", False):
+        if getattr(args, "attempt_ticket", None):
+            raise ValueError("--attempt-ticket needs --record-ci")
+        return None
+    from cyberarena.rc.provenance import GIVEN, MAX_COMMAND, ci_record, expected
+
+    record = ci_record()
+    record["defender_command"] = (args.agent or f"http:{args.http or ''}")[:MAX_COMMAND]
+    if args.run_key:
+        record["incidents"] = GIVEN
+    if getattr(args, "attempt_ticket", None):
+        from cyberarena.rc.attempt import AttemptError, Log, confirm, read_ticket, ticket_digest
+
+        try:
+            repo, n = read_ticket(Path(args.attempt_ticket).read_bytes())
+            if repo.lower() != record["repository"].lower():
+                raise ValueError(f"the ticket names {repo}, not {record['repository']}")
+            entry = confirm(Log(), repo, n, expected(record)["run_uri"])
+        except (AttemptError, OSError) as exc:
+            raise ValueError(str(exc)) from exc
+        record.update(attempt=str(n), attempt_ticket=ticket_digest(repo, n),
+                      attempt_log_index=str(entry.get("log_index")))  # fmt: skip
+        print(f"attempt {n} of {repo}: ticket in the public log (index {entry.get('log_index')})",
+              file=sys.stderr)  # fmt: skip
+    return record
+
+
+def _stop_defender(user: str | None) -> None:
+    if user:
+        from cyberarena.rc.sandbox import stop_all
+
+        stop_all(user)
+
+
+def _isolate(args: argparse.Namespace, argv: list[str], factory):
+    """Wrap a subprocess defender so it runs as --defender-user (factory unchanged without it)."""
+    user = getattr(args, "defender_user", None)
+    if not user:
+        if getattr(args, "defender_cwd", None) or getattr(args, "defender_env", ""):
+            raise ValueError("--defender-cwd and --defender-env need --defender-user")
+        return factory
+    from cyberarena.rc.protocol import subprocess_driver_factory
+    from cyberarena.rc.sandbox import check_user, env_names, isolated_factory, wrap
+
+    if not args.defender_cwd:
+        raise ValueError("--defender-user needs --defender-cwd, a folder that user owns")
+    home = check_user(user, args.defender_cwd)
+    keep = env_names(args.defender_env)
+    missing = [n for n in keep if n not in os.environ]
+    if missing:
+        raise ValueError(f"not set, so not passed to the defender: {', '.join(missing)}")
+    wrapped = wrap(argv, user, args.defender_cwd, keep, os.environ.get("PATH", ""), home)
+    stderr_log = str(Path(args.out) / "agent-stderr.log")
+    inner = subprocess_driver_factory(wrapped, args.step_timeout, stderr_log, args.incident_timeout)
+    return isolated_factory(inner, user)
+
+
 def _integration(args: argparse.Namespace) -> dict[str, str]:
     """The fidelity disclosure of a check run: native protocol, and which adapter."""
     if args.http:
@@ -246,6 +328,10 @@ def _agent_factory(args: argparse.Namespace):
     """Return (driver_factory, agent_meta) for --agent / --http, or (None, None) on error."""
     from cyberarena.rc.protocol import http_driver_factory, subprocess_driver_factory
 
+    built_in = (args.agent or "").startswith(("baseline:", "fixture:"))
+    if getattr(args, "defender_user", None) and (args.http or built_in):
+        print("error: --defender-user isolates a program started with --agent", file=sys.stderr)
+        return None, None
     if args.http:
         try:
             return http_driver_factory(args.http, args.step_timeout, args.incident_timeout), {
@@ -276,6 +362,11 @@ def _agent_factory(args: argparse.Namespace):
 
     argv = split_command(agent)
     factory = subprocess_driver_factory(argv, args.step_timeout, stderr_log, args.incident_timeout)
+    try:
+        factory = _isolate(args, argv, factory)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return None, None
     return factory, {
         "id": f"subprocess:{argv[0]}",
         "note": "self-reported, not verified",
