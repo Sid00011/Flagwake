@@ -56,7 +56,8 @@ Practice incidents are public: use them to try things. For numbers you will quot
   evidence before action, approvals, planted instructions obeyed and calibration alongside.
 - **Every result can be re-checked.** `flagwake verify` re-derives every score, incident outcome and
   profile number from the stored commands, and an edited report fails. A **signed result**, made
-  with the Flagwake GitHub Action, also proves which repository, commit and run produced it
+  by Flagwake's signing workflow in GitHub Actions, also proves which repository, commit and run
+  produced it, that the defender could not reach the harness, and how many attempts came before
   ([docs/SIGNED_RESULTS.md](docs/SIGNED_RESULTS.md)). For a product you cannot read, run it
   yourself. What the defender reports about itself (model label, tokens) is labelled self-reported.
 - **Offline and free.** There is no model or judge inside the check, nothing is sent anywhere, and

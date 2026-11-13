@@ -63,9 +63,13 @@ and then each save, check and run asks for a confirmation. Its only outbound req
 - **The machine the tool runs on.** The tool assumes the local machine and the Python it runs are
   not already compromised.
 - **What a signature vouches for.** A signed result (docs/SIGNED_RESULTS.md) shows which GitHub
-  Actions run of which repository and commit wrote the report; it does not vouch for the defender
-  that run executed. The defender process is not given the run's signing tokens
-  (`ACTIONS_ID_TOKEN_REQUEST_*`), and a self-hosted runner's signature is refused.
+  Actions run of which repository and commit wrote the report, and that Flagwake's signing
+  workflow did; it does not vouch for the defender that run executed. In that workflow the
+  defender runs as its own user without sudo (`flagwake check --defender-user`), so it cannot
+  read the harness's memory or environment (the incident key, the run's signing token), write the
+  output folder, or leave a process behind; `.github/workflows/signed-check.yml` runs a defender
+  that tries each of these, and the same attempts without the separate user to show they are
+  real. A self-hosted runner's signature is refused.
 
 ## Static hosting caveat
 
