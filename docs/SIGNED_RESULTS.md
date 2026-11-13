@@ -28,8 +28,7 @@ jobs:
 
 Inputs: `agent`, `setup` (run as the defender's user before the check), `pack`, `seeds`, `world`,
 `defender-env` (names of your secrets the defender may read; add `secrets: inherit`),
-`defender-vars` (public `NAME=value` lines), `github-token-as` (the job's token, for GitHub
-Models), `step-timeout`, `fail-under`, `name`. A full example:
+`defender-vars` (public `NAME=value` lines), `step-timeout`, `fail-under`, `name`. A full example:
 [examples/ci/flagwake-signed.yml](../examples/ci/flagwake-signed.yml). The `flagwake-result`
 artifact holds `report.json`, `report.html`, `report.sigstore.json`, the attempt ticket and its
 signature. Signing is free in public repositories; for a private repository, check whether your

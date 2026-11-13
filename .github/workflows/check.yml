@@ -45,10 +45,6 @@ on:
         description: Public NAME=value lines for the defender, one per line (they are part of the signed workflow inputs).
         type: string
         default: ""
-      github-token-as:
-        description: Give the defender this job's GitHub token under this name (for GitHub Models; grant models read).
-        type: string
-        default: ""
       step-timeout:
         description: Seconds the defender has for each command.
         type: string
@@ -73,7 +69,7 @@ on:
         value: ${{ jobs.check.outputs.attempt }}
 
 # No permissions block: the job runs with what the calling job grants (id-token and attestations
-# write to sign; models read only when the defender uses GitHub Models).
+# write to sign).
 jobs:
   check:
     runs-on: ubuntu-24.04
@@ -149,14 +145,12 @@ jobs:
         id: run
         env:
           SECRETS_JSON: ${{ toJSON(secrets) }}
-          JOB_TOKEN: ${{ github.token }}
           AGENT: ${{ inputs.agent }}
           PACK: ${{ inputs.pack }}
           SEEDS: ${{ inputs.seeds }}
           WORLD: ${{ inputs.world }}
           DEFENDER_ENV: ${{ inputs.defender-env }}
           DEFENDER_VARS: ${{ inputs.defender-vars }}
-          TOKEN_AS: ${{ inputs.github-token-as }}
           STEP_TIMEOUT: ${{ inputs.step-timeout }}
           TICKET: flagwake-result/attempt-ticket.txt
         run: |

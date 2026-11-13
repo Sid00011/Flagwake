@@ -148,8 +148,7 @@ def _indent(line: str) -> int:
 def test_the_signing_steps_never_paste_inputs_into_scripts_and_pin_every_action() -> None:
     import re
 
-    files = ["action.yml", ".github/workflows/check.yml", ".github/workflows/signed-check.yml",
-             ".github/workflows/results.yml"]  # fmt: skip
+    files = ["action.yml", ".github/workflows/check.yml", ".github/workflows/signed-check.yml"]
     for name in files:
         text = (ROOT / name).read_text(encoding="utf-8")
         scripts = _run_scripts(text)

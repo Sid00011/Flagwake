@@ -35,9 +35,6 @@ inputs:
   defender-vars:
     description: Public NAME=value lines for the defender, one per line.
     default: ""
-  github-token-as:
-    description: Give the defender this job's GitHub token under this name (for GitHub Models; grant models read).
-    default: ""
   isolate:
     description: Run the defender as its own user without sudo (needs a Linux runner).
     default: "true"
@@ -114,7 +111,6 @@ runs:
       id: run
       shell: bash
       env:
-        JOB_TOKEN: ${{ github.token }}
         AGENT: ${{ inputs.agent }}
         PACK: ${{ inputs.pack }}
         SEEDS: ${{ inputs.seeds }}
@@ -122,7 +118,6 @@ runs:
         OUT: ${{ inputs.out }}
         DEFENDER_ENV: ${{ inputs.defender-env }}
         DEFENDER_VARS: ${{ inputs.defender-vars }}
-        TOKEN_AS: ${{ inputs.github-token-as }}
         STEP_TIMEOUT: ${{ inputs.step-timeout }}
         TICKET: ${{ steps.ticket.outputs.path }}
         ISOLATE: ${{ inputs.isolate }}

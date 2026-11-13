@@ -26,8 +26,6 @@ the rules hash (see `docs/METHODOLOGY.md`).
 - **Which model answered.** The reference model agent reports the model id and the address the
   model's server returned; a signed report shows them. Rate-limited calls (HTTP 429) are retried
   within the step's time.
-- **Signed results for models** (`.github/workflows/results.yml`, `docs/RESULTS.md`): every run
-  listed, none left out.
 - **Fix.** `flagwake check --family` with families in another order than the company's, or named
   twice, wrote a report that 0.5.0rc3's verify refused; the pack now keeps the company's order.
 
