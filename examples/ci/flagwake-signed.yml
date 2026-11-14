@@ -3,7 +3,8 @@
 # incidents are drawn, and a report signed by Flagwake's own workflow. Anyone can check it with
 #   flagwake verify report.json --provenance report.sigstore.json --repo ORG/REPO --attempts --require-official
 # Copy this to .github/workflows/flagwake.yml in your defender's repository and set the defender
-# command. Pass a secret your defender needs by naming it in defender-env (secrets: inherit).
+# command. If your defender needs a secret (a model key, say), pass it as model-key and name it in
+# defender-env: the defender reads it under that name and sees no other secret.
 name: flagwake
 
 on:
@@ -26,4 +27,6 @@ jobs:
       setup: pip install --user -r requirements.txt
       seeds: "3"                                 # incidents per family (20 families)
       fail-under: "60"                           # fail after signing if the damage index is above this
-    # secrets: inherit                           # with defender-env: MY_MODEL_KEY
+      # defender-env: MY_MODEL_KEY=model-key     # the defender reads the secret below as MY_MODEL_KEY
+    # secrets:
+    #   model-key: ${{ secrets.MY_MODEL_KEY }}   # from any account (secrets: inherit: one organisation only)

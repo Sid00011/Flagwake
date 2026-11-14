@@ -27,9 +27,9 @@ jobs:
 ```
 
 Inputs: `agent`, `setup` (run as the defender's user before the check), `pack`, `seeds`, `world`,
-`defender-env` (your secrets the defender may read, as `NAME` or `NAME=SECRET`; add
-`secrets: inherit`), `defender-vars` (public `NAME=value` lines), `step-timeout`, `fail-under`,
-`name`. A full example: [examples/ci/flagwake-signed.yml](../examples/ci/flagwake-signed.yml).
+`defender-env` (secrets the defender may read, as `NAME` or `NAME=SECRET`), `defender-vars`
+(public `NAME=value` lines), `step-timeout`, `fail-under`, `name`. Secret: `model-key`. A full
+example: [examples/ci/flagwake-signed.yml](../examples/ci/flagwake-signed.yml).
 The `flagwake-result` artifact holds `report.json`, `report.html`, `report.sigstore.json`, the
 attempt ticket and its signature. Signing is free in public repositories; for a private
 repository, check whether your GitHub plan includes artifact attestations.
@@ -42,9 +42,17 @@ To test a model with Flagwake's own model agent, so that the report can say whic
       defender-vars: |
         FLAGWAKE_LLM_BASE_URL=https://api.your-provider.example/v1
         FLAGWAKE_LLM_MODEL=the-model-id
-      defender-env: FLAGWAKE_LLM_KEY=YOUR_PROVIDER_KEY_SECRET
-    secrets: inherit
+      defender-env: FLAGWAKE_LLM_KEY=model-key
+    secrets:
+      model-key: ${{ secrets.YOUR_PROVIDER_KEY_SECRET }}
 ```
+
+`model-key` is the one secret the workflow accepts from any repository, and the defender reads it
+only under the name `defender-env` gives it. GitHub passes `secrets: inherit` only between
+repositories of one organisation or enterprise (GitHub Docs, "Reuse workflows", read 2026-11-13),
+so from any other account a key has to come in as `model-key`. Within one organisation,
+`defender-env` can also name your own secrets after `secrets: inherit`. Either way the defender
+sees only the secrets `defender-env` names.
 
 The Flagwake GitHub Action (`uses: Sid00011/Flagwake@v0.5.0rc4`) runs the same steps inside your
 own workflow. Its signature then names your workflow, not Flagwake's, as the signer, so a reader

@@ -3,6 +3,18 @@
 All notable changes. Dates are UTC. Incidents are versioned by the generator version, the rules by
 the rules hash (see `docs/METHODOLOGY.md`).
 
+## Unreleased
+
+- **A model key from any account.** A defender repository in another account could not hand its
+  model key to the signing workflow. GitHub passes `secrets: inherit` only between repositories of
+  one organisation or enterprise, and a caller can pass only the secrets a reusable workflow
+  declares.
+  - `check.yml` now declares an optional `model-key` secret. Pass it with
+    `secrets: model-key: ${{ secrets.YOUR_KEY }}` and name it in `defender-env` as
+    `FLAGWAKE_LLM_KEY=model-key`. The defender reads it only under that name.
+  - `secrets: inherit` works as before within one organisation.
+  - A secret that does not arrive, or arrives empty, now stops the run with a hint.
+
 ## 0.5.0rc4 (2026-11-13)
 
 - **Signed results.** Flagwake's signing workflow (`uses:

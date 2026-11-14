@@ -1,11 +1,13 @@
 # End-to-end test of signed results, run on demand and on every release tag.
 #
 # signed:  Flagwake's signing workflow runs Flagwake's own model agent (its dry mode, no model)
-#          and signs the report.
+#          and signs the report. Its key comes in as the model-key secret, the way a caller in
+#          another account passes one; the run stops if the key does not arrive.
 # redteam: the same workflow runs a defender that tries every way it knows to escape its sandbox
 #          (.github/redteam/attacker.py): sudo, the job's signing token, the harness's memory,
 #          the output folder, the runner's credentials, docker, a process that outlives the run.
-#          It is also handed one public value and one secret, to show both arrive.
+#          It is also handed one public value and one secret (secrets: inherit), to show both
+#          arrive.
 # action:  the GitHub Action runs the same steps inside this workflow.
 # control: the same attacker without the sandbox, to show the attacks are real.
 # check:   with nothing but the downloaded files: the signatures check out with flagwake verify
@@ -35,6 +37,9 @@ jobs:
       agent: reference:model --dry
       seeds: "1"
       name: signed-result
+      defender-env: FLAGWAKE_LLM_KEY=model-key
+    secrets:
+      model-key: flagwake-dry-run-stand-in  # the dry run calls no model, so no real key
 
   redteam:
     needs: signed  # one attempt at a time, so the attempt numbers are in order

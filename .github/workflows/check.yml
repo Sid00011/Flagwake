@@ -7,6 +7,12 @@
 #       with:
 #         agent: python my_defender.py
 #
+# A secret for the defender (a model key, say) goes in as model-key, from any repository, and
+# reaches the defender only under the name defender-env gives it (FLAGWAKE_LLM_KEY=model-key):
+#
+#       secrets:
+#         model-key: ${{ secrets.MY_MODEL_KEY }}
+#
 # The signing certificate names this workflow at that tag as the signer, so anyone can check that
 # these steps ran unmodified, whatever the calling workflow says: the defender ran as its own user
 # without sudo, the attempt ticket was in Sigstore's public log before the incidents were drawn,
@@ -38,7 +44,7 @@ on:
         type: string
         default: ""
       defender-env:
-        description: Comma-separated names of your secrets the defender may read (call with secrets inherit).
+        description: Comma-separated secrets the defender may read, as NAME or NAME=SECRET. SECRET is model-key, or with secrets inherit (one organisation only) one of your secrets.
         type: string
         default: ""
       defender-vars:
@@ -60,6 +66,12 @@ on:
       python-version:
         type: string
         default: "3.12"
+    # GitHub passes secrets: inherit only within one organisation or enterprise, and a caller can
+    # pass only the secrets declared here, so this is how a key gets in from another account.
+    secrets:
+      model-key:
+        description: A secret for the defender, from any repository. It reaches the defender only under the name defender-env gives it, as in FLAGWAKE_LLM_KEY=model-key.
+        required: false
     outputs:
       damage-index:
         description: The headline damage index (0 = the best response, 100 = doing nothing).
@@ -149,6 +161,7 @@ jobs:
         id: run
         env:
           SECRETS_JSON: ${{ toJSON(secrets) }}
+          MODEL_KEY_SECRET: ${{ secrets.model-key }}
           AGENT: ${{ inputs.agent }}
           PACK: ${{ inputs.pack }}
           SEEDS: ${{ inputs.seeds }}

@@ -49,6 +49,51 @@ def test_only_named_secrets_and_public_values_reach_the_defender():
             launch.defender_env({**BASE, **bad})
 
 
+def test_a_caller_in_another_account_passes_its_key_as_the_model_key_secret():
+    # Explicitly passed secrets: only the declared model-key (and GitHub's own token) arrive.
+    env = {
+        **BASE,
+        "SECRETS_JSON": json.dumps({"github_token": "t"}),
+        "MODEL_KEY_SECRET": "k1",
+        "DEFENDER_ENV": "FLAGWAKE_LLM_KEY=model-key",
+    }
+    out, names = launch.defender_env(env)
+    assert names == ["FLAGWAKE_LLM_KEY"] and out["FLAGWAKE_LLM_KEY"] == "k1"
+    assert "MODEL_KEY_SECRET" not in out and "SECRETS_JSON" not in out
+    # However GitHub spells the declared secret in the secrets context, it is the same one.
+    spelled = launch.defender_env(
+        {**BASE, "SECRETS_JSON": json.dumps({"model-key": "k1"}), "DEFENDER_ENV": "K=MODEL-KEY"}
+    )[0]
+    assert spelled["K"] == "k1"
+
+
+def test_the_model_key_reaches_the_defender_only_when_named():
+    env = {**BASE, "SECRETS_JSON": "{}", "MODEL_KEY_SECRET": "k1", "DEFENDER_ENV": ""}
+    out, names = launch.defender_env(env)
+    assert names == [] and "k1" not in out.values()
+    with pytest.raises(SystemExit, match="a name for the defender"):
+        launch.defender_env({**env, "DEFENDER_ENV": "model-key"})
+    with pytest.raises(SystemExit, match="not a NAME"):
+        launch.defender_env({**env, "DEFENDER_ENV": "K=other-key"})  # only the declared one
+
+
+@pytest.mark.parametrize(
+    "secrets",
+    [
+        {},  # secrets: inherit from another account passes nothing
+        {"MY_KEY": ""},  # GitHub resolves a secret that was not passed to an empty string
+    ],
+)
+def test_a_secret_that_did_not_arrive_stops_the_run_and_says_why(secrets):
+    for entry, more in (("FLAGWAKE_LLM_KEY=MY_KEY", {}), ("K=model-key", {"MODEL_KEY_SECRET": ""})):
+        env = {**BASE, "SECRETS_JSON": json.dumps(secrets), "DEFENDER_ENV": entry, **more}
+        with pytest.raises(SystemExit, match="only within one organisation") as stop:
+            launch.defender_env(env)
+        assert "model-key secret" in str(stop.value)
+    with pytest.raises(SystemExit, match="this step's env"):  # the action: the step's variables
+        launch.defender_env({**BASE, "DEFENDER_ENV": "MY_KEY", "MY_KEY": ""})
+
+
 def test_the_check_is_isolated_ticketed_and_recorded():
     env = {
         **BASE,
