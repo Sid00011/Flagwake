@@ -71,7 +71,9 @@ flagwake check --agent "python examples/reference_llm_agent.py" --pack practice 
 ```
 
 The key is read from the environment and sent only in the request header to the base URL you chose;
-it is never printed or written to disk. Try the wiring with no model at all:
+it is never printed or written to disk. It keeps to the endpoint's rate limits by itself (`--rpm N`
+sets a pace; see "Time, calls and rate limits" in [TRY_YOUR_AGENT.md](TRY_YOUR_AGENT.md)), and
+speed never changes a score. Try the wiring with no model at all:
 
 ```
 flagwake check --agent "python examples/reference_llm_agent.py --dry" --pack practice --seeds 1

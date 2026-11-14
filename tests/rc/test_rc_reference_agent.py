@@ -330,12 +330,15 @@ def test_the_agent_will_not_start_when_its_key_would_travel_in_clear(monkeypatch
 # --------------------------------------------------------------------------- the loop, in process
 
 
-def _talk(monkeypatch, capsys, fake, lines, *argv, key=None):
+def _talk(monkeypatch, capsys, fake, lines, *argv, key=None, sleeps=None):
     """Run the reference program's main loop in this process on the given harness lines;
-    return its exit code, its replies and what it wrote to stderr."""
+    return its exit code, its replies and what it wrote to stderr. Waits are not slept: each is
+    appended to ``sleeps`` (when given) instead."""
     import io
 
+    monkeypatch.setattr(ref, "_sleep", (sleeps if sleeps is not None else []).append)
     monkeypatch.delenv("FLAGWAKE_LLM_EXTRA_BODY", raising=False)
+    monkeypatch.delenv("FLAGWAKE_LLM_RPM", raising=False)
     monkeypatch.setenv("FLAGWAKE_LLM_BASE_URL", fake.url if fake else "")
     monkeypatch.setenv("FLAGWAKE_LLM_MODEL", "fake-model" if fake else "")
     if key:
@@ -448,6 +451,113 @@ def test_a_rate_limited_call_waits_and_succeeds_and_the_served_model_is_reported
     assert doc["agent"]["usage"]["model"] == "fake-model-2026-01" and verify(doc) == []
 
 
-def test_retry_waits_are_bounded():
-    assert ref._retry_after("5", 0) == 5 and ref._retry_after("900", 0) == 30
-    assert ref._retry_after(None, 0) == 2 and ref._retry_after("soon", 2) == 8
+# --------------------------------------------------------------------------- rate limits
+
+
+def _http_error(code, headers=None, body=b""):
+    import email.message
+    import io
+    import urllib.error
+
+    msg = email.message.Message()
+    for k, v in (headers or {}).items():
+        msg[k] = v
+    return urllib.error.HTTPError("http://127.0.0.1/v1", code, "x", msg, io.BytesIO(body))
+
+
+def test_the_wait_an_endpoint_asks_for_is_read_from_every_usual_place():
+    import email.utils
+
+    hint = ref.retry_hint
+    assert hint(_http_error(429, {"Retry-After": "7"})) == 7
+    assert hint(_http_error(429, {"retry-after-ms": "1500"})) == 1.5
+    in_20s = email.utils.formatdate(time.time() + 20, usegmt=True)
+    assert 17 <= hint(_http_error(429, {"Retry-After": in_20s})) <= 21
+    google = b'[{"error": {"code": 429, "details": [{"retryDelay": "39s"}]}}]'
+    assert hint(_http_error(429, body=google)) == 39
+    assert hint(_http_error(429, body=b'{"message": "Please try again in 250ms."}')) == 0.25
+    assert hint(_http_error(429, body=b'{"message": "Try again in 1.5s"}')) == 1.5
+    assert (
+        hint(_http_error(503)) is None and hint(_http_error(429, {"Retry-After": "soon"})) is None
+    )
+
+
+def test_a_rate_limited_or_busy_answer_is_retried_not_counted_as_a_failure(monkeypatch, capsys):
+    fake = FakeModel([("rate", 0), ("http", 503), ("rate-ms", 1500), ("rate-body", "3s"),
+                      ("ok", "look"), ("ok", 'report {"compromised": []}')])  # fmt: skip
+    sleeps: list[float] = []
+    try:
+        code, sent, err = _talk(monkeypatch, capsys, fake, [START, OBS, {"type": "end"}],
+                                sleeps=sleeps)  # fmt: skip
+    finally:
+        fake.close()
+    assert code == 0 and [m["cmd"] for m in sent] == ["look", 'report {"compromised": []}']
+    u = sent[-1]["usage"]
+    assert (u["calls"], u["failed_calls"], u["rate_limited"]) == (2, 0, 4)
+    assert 1.5 in sleeps and 3 in sleeps  # the waits the endpoint asked for
+    assert u["waited_seconds"] == pytest.approx(sum(sleeps), abs=0.01)
+    assert "rate-limited answers 4" in err and "waited" in err
+
+
+def test_after_a_429_requests_are_spaced_and_the_gap_shrinks_again(monkeypatch, capsys):
+    fake = FakeModel([("rate", 0)] + [("ok", "look")] * 3 + [("ok", 'report {"compromised": []}')])
+    sleeps: list[float] = []
+    lines = [START, OBS, OBS, OBS, {"type": "end"}]
+    try:
+        _code, sent, _err = _talk(monkeypatch, capsys, fake, lines, sleeps=sleeps)
+    finally:
+        fake.close()
+    assert len(sent) == 4 and sent[-1]["usage"]["failed_calls"] == 0
+    paces = [s for s in sleeps if s > 0.5]  # the pace waits (the 429 asked for none)
+    assert paces and all(a >= b for a, b in zip(paces, paces[1:], strict=False))  # it shrinks
+    assert max(paces) <= ref.MIN_BACKOFF_GAP + 0.01
+
+
+def test_rpm_spaces_every_request(monkeypatch, capsys):
+    fake = FakeModel([("ok", "look")])
+    sleeps: list[float] = []
+    try:
+        _code, sent, _err = _talk(monkeypatch, capsys, fake, [START, OBS, OBS, {"type": "end"}],
+                                  "--rpm", "30", sleeps=sleeps)  # fmt: skip
+    finally:
+        fake.close()
+    assert len(sent) == 3 and len(sleeps) == 2  # no wait before the first request
+    assert all(1.9 <= s <= 2.0 for s in sleeps)  # 30 per minute: 2 seconds apart
+    assert ref.main(["--rpm", "-1"]) == 2
+
+
+def test_a_wait_that_does_not_fit_the_step_fails_at_once(monkeypatch, capsys):
+    fake = FakeModel([("rate", 40), ("ok", "look")])  # 40 s asked; the step leaves 25
+    sleeps: list[float] = []
+    try:
+        _code, sent, _err = _talk(monkeypatch, capsys, fake, [START, {"type": "end"}],
+                                  sleeps=sleeps)  # fmt: skip
+    finally:
+        fake.close()
+    assert sent[0]["cmd"] == "(model call failed: HTTP 429)" and sleeps == []
+    assert sent[0]["usage"]["failed_calls"] == 1 and len(fake.requests) == 1
+
+
+def test_a_used_up_quota_stops_the_incident_instead_of_asking_again(monkeypatch, capsys):
+    fake = FakeModel([("rate", 3600)])
+    try:
+        _code, sent, err = _talk(monkeypatch, capsys, fake, [START, OBS, OBS, OBS],
+                                 sleeps=[])  # fmt: skip
+    finally:
+        fake.close()
+    assert sent[0]["cmd"] == "(model call failed: HTTP 429)"
+    assert sent[1] == {"stop": True, "usage": sent[1]["usage"]} and len(sent) == 2
+    assert len(fake.requests) == 1  # asked once, not four times
+    assert "asked to wait 3600 s" in err and "quota" in err
+
+
+def test_retries_stop_after_a_fixed_number_of_requests(monkeypatch, capsys):
+    fake = FakeModel([("http", 503)])
+    long_step = {**START, "limits": {"step_seconds": 600}}  # time is not what stops it here
+    try:
+        _code, sent, _err = _talk(monkeypatch, capsys, fake, [long_step, {"type": "end"}],
+                                  sleeps=[])  # fmt: skip
+    finally:
+        fake.close()
+    assert sent[0]["cmd"] == "(model call failed: HTTP 503)"
+    assert len(fake.requests) == ref.MAX_ATTEMPTS

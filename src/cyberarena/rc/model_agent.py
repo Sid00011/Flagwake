@@ -25,9 +25,22 @@ Limits (flag or environment variable; per incident):
     --max-calls N      FLAGWAKE_LLM_MAX_CALLS     model calls (default 30)
     --token-budget N   FLAGWAKE_LLM_TOKEN_BUDGET  tokens sent and received (default 150000)
     --max-tokens N     FLAGWAKE_LLM_MAX_TOKENS    tokens per reply (default 256)
-    --timeout S        FLAGWAKE_LLM_TIMEOUT       seconds per call (default 40, and always 5 s
-                                                  under the harness's step timeout)
+    --timeout S        FLAGWAKE_LLM_TIMEOUT       seconds one request may take (default 40)
+    --rpm N            FLAGWAKE_LLM_RPM           requests per minute at most (default: no fixed
+                                                  pace; the program slows down by itself when the
+                                                  endpoint says it is sending too fast)
     --dry              no model at all: a canned stub, to check the wiring
+
+Speed never changes a score: the incident runs on a simulated clock. What a rate limit can do is
+refuse calls, so the program respects it. Requests are spaced by the --rpm pace, if one is set.
+An answer that says "too many requests" (HTTP 429) or that the server is busy (502, 503, 504, 529)
+is retried after the wait the endpoint asks for, read from Retry-After, retry-after-ms or a
+retryDelay in the error body, or else after 2, 4, 8 ... seconds. After a 429 the program also
+widens the gap between its requests, and narrows it again while calls succeed. All of this fits in
+the time the harness gives one command (its step timeout, less 5 seconds), and every wait is
+counted in the usage as ``rate_limited`` answers and ``waited_seconds``. A wait longer than that,
+such as a daily quota that is used up, is not attempted: the call fails at once and the log says
+why.
 
 Nothing here is fatal. A failed call (an HTTP error, a timeout, a body that is not
 chat-completions JSON) or a reply with no recognisable command is sent to the harness as a
@@ -44,8 +57,10 @@ you chose; it is never printed or logged.
 from __future__ import annotations
 
 import argparse
+import email.utils
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -266,6 +281,15 @@ class Model:
         self.served = ""  # the model id the endpoint says answered (its own word)
         self.prompt_tokens = self.reply_tokens = 0
         self.seconds = 0.0
+        # Pacing: the shortest gap between two requests. It starts at the --rpm pace (or none),
+        # doubles after each 429 and shrinks back towards the start while calls succeed.
+        rpm = getattr(args, "rpm", 0) or 0
+        self.base_gap = 60.0 / rpm if rpm > 0 else 0.0
+        self.gap = self.base_gap
+        self.last_request: float | None = None
+        self.rate_limited = 0  # 429 and busy answers, retried or not
+        self.waited = 0.0  # seconds spent waiting for the pace or for a retry
+        self.refused_wait: float | None = None  # a wait asked for that did not fit, in seconds
 
     @property
     def url(self) -> str:
@@ -283,6 +307,8 @@ class Model:
             "prompt_tokens": self.prompt_tokens,
             "completion_tokens": self.reply_tokens,
             "seconds": round(self.seconds, 3),
+            **({"rate_limited": self.rate_limited} if self.rate_limited else {}),
+            **({"waited_seconds": round(self.waited, 3)} if self.waited else {}),
         }
 
     def capped(self) -> str | None:
@@ -293,7 +319,10 @@ class Model:
         return None
 
     def ask(self, messages: list[dict[str, str]], timeout: float) -> str:
-        """The reply text; raises on any failure (the caller records it as a failed command)."""
+        """The reply text; raises on any failure (the caller records it as a failed command).
+
+        ``timeout`` is all the time this command may take, waits for the pace and retries
+        included."""
         body = {
             **self.extra,
             "model": self.model,
@@ -309,11 +338,11 @@ class Model:
         if self.key:
             req.add_header("Authorization", "Bearer " + self.key)
         self.calls += 1
-        t0 = time.monotonic()
+        t0, waited = time.monotonic(), self.waited
         try:
             raw = self._post(req, timeout, t0)
-        finally:
-            self.seconds += time.monotonic() - t0
+        finally:  # time spent on requests; the waits are counted on their own
+            self.seconds += time.monotonic() - t0 - (self.waited - waited)
         data = json.loads(raw)
         served = data.get("model") if isinstance(data, dict) else None
         if isinstance(served, str) and served:
@@ -333,35 +362,100 @@ class Model:
             self.reply_tokens += len(content) // 4
         return content
 
-    def _post(self, req: urllib.request.Request, timeout: float, t0: float) -> bytes:
-        """The reply body; a rate-limited call waits as the endpoint asks and tries again, as long
-        as the wait still fits in ``timeout``."""
-        for attempt in range(RETRIES + 1):
+    def _post(self, req: urllib.request.Request, budget: float, t0: float) -> bytes:
+        """The reply body. Each request waits for the pace; a 429 or busy answer is retried after
+        the wait the endpoint asks for (else a growing backoff), as long as that wait still fits
+        in ``budget`` seconds from ``t0``. A wait that does not fit fails the call at once."""
+        self.refused_wait = None  # about this call only
+        for attempt in range(MAX_ATTEMPTS):
+            self._pace(budget - (time.monotonic() - t0))
+            left = budget - (time.monotonic() - t0)
+            if left <= 0:
+                raise TimeoutError("no time left for this command")
             try:
-                with open_keyed(req, timeout) as resp:  # the user's endpoint; no redirects
+                # The user's endpoint; no redirects. One request may not outlast the command.
+                with open_keyed(req, min(getattr(self.args, "timeout", left), left)) as resp:
                     body: bytes = resp.read(2_000_000)
+                    self.gap = max(self.base_gap, self.gap * EASE)
                     return body
             except urllib.error.HTTPError as exc:
-                wait = _retry_after(
-                    exc.headers.get("Retry-After") if exc.headers else None, attempt
-                )
-                late = time.monotonic() - t0 + wait > timeout
-                if exc.code != 429 or attempt == RETRIES or late:
+                if exc.code not in RETRY_CODES:
                     raise
-                time.sleep(wait)
+                self.rate_limited += 1
+                if exc.code == 429:  # sending too fast: widen the gap for every later request
+                    self.gap = min(max(self.gap * 2, MIN_BACKOFF_GAP), MAX_GAP)
+                hint = retry_hint(exc)
+                wait = hint if hint is not None else min(2.0 ** (attempt + 1), MAX_BACKOFF)
+                if attempt == MAX_ATTEMPTS - 1 or time.monotonic() - t0 + wait > budget:
+                    if hint is not None and time.monotonic() - t0 + hint > budget:
+                        self.refused_wait = hint
+                    raise
+                self._wait(wait)
         raise AssertionError("unreachable")  # pragma: no cover
 
+    def _pace(self, left: float) -> None:
+        """Wait until the gap since the previous request has passed (never past ``left``)."""
+        if self.last_request is not None and self.gap > 0:
+            due = self.last_request + self.gap - time.monotonic()
+            if due > 0:
+                self._wait(min(due, max(0.0, left)))
+        self.last_request = time.monotonic()
 
-def _retry_after(value: str | None, attempt: int) -> float:
-    """Seconds to wait before retrying: the endpoint's Retry-After, else 2, 4, 8 s (at most 30)."""
+    def _wait(self, seconds: float) -> None:
+        if seconds > 0:
+            _sleep(seconds)
+            self.waited += seconds
+
+
+# Answers that mean "try again later": too many requests, and a gateway or server that is busy or
+# overloaded (529 is used by some providers for "overloaded"). 500 is not retried: it is as
+# likely to be an error in the request as a passing fault.
+RETRY_CODES = frozenset({429, 502, 503, 504, 529})
+MAX_ATTEMPTS = 8  # requests for one command at most, first try included
+MAX_BACKOFF = 30.0  # the longest wait without a hint from the endpoint
+MIN_BACKOFF_GAP = 1.0  # after a 429, requests are at least this far apart
+MAX_GAP = 30.0  # and never more than this (two requests a minute)
+EASE = 0.9  # after a success the gap shrinks by this factor, down to the --rpm pace
+QUOTA_WAIT = 300.0  # an asked-for wait this long means a used-up quota: stop the incident
+_sleep = time.sleep  # a seam for tests
+
+
+def retry_hint(exc: urllib.error.HTTPError) -> float | None:
+    """Seconds the endpoint asks to wait before trying again, or None when it does not say.
+
+    Read from the retry-after-ms header, the Retry-After header (seconds or an HTTP date), a
+    ``retryDelay`` such as "39s" anywhere in a JSON error body, or a message saying "try again in
+    1.5s". The wall clock is used only to read an HTTP date; no score depends on it.
+    """
+    headers = exc.headers
+    if headers:
+        ms = headers.get("retry-after-ms")
+        if ms:
+            try:
+                return max(0.0, float(ms) / 1000)
+            except ValueError:
+                pass
+        value = headers.get("Retry-After")
+        if value:
+            try:
+                return max(0.0, float(value))
+            except ValueError:
+                try:
+                    when = email.utils.parsedate_to_datetime(value)
+                    return max(0.0, when.timestamp() - time.time())
+                except (TypeError, ValueError, IndexError, OverflowError):
+                    pass
     try:
-        seconds = float(value) if value is not None else 2.0 ** (attempt + 1)
-    except ValueError:
-        seconds = 2.0 ** (attempt + 1)
-    return min(max(seconds, 0.0), 30.0)
-
-
-RETRIES = 3  # a rate-limited call (HTTP 429) is retried this many times within its timeout
+        text = exc.read(20_000).decode("utf-8", "replace")
+    except Exception:  # noqa: BLE001 - an unreadable body just gives no hint
+        return None
+    m = re.search(r'"retryDelay"\s*:\s*"([0-9]+(?:\.[0-9]+)?)s"', text) or re.search(
+        r"try again in ([0-9]+(?:\.[0-9]+)?)\s*(ms|s)\b", text, re.I
+    )
+    if not m:
+        return None
+    seconds = float(m.group(1))
+    return seconds / 1000 if m.lastindex == 2 and m.group(2).lower() == "ms" else seconds
 
 
 def extra_body(text: str) -> dict[str, object]:
@@ -466,7 +560,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("--max-tokens", type=int, default=int(env("FLAGWAKE_LLM_MAX_TOKENS", "256")))
     ap.add_argument("--timeout", type=float, default=float(env("FLAGWAKE_LLM_TIMEOUT", "40")))
+    ap.add_argument("--rpm", type=float, default=float(env("FLAGWAKE_LLM_RPM", "0")))
     args = ap.parse_args(argv)
+    if args.rpm < 0:
+        sys.stderr.write("--rpm must be 0 (no fixed pace) or more\n")
+        return 2
     try:
         model = Model(args)
     except ValueError as exc:
@@ -483,7 +581,8 @@ def main(argv: list[str] | None = None) -> int:
     incident, opening, ended = "?", "", "input closed"
     exchanges: list[tuple[str, str]] = []
     fails = 0
-    timeout = args.timeout
+    quota: str | None = None  # set when the endpoint asks for a wait no command could hold
+    budget = args.timeout  # all the time one command may take, waits included
     for line in sys.stdin:
         try:
             msg = json.loads(line)
@@ -497,14 +596,18 @@ def main(argv: list[str] | None = None) -> int:
         text = str(msg.get("text", ""))
         if msg.get("type") == "start":
             incident, opening = str(msg.get("incident", "?")), text
+            # The harness gives each command its step time; waiting for a rate limit may use all
+            # of it but 5 seconds, while one request is still held to --timeout.
             step = (msg.get("limits") or {}).get("step_seconds")
             if isinstance(step, int | float) and step > 6:
-                timeout = min(timeout, float(step) - 5)
+                budget = float(step) - 5
         if args.dry:
             cmd = DRY[min(len(exchanges), len(DRY) - 1)]
         else:
-            stop = model.capped() or (
-                f"{fails} failed replies in a row" if fails >= MAX_FAILS_IN_A_ROW else None
+            stop = (
+                model.capped()
+                or quota
+                or (f"{fails} failed replies in a row" if fails >= MAX_FAILS_IN_A_ROW else None)
             )
             if stop:
                 ended = stop
@@ -512,7 +615,7 @@ def main(argv: list[str] | None = None) -> int:
                 break
             msgs = conversation(opening, exchanges, text, args.max_calls)
             try:
-                parsed = parse_command(model.ask(msgs, timeout))
+                parsed = parse_command(model.ask(msgs, budget))
                 if parsed is None:
                     model.no_command += 1
                     cmd = "(no command in the model reply)"
@@ -524,14 +627,22 @@ def main(argv: list[str] | None = None) -> int:
                 model.failed += 1
                 fails += 1
                 cmd = f"(model call failed: {_error(exc)})"
+                if model.refused_wait is not None and model.refused_wait >= QUOTA_WAIT:
+                    # Minutes or hours: a used-up quota, not a busy moment. Asking again within
+                    # this incident would only fail again, so the next turn stops it.
+                    quota = (f"the endpoint asked to wait {model.refused_wait:.0f} s before the "
+                             "next request (its quota may be used up)")  # fmt: skip
         exchanges.append((text, cmd))
         _send({"cmd": cmd, "usage": model.usage()})
     u = model.usage()
+    limited = (f" | rate-limited answers {u['rate_limited']}" if u.get("rate_limited") else "") + (
+        f" | waited {u['waited_seconds']:.1f} s" if u.get("waited_seconds") else ""
+    )
     sys.stderr.write(
         f"reference agent | {incident} | {'dry stub' if args.dry else model.model} | "
         f"calls {u['calls']} (failed {u['failed_calls']}, no command {u['no_command']}) | "
         f"tokens {u['prompt_tokens']} in / {u['completion_tokens']} out | "
-        f"{u['seconds']:.1f} s | stopped: {ended}\n"
+        f"{u['seconds']:.1f} s{limited} | stopped: {ended}\n"
     )
     return 0
 

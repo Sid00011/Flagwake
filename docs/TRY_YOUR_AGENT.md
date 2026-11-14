@@ -57,7 +57,7 @@ flagwake view
 
 Run without flags, `defenders add` asks one question per field. Every entry may also carry
 `caps` (`max_commands`, `step_timeout`, `incident_timeout`, and for a model endpoint `max_calls`,
-`token_budget`, `max_tokens`) and self-reported `meta` (`model_label`, `version`, `description`),
+`token_budget`, `max_tokens`, `requests_per_minute`) and self-reported `meta` (`model_label`, `version`, `description`),
 which the report records next to the run but never scores. A key never goes in the file: put it in
 an environment variable and name the variable in `key_env`. Commands start in the folder that holds
 `flagwake.yaml`, without a shell, as you, unsandboxed; a registry folder copied to another machine
@@ -94,8 +94,10 @@ flagwake check --agent "python examples/reference_llm_agent.py" --pack practice 
 ```
 
 The key goes only into the request header to the URL you set; it is never printed or written.
-Limits per incident: `--max-calls 30`, `--token-budget 150000`, `--max-tokens 256`, `--timeout 40`
-(each also as `FLAGWAKE_LLM_MAX_CALLS` etc.). Pass flags inside the quotes:
+Limits per incident: `--max-calls 30`, `--token-budget 150000`, `--max-tokens 256`, and
+`--timeout 40` seconds for one request; `--rpm N` keeps to N requests a minute (each also as
+`FLAGWAKE_LLM_MAX_CALLS`, `FLAGWAKE_LLM_RPM` etc.; see "Time, calls and rate limits" below).
+Pass flags inside the quotes:
 `--agent "python examples/reference_llm_agent.py --max-calls 15"`. Check the wiring with no model
 at all: `--agent "python examples/reference_llm_agent.py --dry"`. The same agent runs from the
 installed package as `python -m cyberarena.rc.model_agent`. In the registry this is
@@ -150,7 +152,35 @@ flagwake check --http http://127.0.0.1:8000/act --pack practice --seeds 1 --out 
 
 Only `127.0.0.1` and `localhost` are accepted. In the registry: `kind: http`, `url: ...`.
 
-## Time and calls
+## Time, calls and rate limits
+
+**Speed never changes a score.** Every incident runs on a simulated clock: a defender that takes a
+minute to answer is scored exactly like one that answers at once. Only two wall-clock limits apply,
+and both can be raised: the time for one command (`--step-timeout`, default 60 s) and the time for
+one incident (`--incident-timeout`, default 900 s). A defender that misses them is stopped, and the
+report counts that incident as ended by the harness, apart from the defender's own choices.
+
+**Rate limits.** A hosted model, above all on a free tier, allows only so many requests a minute and
+a day. Flagwake's model agent keeps to them by itself:
+
+- After a "too many requests" answer (HTTP 429) or a busy server (502, 503, 504, 529), it waits as
+  long as the endpoint asks and tries again. It reads the wait from `Retry-After`,
+  `retry-after-ms` or a `retryDelay` in the error body, else waits 2, 4, 8 … seconds.
+- After a 429 it also spaces out every later request, and speeds up again while calls succeed.
+- `--rpm N` (or `requests_per_minute` in the registry) sets the pace from the start. Use it when
+  you know your provider's per-minute limit.
+- Waits use the step time (less 5 seconds). The report shows them in the usage as `rate_limited`
+  answers and `waited_seconds`. A call that succeeds after a wait does not count as a failure.
+- A wait longer than that, such as a used-up daily quota, fails the call at once. The incident then
+  stops, and its log says why.
+
+**Check the daily quota before a run.** A run makes up to incidents × `--max-calls` requests: 20 ×
+30 = 600 for `--seeds 1` with the defaults. If your provider allows fewer a day, lower
+`--max-calls` or the seeds.
+
+**Your own agent** paces itself; Flagwake cannot slow its requests down. Every incident's first
+message carries `limits.step_seconds`, the time your agent has for each command, so it can budget
+its retries. Raise `--step-timeout` if your endpoint is slow or strictly limited.
 
 | run (default company, 20 families) | incidents | model calls (reference agent) | time |
 |---|---|---|---|

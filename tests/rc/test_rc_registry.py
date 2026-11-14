@@ -184,7 +184,7 @@ def test_add_asks_questions_when_no_name_is_given(tmp_path):
     from cyberarena.rc import registry_cli
 
     assert _cli(tmp_path, "init") == 0
-    answers = iter(["asked", "baseline", "rule-bot"] + [""] * 6 + ["scripted", "", ""])
+    answers = iter(["asked", "baseline", "rule-bot"] + [""] * len(reg.CAPS) + ["scripted", "", ""])
     args = type("A", (), {"config": str(tmp_path / "flagwake.yaml"), "name": None})()
     assert registry_cli._add(args, ask=lambda _q: next(answers)) == 0
     entry = reg.get(reg.load(tmp_path / "flagwake.yaml"), "asked")
@@ -330,6 +330,16 @@ def test_a_model_endpoint_gets_the_step_timeout_for_each_call():
     assert reg.model_argv(entry)[-2:] == ["--timeout", "115"]
     entry["caps"] = {}
     assert "--timeout" not in reg.model_argv(entry)
+
+
+def test_a_model_endpoint_can_be_given_its_providers_request_pace():
+    entry = reg.validate_entry({"name": "paced", "kind": "model-endpoint", "model": "a",
+                                "base_url": "https://example.invalid/v1",
+                                "caps": {"requests_per_minute": 15}})  # fmt: skip
+    argv = reg.model_argv(entry)
+    assert argv[argv.index("--rpm") + 1] == "15"
+    with pytest.raises(RegistryError, match="requests_per_minute"):
+        reg.validate_entry({**entry, "caps": {"requests_per_minute": 0}})
 
 
 def test_run_uses_the_entry_world_and_the_world_option(tmp_path):

@@ -49,6 +49,22 @@ class FakeModel:
                     self.send_header("Retry-After", str(arg))
                     self.end_headers()
                     return
+                if kind == "rate-ms":  # rate limited, the wait in milliseconds
+                    self.send_response(429)
+                    self.send_header("retry-after-ms", str(arg))
+                    self.end_headers()
+                    return
+                if kind == "rate-body":  # rate limited, the wait only in the error body (Google)
+                    err = {"error": {"code": 429, "status": "RESOURCE_EXHAUSTED", "details": [
+                        {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": arg}
+                    ]}}  # fmt: skip
+                    data = json.dumps([err]).encode()
+                    self.send_response(429)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(data)))
+                    self.end_headers()
+                    self.wfile.write(data)
+                    return
                 if kind == "raw":
                     data = bytes(arg)
                 else:

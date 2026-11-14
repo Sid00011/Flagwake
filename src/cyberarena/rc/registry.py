@@ -53,6 +53,7 @@ KIND_FIELDS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
 # Caps: (lowest, highest) allowed. max_commands, step_timeout and incident_timeout are enforced
 # by the harness; max_calls, token_budget and max_tokens are passed to the reference program for
 # a model endpoint and, for every other kind, checked against the defender's self-reported usage.
+# requests_per_minute only paces the reference program (a defender of another kind paces itself).
 CAPS: dict[str, tuple[float, float]] = {
     "max_commands": (1, 60),
     "step_timeout": (1, 3600),
@@ -60,6 +61,7 @@ CAPS: dict[str, tuple[float, float]] = {
     "max_calls": (1, 10000),
     "token_budget": (1, 100_000_000),
     "max_tokens": (1, 100_000),
+    "requests_per_minute": (1, 100_000),
 }
 META = ("model_label", "version", "description")
 RESERVED_BODY = ("model", "messages", "temperature", "max_tokens")
@@ -613,8 +615,9 @@ def model_argv(entry: dict[str, Any]) -> list[str]:
     """
     argv = [sys.executable, "-m", "cyberarena.rc.model_agent"]
     caps = entry.get("caps") or {}
-    for cap, flag in (("max_calls", "--max-calls"), ("token_budget", "--token-budget"),
-                      ("max_tokens", "--max-tokens")):  # fmt: skip
+    flags = (("max_calls", "--max-calls"), ("token_budget", "--token-budget"),
+             ("max_tokens", "--max-tokens"), ("requests_per_minute", "--rpm"))  # fmt: skip
+    for cap, flag in flags:
         if cap in caps:
             argv += [flag, str(int(caps[cap]))]
     if "step_timeout" in caps:

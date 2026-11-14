@@ -14,6 +14,25 @@ the rules hash (see `docs/METHODOLOGY.md`).
     `FLAGWAKE_LLM_KEY=model-key`. The defender reads it only under that name.
   - `secrets: inherit` works as before within one organisation.
   - A secret that does not arrive, or arrives empty, now stops the run with a hint.
+- **Rate limits no longer cost a model its incidents.** Flagwake's model agent (`reference:model`,
+  `kind: model-endpoint`, `python -m cyberarena.rc.model_agent`) now keeps to an endpoint's rate
+  limits by itself.
+  - It retries "too many requests" (429) and busy answers (502, 503, 504, 529) after the wait the
+    endpoint asks for. It reads that wait from `Retry-After` (seconds or a date), `retry-after-ms`,
+    a `retryDelay` in the error body, or "try again in …". Without one it backs off 2, 4, 8 …
+    seconds.
+  - After a 429 it spaces out every later request, and narrows the gap again while calls succeed.
+  - `--rpm N` (`FLAGWAKE_LLM_RPM`, registry cap `requests_per_minute`) sets a pace from the start.
+  - Waits may use the whole step time less 5 seconds, while one request is still held to
+    `--timeout`. The usage reports `rate_limited` answers and `waited_seconds`.
+  - A wait of five minutes or more, such as a used-up daily quota, fails the call at once and
+    stops the incident, with the reason in the log.
+
+  Before, only a 429 with a `Retry-After` header was retried, at most three times within 40
+  seconds. Any other rate-limit answer became a failed command, and four in a row ended the
+  incident: a fast model on a free tier could lose incidents to its provider's limit.
+  docs/TRY_YOUR_AGENT.md has a new section, "Time, calls and rate limits", and states that speed
+  never changes a score.
 
 ## 0.5.0rc4 (2026-11-13)
 
