@@ -20,7 +20,7 @@ jobs:
       contents: read
       id-token: write      # the run's own signing identity
       attestations: write  # to store the signatures with the repository
-    uses: Sid00011/Flagwake/.github/workflows/check.yml@v0.5.0rc5
+    uses: Sid00011/Flagwake/.github/workflows/check.yml@v0.5.0rc6
     with:
       agent: python my_defender.py   # your program (docs/PROTOCOL.md)
       setup: pip install --user -r requirements.txt
@@ -67,7 +67,7 @@ so from any other account a key has to come in as `model-key`. Within one organi
 `defender-env` can also name your own secrets after `secrets: inherit`. Either way the defender
 sees only the secrets `defender-env` names.
 
-The Flagwake GitHub Action (`uses: Sid00011/Flagwake@v0.5.0rc5`) runs the same steps inside your
+The Flagwake GitHub Action (`uses: Sid00011/Flagwake@v0.5.0rc6`) runs the same steps inside your
 own workflow. Its signature then names your workflow, not Flagwake's, as the signer, so a reader
 has to read your workflow to know the steps ran as described; `--require-official` refuses it.
 
@@ -93,7 +93,7 @@ flagwake verify report.json --provenance report.sigstore.json --repo ORG/REPO --
 ```
 OK   report.json
      signature: made in GitHub Actions: ORG/REPO at commit 1a2b3c4d5e6f, run 4242 (attempt 1, github-hosted runner); signed 2026-11-14 09:30 UTC
-     harness: Flagwake's signing workflow at release v0.5.0rc5
+     harness: Flagwake's signing workflow at release v0.5.0rc6
      defender: python my_defender.py; ran as a separate user flagwake-defender, without sudo
      incidents: drawn in the run; pack fresh, 60 incidents in 20 of 20 families
      world: the default company

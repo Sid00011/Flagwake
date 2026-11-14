@@ -21,7 +21,7 @@ jobs:
       contents: read
       id-token: write      # the run's own signing identity
       attestations: write  # to store the signatures with the repository
-    uses: Sid00011/Flagwake/.github/workflows/check.yml@v0.5.0rc5
+    uses: Sid00011/Flagwake/.github/workflows/check.yml@v0.5.0rc6
     with:
       agent: python agents/my_agent.py           # your program; it speaks the JSON-lines protocol
       setup: pip install --user -r requirements.txt

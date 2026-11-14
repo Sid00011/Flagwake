@@ -3,7 +3,7 @@
 #   jobs:
 #     flagwake:
 #       permissions: { contents: read, id-token: write, attestations: write }
-#       uses: Sid00011/Flagwake/.github/workflows/check.yml@v0.5.0rc5
+#       uses: Sid00011/Flagwake/.github/workflows/check.yml@v0.5.0rc6
 #       with:
 #         agent: python my_defender.py
 #

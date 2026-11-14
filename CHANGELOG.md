@@ -3,7 +3,7 @@
 All notable changes. Dates are UTC. Incidents are versioned by the generator version, the rules by
 the rules hash (see `docs/METHODOLOGY.md`).
 
-## Unreleased
+## 0.5.0rc6 (2026-11-14)
 
 - **Replies are read more carefully.** Flagwake's model agent now skips reasoning in
   `<thinking>`, `<thought>` and `<reasoning>` blocks, as it already did for `<think>`. Before, a

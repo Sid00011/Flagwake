@@ -52,7 +52,7 @@ inputs:
     default: ""
   package:
     description: What pip installs. The default is the Flagwake release this version of the action belongs to.
-    default: flagwake[provenance]==0.5.0rc5
+    default: flagwake[provenance]==0.5.0rc6
   python-version:
     description: The Python that runs Flagwake (and your defender, if it is a Python program).
     default: "3.12"
