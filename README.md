@@ -60,6 +60,9 @@ Practice incidents are public: use them to try things. For numbers you will quot
   produced it, that the defender could not reach the harness, and how many attempts came before
   ([docs/SIGNED_RESULTS.md](docs/SIGNED_RESULTS.md)). For a product you cannot read, run it
   yourself. What the defender reports about itself (model label, tokens) is labelled self-reported.
+  Signed example runs of a hosted model, with the plan fixed before the first run and every
+  attempt listed: [flagwake-results](https://github.com/Sid00011/flagwake-results). They show
+  the method at work. They are not a ranking.
 - **Offline and free.** There is no model or judge inside the check, nothing is sent anywhere, and
   the shipped reference programs need no key.
 - **Your own company.** Describe your topology in a file and the incidents run in it.
