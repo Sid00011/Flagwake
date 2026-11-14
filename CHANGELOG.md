@@ -34,6 +34,13 @@ the rules hash (see `docs/METHODOLOGY.md`).
   docs/TRY_YOUR_AGENT.md has a new section, "Time, calls and rate limits", and states that speed
   never changes a score.
 
+- **Time limits for slow defenders in signed runs.** The signing workflow and the Action take
+  `incident-timeout` (default 900 seconds, as before). The signing workflow also takes
+  `run-timeout`, with its default raised from a fixed 180 minutes to 360, the most GitHub's runners
+  allow. A slow model on the default 60 incidents could pass 180 minutes, and a job cut off there
+  leaves no report while its attempt is already in the public log. docs/SIGNED_RESULTS.md says how
+  to size a run.
+
 ## 0.5.0rc4 (2026-11-13)
 
 - **Signed results.** Flagwake's signing workflow (`uses:

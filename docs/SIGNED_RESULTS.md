@@ -28,8 +28,21 @@ jobs:
 
 Inputs: `agent`, `setup` (run as the defender's user before the check), `pack`, `seeds`, `world`,
 `defender-env` (secrets the defender may read, as `NAME` or `NAME=SECRET`), `defender-vars`
-(public `NAME=value` lines), `step-timeout`, `fail-under`, `name`. Secret: `model-key`. A full
-example: [examples/ci/flagwake-signed.yml](../examples/ci/flagwake-signed.yml).
+(public `NAME=value` lines), `step-timeout`, `incident-timeout`, `run-timeout`, `fail-under`,
+`name`. Secret: `model-key`. A full example:
+[examples/ci/flagwake-signed.yml](../examples/ci/flagwake-signed.yml).
+
+**Speed.** Speed never changes a score: incidents run on a simulated clock. Three limits keep a
+stuck run from going on forever, and each can be raised:
+
+- `step-timeout`: 60 seconds for one command.
+- `incident-timeout`: 900 seconds for one incident.
+- `run-timeout`: 360 minutes for the whole job, the most GitHub's own runners allow.
+
+A slow defender, such as a large model or one on a strict rate limit, may need more. The default
+60 incidents × 30 model calls × 10 seconds a call is five hours. Lower the seeds or the calls, or
+raise the step and incident limits. A job stopped by `run-timeout` leaves no report, but its
+attempt number is already in the public log.
 The `flagwake-result` artifact holds `report.json`, `report.html`, `report.sigstore.json`, the
 attempt ticket and its signature. Signing is free in public repositories; for a private
 repository, check whether your GitHub plan includes artifact attestations.

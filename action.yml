@@ -44,6 +44,9 @@ inputs:
   step-timeout:
     description: Seconds the defender has for each command.
     default: "60"
+  incident-timeout:
+    description: Seconds one incident may take on the wall clock (speed never changes the score).
+    default: "900"
   fail-under:
     description: Fail after signing when the damage index is above this number. Empty never fails on the score.
     default: ""
@@ -119,6 +122,7 @@ runs:
         DEFENDER_ENV: ${{ inputs.defender-env }}
         DEFENDER_VARS: ${{ inputs.defender-vars }}
         STEP_TIMEOUT: ${{ inputs.step-timeout }}
+        INCIDENT_TIMEOUT: ${{ inputs.incident-timeout }}
         TICKET: ${{ steps.ticket.outputs.path }}
         TICKET_BUNDLE: ${{ steps.sign-ticket.outputs.bundle-path }}
         ISOLATE: ${{ inputs.isolate }}

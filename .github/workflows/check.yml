@@ -55,6 +55,14 @@ on:
         description: Seconds the defender has for each command.
         type: string
         default: "60"
+      incident-timeout:
+        description: Seconds one incident may take on the wall clock (speed never changes the score).
+        type: string
+        default: "900"
+      run-timeout:
+        description: Minutes the whole job may take; GitHub's own runners allow at most 360.
+        type: string
+        default: "360"
       fail-under:
         description: Fail after signing when the damage index is above this number. Empty never fails on the score.
         type: string
@@ -85,7 +93,9 @@ on:
 jobs:
   check:
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    # A run cut off by this limit leaves no report, though its attempt is already in the log; the
+    # default is the most GitHub's runners allow, so only a defender far too slow is stopped.
+    timeout-minutes: ${{ fromJSON(inputs.run-timeout) }}
     outputs:
       index: ${{ steps.run.outputs.index }}
       attempt: ${{ steps.ticket.outputs.n }}
@@ -169,6 +179,7 @@ jobs:
           DEFENDER_ENV: ${{ inputs.defender-env }}
           DEFENDER_VARS: ${{ inputs.defender-vars }}
           STEP_TIMEOUT: ${{ inputs.step-timeout }}
+          INCIDENT_TIMEOUT: ${{ inputs.incident-timeout }}
           TICKET: flagwake-result/attempt-ticket.txt
           TICKET_BUNDLE: ${{ steps.sign-ticket.outputs.bundle-path }}
         run: |

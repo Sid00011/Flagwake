@@ -114,6 +114,15 @@ def test_the_check_is_isolated_ticketed_and_recorded():
     assert "--defender-user" not in open_run and "--defender-env" not in open_run
 
 
+def test_the_time_limits_reach_the_check():
+    plain = launch.argv_for(BASE, [])
+    assert plain[plain.index("--step-timeout") + 1] == "60"
+    assert plain[plain.index("--incident-timeout") + 1] == "900"
+    slow = launch.argv_for({**BASE, "STEP_TIMEOUT": "180", "INCIDENT_TIMEOUT": "3600"}, [])
+    assert slow[slow.index("--step-timeout") + 1] == "180"
+    assert slow[slow.index("--incident-timeout") + 1] == "3600"
+
+
 @pytest.mark.parametrize("world", ["/etc/hostname", "../flagwake-src/x.yaml", "a/../../b.yaml"])
 def test_a_company_file_stays_inside_the_repository(world):
     with pytest.raises(SystemExit, match="inside your repository"):

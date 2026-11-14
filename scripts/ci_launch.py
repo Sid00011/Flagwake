@@ -9,7 +9,7 @@ model-key secret, which DEFENDER_ENV names as model-key (FLAGWAKE_LLM_KEY=model-
 another account or organisation can pass that one, where secrets inherit passes nothing.
 The defender runs as DEFENDER_USER (see cyberarena.rc.sandbox) unless ISOLATE is "false".
 Everything else comes from the step's environment: AGENT, PACK, SEEDS, WORLD, OUT, TICKET,
-TICKET_BUNDLE, DEFENDER_SRC, DEFENDER_CWD, STEP_TIMEOUT.
+TICKET_BUNDLE, DEFENDER_SRC, DEFENDER_CWD, STEP_TIMEOUT, INCIDENT_TIMEOUT.
 """
 
 from __future__ import annotations
@@ -67,7 +67,8 @@ def defender_env(env: dict[str, str]) -> tuple[dict[str, str], list[str]]:
 def argv_for(env: dict[str, str], names: list[str]) -> list[str]:
     argv = ["flagwake", "check", "--agent", env["AGENT"], "--pack", env.get("PACK") or "fresh",
             "--seeds", env.get("SEEDS") or "3", "--out", env["OUT"], "--record-ci",
-            "--step-timeout", env.get("STEP_TIMEOUT") or "60"]  # fmt: skip
+            "--step-timeout", env.get("STEP_TIMEOUT") or "60",
+            "--incident-timeout", env.get("INCIDENT_TIMEOUT") or "900"]  # fmt: skip
     if env.get("TICKET"):
         argv += ["--attempt-ticket", env["TICKET"], "--attempt-bundle", env["TICKET_BUNDLE"]]
     if env.get("ISOLATE", "true") != "false":
