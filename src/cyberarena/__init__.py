@@ -5,4 +5,4 @@ The package keeps its historical name ``cyberarena``. The generator's random-str
 with the same word (``cyberarena/rc/1/...``) and must never change: every incident depends on them.
 """
 
-__version__ = "0.5.0rc4"
+__version__ = "0.5.0rc5"

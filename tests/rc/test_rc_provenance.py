@@ -48,7 +48,7 @@ GH = {
     "RUNNER_ENVIRONMENT": "github-hosted",
 }
 RUN = "https://github.com/example-org/defender/actions/runs/123456789/attempts/2"
-OFFICIAL = "https://github.com/Sid00011/Flagwake/.github/workflows/check.yml@refs/tags/v0.5.0rc4"
+OFFICIAL = "https://github.com/Sid00011/Flagwake/.github/workflows/check.yml@refs/tags/v0.5.0rc5"
 
 
 def _signed_report(tmp_path, monkeypatch, *extra, pack="fresh", families=()):
@@ -174,13 +174,13 @@ def test_a_signature_counts_only_for_these_bytes_this_run_and_a_hosted_runner(
 
 def test_the_signer_tells_whether_flagwakes_own_workflow_ran():
     assert harness({"build_signer_uri": OFFICIAL}) == (
-        "Flagwake's signing workflow at release v0.5.0rc4",
+        "Flagwake's signing workflow at release v0.5.0rc5",
         True,
     )
-    branch = OFFICIAL.replace("refs/tags/v0.5.0rc4", "refs/heads/main")
+    branch = OFFICIAL.replace("refs/tags/v0.5.0rc5", "refs/heads/main")
     assert harness({"build_signer_uri": branch})[1] is False
     assert "not a release" in harness({"build_signer_uri": branch})[0]
-    by_commit = OFFICIAL.replace("refs/tags/v0.5.0rc4", "0123456789abcdef0123456789abcdef01234567")
+    by_commit = OFFICIAL.replace("refs/tags/v0.5.0rc5", "0123456789abcdef0123456789abcdef01234567")
     assert harness({"build_signer_uri": by_commit})[1] is False  # a commit is not a release tag
     own = "https://github.com/example-org/defender/.github/workflows/flagwake.yml@refs/heads/main"
     assert "own workflow" in harness({"build_signer_uri": own})[0]
@@ -283,7 +283,7 @@ def test_verify_with_a_signature_bundle(tmp_path, monkeypatch, capsys):
     assert main(["verify", str(path), "--provenance", str(bundle), "--repo", repo]) == 0
     out = capsys.readouterr().out
     assert "signature: made in GitHub Actions" in out and "; signed 2026-11-13 03:43 UTC" in out
-    assert "harness: Flagwake's signing workflow at release v0.5.0rc4" in out
+    assert "harness: Flagwake's signing workflow at release v0.5.0rc5" in out
     assert "defender: baseline:careful; ran as the harness's own user" in out
     assert "incidents: drawn in the run; pack fresh, 20 incidents in 20 of 20 families" in out
     assert "world: the default company" in out

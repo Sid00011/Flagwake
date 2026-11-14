@@ -3,7 +3,7 @@
 All notable changes. Dates are UTC. Incidents are versioned by the generator version, the rules by
 the rules hash (see `docs/METHODOLOGY.md`).
 
-## Unreleased
+## 0.5.0rc5 (2026-11-14)
 
 - **A model key from any account.** A defender repository in another account could not hand its
   model key to the signing workflow. GitHub passes `secrets: inherit` only between repositories of
