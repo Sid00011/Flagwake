@@ -34,6 +34,13 @@ the rules hash (see `docs/METHODOLOGY.md`).
   docs/TRY_YOUR_AGENT.md has a new section, "Time, calls and rate limits", and states that speed
   never changes a score.
 
+- **The model agent is told every command the company accepts.** Its standing instruction listed
+  13 commands and the original approval rule. `pause`, `resume`, `notify` and `release` appeared
+  only in the first observation's help line. It now names all 17, says which actions need
+  approval (hosts and flows marked `*`, admin accounts), and says that `notify` alone lists the
+  roles. Model results from earlier versions are not directly comparable.
+- **Default reply limit 1024 tokens** (was 256). A model that reasons before it answers could use
+  the whole limit and return no command.
 - **Time limits for slow defenders in signed runs.** The signing workflow and the Action take
   `incident-timeout` (default 900 seconds, as before). The signing workflow also takes
   `run-timeout`, with its default raised from a fixed 180 minutes to 360, the most GitHub's runners

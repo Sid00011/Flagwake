@@ -94,7 +94,7 @@ flagwake check --agent "python examples/reference_llm_agent.py" --pack practice 
 ```
 
 The key goes only into the request header to the URL you set; it is never printed or written.
-Limits per incident: `--max-calls 30`, `--token-budget 150000`, `--max-tokens 256`, and
+Limits per incident: `--max-calls 30`, `--token-budget 150000`, `--max-tokens 1024`, and
 `--timeout 40` seconds for one request; `--rpm N` keeps to N requests a minute (each also as
 `FLAGWAKE_LLM_MAX_CALLS`, `FLAGWAKE_LLM_RPM` etc.; see "Time, calls and rate limits" below).
 Pass flags inside the quotes:
@@ -114,7 +114,7 @@ export FLAGWAKE_LLM_MODEL=<a model the server has loaded>
 flagwake check --agent "python examples/reference_llm_agent.py --timeout 55" --pack practice --seeds 1
 ```
 
-Models that reason before they answer can spend the whole reply limit (`--max-tokens`, 256 by
+Models that reason before they answer can spend the whole reply limit (`--max-tokens`, 1024 by
 default) on hidden reasoning and return an empty reply, which counts as an unrecognised command.
 Switch that reasoning off for the run with `FLAGWAKE_LLM_EXTRA_BODY`, a JSON object merged into
 every request body (your server's docs name the field); it cannot replace the model, the messages,

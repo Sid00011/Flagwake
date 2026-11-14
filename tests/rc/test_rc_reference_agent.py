@@ -203,6 +203,28 @@ def test_the_prompt_names_the_ask_topics_and_the_remaining_budget(monkeypatch, t
     )
 
 
+def test_the_instruction_names_every_command_and_how_approvals_are_shown():
+    import re
+
+    from cyberarena.rc.engine import COMMANDS
+
+    listed = re.search(r"Commands: (.*?)\. The first", ref.INSTRUCTION).group(1)
+    assert [c.split()[0] for c in listed.split(" | ")] == list(dict.fromkeys(
+        ["look", "hosts", "logs", "who", "ask", "isolate", "block", "reset", "patch", "restore",
+         "release", "pause", "resume", "notify", "escalate", "wait", "report"]))  # fmt: skip
+    assert set(c.split()[0] for c in listed.split(" | ")) == set(COMMANDS)
+    assert "marked *" in ref.INSTRUCTION and "notify alone lists the roles" in ref.INSTRUCTION
+
+
+def test_the_default_reply_limit_leaves_room_to_reason(monkeypatch, capsys):
+    fake = FakeModel([("ok", "look")])
+    try:
+        _talk(monkeypatch, capsys, fake, [START, {"type": "end"}])
+    finally:
+        fake.close()
+    assert fake.requests[0]["body"]["max_tokens"] == 1024
+
+
 def test_notes_list_every_command_with_the_start_of_its_result():
     exchanges = [
         ("OPENING", "hosts"),
