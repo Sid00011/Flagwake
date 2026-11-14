@@ -87,6 +87,8 @@ def test_parser_picks_the_first_valid_command(reply, expected):
 BAD_SCRIPT = [
     ("ok", "look"),
     ("ok", "```\nhosts\n```"),
+    ("http", 500),  # three in a row: the first try and both retries fail
+    ("http", 500),
     ("http", 500),
     ("raw", b"<html>not json</html>"),
     ("ok", "I am not sure what to do here."),
@@ -111,7 +113,8 @@ def test_bad_slow_and_unparseable_replies_are_failed_commands(monkeypatch, tmp_p
     assert "(no command in the model reply)" in cmds
     assert "hosts" in cmds and "logs ws-ops-01" in cmds
     usage = doc["agent"]["usage"]
-    assert usage["calls"] == len(fake.requests)
+    # every request is a call, except the retries of a server error (two per cycle of the script)
+    assert len(fake.requests) - usage["calls"] == 2 * (usage["server_errors"] // 3)
     assert "calls" in log and "stopped:" in log  # the per-incident summary
     assert all(r["auth"] is None for r in fake.requests)  # no key, no header
     assert all(r["path"] == "/v1/chat/completions" for r in fake.requests)
@@ -317,9 +320,36 @@ def test_a_scalar_confidence_is_scored_after_normalising():
         ("<think>\nlook at the alert, then isolate ws-ops-03", None),
         # a reply with no reasoning block is parsed as before
         ("logs web-01", "logs web-01"),
+        # other models name the block differently (Gemma 4 writes <thought>)
+        ("<thought>check `logs ws-fin-01` first</thought>logs ws-fin-01", "logs ws-fin-01"),
+        ("`logs ws-fin-01`</thought>logs ws-fin-01", "logs ws-fin-01"),
+        ("<thinking>isolate it?</thinking>\nhosts", "hosts"),
+        ("<reasoning>maybe isolate</reasoning>\n\nwho k.mori", "who k.mori"),
+        ("<THOUGHT>\nisolate ws-ops-03 now", None),
     ],
 )
 def test_parser_ignores_a_reasoning_block(reply, expected):
+    assert ref.parse_command(reply) == expected
+
+
+@pytest.mark.parametrize(
+    ("reply", "expected"),
+    [
+        # the help line echoed back is a list of commands, not one to run
+        ("look | hosts | logs <host|source> [minutes] | who <account> | report <json>", None),
+        ("Commands: look | hosts | logs <host>\nhosts", "hosts"),
+        # a command with its placeholders left in is a template, not a command
+        ("logs <host> [minutes]", None),
+        ("isolate <host>\nisolate ws-ops-03", "isolate ws-ops-03"),
+        # real commands keep their text, a report keeps a | inside its JSON
+        ("notify it-lead isolated ws-fin-01", "notify it-lead isolated ws-fin-01"),
+        (
+            'report {"compromised": [], "summary": "a | b"}',
+            'report {"compromised": [], "summary": "a | b"}',
+        ),  # fmt: skip
+    ],
+)
+def test_parser_skips_an_echoed_command_list_and_templates(reply, expected):
     assert ref.parse_command(reply) == expected
 
 
@@ -399,7 +429,7 @@ def test_the_loop_sends_one_command_per_message_and_counts_its_usage(monkeypatch
 
 
 def test_the_loop_survives_noise_bad_replies_and_a_closed_input(monkeypatch, capsys):
-    fake = FakeModel([("ok", "I am not sure what to do."), ("bad", "x"), ("http", 500)])
+    fake = FakeModel([("ok", "I am not sure what to do."), ("bad", "x")] + [("http", 500)] * 3)
     try:
         monkeypatch.setattr(sys, "stdin", None)  # replaced by _talk
         code, sent, err = _talk(
@@ -571,6 +601,29 @@ def test_a_used_up_quota_stops_the_incident_instead_of_asking_again(monkeypatch,
     assert sent[1] == {"stop": True, "usage": sent[1]["usage"]} and len(sent) == 2
     assert len(fake.requests) == 1  # asked once, not four times
     assert "asked to wait 3600 s" in err and "quota" in err
+
+
+def test_a_server_error_is_retried_twice_then_counted(monkeypatch, capsys):
+    fake = FakeModel([("http", 500), ("ok", "look")])
+    sleeps: list[float] = []
+    try:
+        _code, sent, err = _talk(monkeypatch, capsys, fake, [START, {"type": "end"}],
+                                 sleeps=sleeps)  # fmt: skip
+    finally:
+        fake.close()
+    assert sent[0]["cmd"] == "look" and sent[0]["usage"]["failed_calls"] == 0
+    assert sent[0]["usage"]["server_errors"] == 1 and sleeps == [2.0]
+    assert "server errors 1" in err
+
+    fake = FakeModel([("http", 500)])
+    try:
+        _code, sent, _err = _talk(monkeypatch, capsys, fake, [START, {"type": "end"}],
+                                  sleeps=[])  # fmt: skip
+    finally:
+        fake.close()
+    assert sent[0]["cmd"] == "(model call failed: HTTP 500)"
+    assert len(fake.requests) == 1 + ref.SERVER_ERROR_RETRIES
+    assert sent[0]["usage"]["server_errors"] == 1 + ref.SERVER_ERROR_RETRIES
 
 
 def test_retries_stop_after_a_fixed_number_of_requests(monkeypatch, capsys):

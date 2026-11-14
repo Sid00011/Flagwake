@@ -37,9 +37,10 @@ refuse calls, so the program respects it. Requests are spaced by the --rpm pace,
 An answer that says "too many requests" (HTTP 429) or that the server is busy (502, 503, 504, 529)
 is retried after the wait the endpoint asks for, read from Retry-After, retry-after-ms or a
 retryDelay in the error body, or else after 2, 4, 8 ... seconds. After a 429 the program also
-widens the gap between its requests, and narrows it again while calls succeed. All of this fits in
-the time the harness gives one command (its step timeout, less 5 seconds), and every wait is
-counted in the usage as ``rate_limited`` answers and ``waited_seconds``. A wait longer than that,
+widens the gap between its requests, and narrows it again while calls succeed. A server error
+(HTTP 500) is retried twice, after 2 and 4 seconds. All of this fits in the time the harness gives
+one command (its step timeout, less 5 seconds), and every wait is counted in the usage as
+``rate_limited`` answers, ``server_errors`` and ``waited_seconds``. A wait longer than that,
 such as a daily quota that is used up, is not attempted: the call fails at once and the log says
 why.
 
@@ -118,28 +119,52 @@ def parse_command(text: str | None) -> str | None:
     """
     if not isinstance(text, str) or not text.strip():
         return None
-    # A reasoning model writes its reasoning first and closes it with </think>; only what follows
-    # is the answer (a line of reasoning such as "look at the logs" must not become a command).
-    # An opened block that never closes is all reasoning: no command yet.
-    if "</think>" in text:
-        text = text.rsplit("</think>", 1)[1]
-    elif "<think>" in text:
+    # A reasoning model writes its reasoning first and closes it with a tag (</think>,
+    # </thinking>, </thought> or </reasoning>, by model); only what follows is the answer (a line of
+    # reasoning such as "look at the logs" must not become a command). An opened block that never
+    # closes is all reasoning: no command yet.
+    closes = list(REASONING_CLOSE.finditer(text))
+    if closes:
+        text = text[closes[-1].end() :]
+    elif REASONING_OPEN.search(text):
         return None
     lines = text.replace("\r", "").split("\n")
     for i, raw in enumerate(lines):
         line = _clean(raw)
-        if not line:
+        if not line or not _is_command(line):
             continue
-        verb = line.split(None, 1)[0].lower()
-        if verb in VERBS:
-            if verb == "report":
-                return _report(line, lines[i + 1 :])
-            return line[:4000]
+        if line.split(None, 1)[0].lower() == "report":
+            return _report(line, lines[i + 1 :])
+        return line[:4000]
     for span in text.split("`")[1::2]:  # inline code spans
         line = _clean(span)
-        if line and line.split(None, 1)[0].lower() in VERBS:
+        if line and _is_command(line):
             return " ".join(line.split())[:4000]
     return None
+
+
+REASONING_CLOSE = re.compile(r"</(?:think|thinking|thought|reasoning)>", re.I)
+REASONING_OPEN = re.compile(r"<(?:think|thinking|thought|reasoning)>", re.I)
+PLACEHOLDER = re.compile(r"<[a-z][a-z|]*>")  # <host>, <host|source>: from the help line
+
+
+def _is_command(line: str) -> bool:
+    """A line that starts with a verb and is one command to run.
+
+    The help line echoed back ("look | hosts | logs <host> ...") starts with a verb but lists
+    several commands, and a command with its placeholder left in ("logs <host>") is a template;
+    neither is an action. A report is judged by its JSON body instead.
+    """
+    words = line.split(None, 1)
+    verb = words[0].lower() if words else ""
+    if verb not in VERBS:
+        return False
+    if verb == "report":
+        return True
+    if PLACEHOLDER.search(line):
+        return False
+    rest = (part.split(None, 1) for part in line.split("|")[1:])
+    return not any(w and w[0].lower() in VERBS for w in rest)
 
 
 def _clean(raw: str) -> str:
@@ -294,6 +319,7 @@ class Model:
         self.gap = self.base_gap
         self.last_request: float | None = None
         self.rate_limited = 0  # 429 and busy answers, retried or not
+        self.server_errors = 0  # HTTP 500 answers, retried or not
         self.waited = 0.0  # seconds spent waiting for the pace or for a retry
         self.refused_wait: float | None = None  # a wait asked for that did not fit, in seconds
 
@@ -314,6 +340,7 @@ class Model:
             "completion_tokens": self.reply_tokens,
             "seconds": round(self.seconds, 3),
             **({"rate_limited": self.rate_limited} if self.rate_limited else {}),
+            **({"server_errors": self.server_errors} if self.server_errors else {}),
             **({"waited_seconds": round(self.waited, 3)} if self.waited else {}),
         }
 
@@ -373,6 +400,7 @@ class Model:
         the wait the endpoint asks for (else a growing backoff), as long as that wait still fits
         in ``budget`` seconds from ``t0``. A wait that does not fit fails the call at once."""
         self.refused_wait = None  # about this call only
+        server_tries = 0
         for attempt in range(MAX_ATTEMPTS):
             self._pace(budget - (time.monotonic() - t0))
             left = budget - (time.monotonic() - t0)
@@ -385,6 +413,15 @@ class Model:
                     self.gap = max(self.base_gap, self.gap * EASE)
                     return body
             except urllib.error.HTTPError as exc:
+                if exc.code == 500:  # often a passing fault, but also a request it cannot serve
+                    self.server_errors += 1
+                    server_tries += 1
+                    wait = min(2.0**server_tries, MAX_BACKOFF)
+                    late = time.monotonic() - t0 + wait > budget
+                    if server_tries > SERVER_ERROR_RETRIES or attempt == MAX_ATTEMPTS - 1 or late:
+                        raise
+                    self._wait(wait)
+                    continue
                 if exc.code not in RETRY_CODES:
                     raise
                 self.rate_limited += 1
@@ -414,9 +451,10 @@ class Model:
 
 
 # Answers that mean "try again later": too many requests, and a gateway or server that is busy or
-# overloaded (529 is used by some providers for "overloaded"). 500 is not retried: it is as
-# likely to be an error in the request as a passing fault.
+# overloaded (529 is used by some providers for "overloaded"). A 500 can be either a passing fault
+# or a request the server will never serve, so it is retried only SERVER_ERROR_RETRIES times.
 RETRY_CODES = frozenset({429, 502, 503, 504, 529})
+SERVER_ERROR_RETRIES = 2
 MAX_ATTEMPTS = 8  # requests for one command at most, first try included
 MAX_BACKOFF = 30.0  # the longest wait without a hint from the endpoint
 MIN_BACKOFF_GAP = 1.0  # after a 429, requests are at least this far apart
@@ -641,8 +679,14 @@ def main(argv: list[str] | None = None) -> int:
         exchanges.append((text, cmd))
         _send({"cmd": cmd, "usage": model.usage()})
     u = model.usage()
-    limited = (f" | rate-limited answers {u['rate_limited']}" if u.get("rate_limited") else "") + (
-        f" | waited {u['waited_seconds']:.1f} s" if u.get("waited_seconds") else ""
+    limited = "".join(
+        text
+        for key, text in (
+            ("rate_limited", f" | rate-limited answers {u.get('rate_limited')}"),
+            ("server_errors", f" | server errors {u.get('server_errors')}"),
+            ("waited_seconds", f" | waited {u.get('waited_seconds', 0):.1f} s"),
+        )
+        if u.get(key)
     )
     sys.stderr.write(
         f"reference agent | {incident} | {'dry stub' if args.dry else model.model} | "

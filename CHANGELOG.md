@@ -3,6 +3,17 @@
 All notable changes. Dates are UTC. Incidents are versioned by the generator version, the rules by
 the rules hash (see `docs/METHODOLOGY.md`).
 
+## Unreleased
+
+- **Replies are read more carefully.** Flagwake's model agent now skips reasoning in
+  `<thinking>`, `<thought>` and `<reasoning>` blocks, as it already did for `<think>`. Before, a
+  model that writes `<thought>` could have its reasoning and its command run together into one
+  broken command. A line that lists several commands, such as the help line echoed back, is no
+  longer taken as a command, and neither is a command with a placeholder left in (`logs <host>`).
+- **Server errors are retried.** An HTTP 500 is retried twice, after 2 and 4 seconds, before it
+  counts as a failed call; the usage reports `server_errors`. A free model service answered
+  about half of its requests with 500 in a test, and retrying them is what any client would do.
+
 ## 0.5.0rc5 (2026-11-14)
 
 - **A model key from any account.** A defender repository in another account could not hand its

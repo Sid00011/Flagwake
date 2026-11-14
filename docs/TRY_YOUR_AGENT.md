@@ -118,7 +118,9 @@ Models that reason before they answer can spend the whole reply limit (`--max-to
 default) on hidden reasoning and return an empty reply, which counts as an unrecognised command.
 Switch that reasoning off for the run with `FLAGWAKE_LLM_EXTRA_BODY`, a JSON object merged into
 every request body (your server's docs name the field); it cannot replace the model, the messages,
-the temperature or the reply limit.
+the temperature or the reply limit. Reasoning written into the reply itself is skipped when it
+sits in a `<think>`, `<thinking>`, `<thought>` or `<reasoning>` block; only what follows the block
+is read as the command.
 
 In the registry: `kind: model-endpoint`, `base_url: http://localhost:<port>/v1`, and the field
 as `extra_body: {"<field>": <value>}`; `caps` with `step_timeout: 120` and `max_tokens` for slow or
@@ -166,6 +168,7 @@ a day. Flagwake's model agent keeps to them by itself:
 - After a "too many requests" answer (HTTP 429) or a busy server (502, 503, 504, 529), it waits as
   long as the endpoint asks and tries again. It reads the wait from `Retry-After`,
   `retry-after-ms` or a `retryDelay` in the error body, else waits 2, 4, 8 … seconds.
+- A server error (HTTP 500) is retried twice, after 2 and 4 seconds, then counted as a failed call.
 - After a 429 it also spaces out every later request, and speeds up again while calls succeed.
 - `--rpm N` (or `requests_per_minute` in the registry) sets the pace from the start. Use it when
   you know your provider's per-minute limit.
