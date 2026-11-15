@@ -1,4 +1,4 @@
-# CI of the Responder Check.
+# CI of Flagwake.
 # Every push to main, pull request, version tag and manual run: one Linux job with lint, the tests,
 # the golden determinism check, the secrets scan, the packaged-viewer check and a wheel build.
 # Version tags (v*) and manual runs also run the matrix (Linux and Windows, Python 3.11 and 3.12),

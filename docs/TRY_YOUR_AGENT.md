@@ -1,4 +1,4 @@
-# Try your agent in the Responder Check
+# Try your agent in Flagwake
 
 One page, copy-paste steps. Everything runs on your machine; nothing is sent anywhere except the
 model calls you configure yourself. Python 3.11 or newer.

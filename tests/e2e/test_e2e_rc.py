@@ -1,4 +1,4 @@
-"""Browser tests of the Responder Check report viewer (web/rc/viewer.html).
+"""Browser tests of the report viewer (web/rc/viewer.html).
 
 They render a report in the viewer and check that hostile report text stays text; the shared probe
 fails the test on any console error, page error or request to another origin.
@@ -96,7 +96,7 @@ def test_viewer_rejects_non_report(tab, tmp_path):
     f.write_text('{"hello": 1}', encoding="utf-8")
     page.set_input_files("#file", str(f))
     page.wait_for_function(
-        "() => document.getElementById('out').textContent.includes('not a Responder Check')"
+        "() => document.getElementById('out').textContent.includes('not a Flagwake')"
     )
 
 

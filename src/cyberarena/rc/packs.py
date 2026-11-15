@@ -28,7 +28,6 @@ PRACTICE = range(120_000, 121_000)
 HELDOUT = range(130_000, 131_000)
 FRESH = range(1_000_000, 1_000_000_000)
 PACKS = ("fresh", "heldout", "practice", "full")
-PACK_VERSION = "rc-pack-1.0"
 DEFAULT_PER_FAMILY = 10
 
 

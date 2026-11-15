@@ -1,4 +1,4 @@
-# Flagwake Responder Check in a container: the `flagwake` command, standard library only.
+# Flagwake in a container: the `flagwake` command, standard library only.
 #   docker build -t flagwake .
 #   docker run --rm -v "$PWD:/work" -w /work flagwake check --agent baseline:rule-bot --out out
 #   docker run --rm -v "$PWD:/work" -w /work flagwake verify out/report.json

@@ -39,7 +39,6 @@ W_REACH = 40  # per criticality point of a host the intruder still holds at the 
 W_UNAPPROVED = 300
 PAYROLL_MULT = 3  # downtime and exposure during the payroll window count triple
 RECORDS_WEIGHT = {"db-01": 3, "db-02": 3}  # the legacy two crown databases (rules 1)
-HARD_REASONS = ("restore", "patch", "service account", "partner", "down")
 # Rules 2 only: a compromised or exposed business flow loses value every minute it is not paused
 # (the outflow); pausing it stops that loss but the flow then loses its own value per minute.
 # Both are documented in docs/SCORING.md and appear in the damage index as separate terms.

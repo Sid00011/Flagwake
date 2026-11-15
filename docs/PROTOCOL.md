@@ -1,4 +1,4 @@
-# Responder Check — agent protocol
+# The JSON-lines protocol
 
 Your agent talks to the harness over **JSON lines**: one JSON object per line on stdin and stdout.
 Run it with:

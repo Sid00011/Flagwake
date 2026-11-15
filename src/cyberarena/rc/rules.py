@@ -46,11 +46,6 @@ def skipped(world: World) -> tuple[tuple[str, str], ...]:
     return tuple(gen2.binding_report(world)[1])
 
 
-def all_families(world: World) -> tuple[str, ...]:
-    """Every family of the world's rule set, bound or not (for argument checking)."""
-    return generator.FAMILIES if world.rules == 1 else gen2.FAMILIES
-
-
 def generate(world: World, family: str, seed: int, difficulty: str) -> dict[str, Any]:
     """One incident record of ``family`` in ``world``; raises ValueError when it cannot bind."""
     if world.rules == 1:

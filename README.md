@@ -30,6 +30,9 @@ pip install flagwake
 flagwake demo                 # two example defenders, a verified report, and an edited copy that fails
 ```
 
+Where pipx is installed, one command does the same with nothing else to set up:
+`pipx run flagwake demo` (and `pipx run flagwake ui` for the local page).
+
 Then open the local page with `flagwake ui`. It runs on 127.0.0.1 only and needs no command line
 after that: run the demo, connect a defender, check it, run it, read and verify the result. In a
 copy of this repository, `pip install .` installs the same thing, and `Start-Flagwake.bat` on
@@ -159,6 +162,9 @@ and the page also run once `pip install -e ".[dev,e2e]" -c constraints.txt` and
 `python -m playwright install chromium` are done. `scripts/golden_check.py` re-runs the example
 programs on fixed incidents and compares every command, observation and score with the stored
 values. The Python package keeps its historical name, `cyberarena`; the command is `flagwake`.
+
+Flagwake was developed in a private repository from October 2026. This repository starts at the
+first public release; [CHANGELOG.md](CHANGELOG.md) lists every version since the first.
 
 ## The name and the mark
 

@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 NETWORK = {"socket", "ssl", "urllib", "http", "requests", "httpx", "aiohttp", "ftplib", "smtplib",
            "poplib", "imaplib", "telnetlib", "xmlrpc", "websocket", "websockets"}  # fmt: skip
 
-# The only package modules allowed to touch the network. They are the Responder Check's local
+# The only package modules allowed to touch the network. They are Flagwake's local
 # interface layer and are pinned to localhost below; everything else sends nothing.
 NETWORKED = {
     "src/cyberarena/rc/protocol.py",  # localhost HTTP adapter and subprocess harness

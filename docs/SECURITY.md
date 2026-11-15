@@ -1,6 +1,6 @@
-# Responder Check — threat model and security
+# Threat model and security
 
-This is the threat model for the Responder Check: `report.html`, the report viewer and its loader,
+This is the threat model for Flagwake: `report.html`, the report viewer and its loader,
 the local server, and the harness. The repository's vulnerability-reporting policy is in the
 top-level [SECURITY.md](../SECURITY.md); this document is about what the shipped code defends
 against and what it does not.

@@ -1,4 +1,4 @@
-# Run the Responder Check on your responder agent on every pull request, fail when it regresses,
+# Run Flagwake on your defender on every pull request, fail when it regresses,
 # and keep the report as an artifact. Copy this to .github/workflows/rc-check.yml in your agent's
 # repository and set AGENT. It needs no secret unless your agent does (pass those through your own
 # repository secrets); the check itself uses no API key.

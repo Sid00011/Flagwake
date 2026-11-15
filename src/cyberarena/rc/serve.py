@@ -79,7 +79,7 @@ def serve(port: int = 8077, report: Path | None = None, open_browser: bool = Fal
         return 2
     url = f"http://127.0.0.1:{httpd.server_address[1]}/" + ("?report=latest" if report else "")
     with httpd:
-        print(f"Responder Check report viewer on {url} (Ctrl+C to stop)")
+        print(f"Flagwake report viewer on {url} (Ctrl+C to stop)")
         if report:
             print(f"showing {report}")
         print("Local only; nothing is sent anywhere.")

@@ -1,4 +1,4 @@
-"""Golden determinism check of the Responder Check (see ``cyberarena.rc.golden``).
+"""Golden determinism check of Flagwake (see ``cyberarena.rc.golden``).
 
 Prints the rules-1 fingerprint and compares every hash with tests/rc/golden.json (rules 1, the
 original world) and tests/rc/golden2.json (rules 2, the shipped company files); exits 1 on any

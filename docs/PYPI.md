@@ -15,6 +15,8 @@ flagwake demo      # two example defenders, a verified report, an edited copy th
 flagwake ui        # the local page: add a defender, check it, run it, read the result
 ```
 
+Where pipx is installed, `pipx run flagwake demo` does the same in one command.
+
 Test your own defender:
 
 ```bash

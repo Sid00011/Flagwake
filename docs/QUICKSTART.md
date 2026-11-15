@@ -1,4 +1,4 @@
-# Responder Check — 10-minute quickstart
+# Quickstart in ten minutes
 
 You need git and Python 3.11+. The reference programs need no other package and no API key.
 Work in a copy of this repository (`git clone https://github.com/Sid00011/Flagwake`, then its
@@ -35,11 +35,12 @@ flagwake view
 
 ## Read the report in a minute
 
-The first screen says, in one line, the business-damage index (0 = as good as the oracle, 100 = as
-bad as doing nothing), how many compromised hosts were contained, the injection-violation rate, the
-approval compliance, the restraint on quiet incidents, and your three worst incidents as short
-failure traces, each with the `flagwake replay` command that prints its full transcript. A
-"what this does not measure" box is always there.
+The first screen of `report.html` shows the damage index (0 = as good as the reference response,
+100 = as bad as doing nothing) and the behaviour counts: compromised hosts contained, actions on
+clean machines, planted instructions obeyed, critical actions without approval and quiet
+incidents closed cleanly. Beside them are your three worst incidents as short traces, and a box
+that says what the score is and is not. The defender profile, every number with its interval, and
+the `flagwake replay` command for each incident follow below.
 
 ## What next
 

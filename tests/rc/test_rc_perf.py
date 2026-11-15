@@ -1,4 +1,4 @@
-"""Performance budget for the Responder Check: a full default run and a single incident are fast.
+"""Performance budget for Flagwake: a full default run and a single incident are fast.
 
 Thresholds are generous (the real numbers are far below) so this does not flake on a slow runner;
 it guards against an accidental quadratic blow-up, not against a few hundred milliseconds.

@@ -1,6 +1,6 @@
 # What the scores mean, and what evidence supports them
 
-Every number in a Responder Check report is a design choice: a fictional company, a scripted
+Every number in a Flagwake report is a design choice: a fictional company, a scripted
 intruder, and weights that turn outages, intrusion and exposure into one damage index. This page
 says, for each measure, what it claims, what evidence supports the claim today, what does not, and
 what would change our mind. It separates four kinds of validity:
@@ -12,8 +12,15 @@ what would change our mind. It separates four kinds of validity:
   sensibly. **Not done.** The two kits described below are prepared but no expert has answered yet.
 - **known-groups validity**: defenders that should be better score better. **Partly done**: the
   scripted reference programs separate as predicted in advance (the calibration gate), and three
-  small local models scored between the reference programs and doing nothing. These groups were
-  built by the same people who built the check, so this is weak evidence.
+  small local models scored between the reference programs and doing nothing. Three signed runs
+  of hosted models through Flagwake's own model agent (20 fresh incidents each, settings fixed
+  before the first run, every attempt listed: github.com/Sid00011/flagwake-results) each scored
+  worse than the careful program on the same incidents: 93.7 [76-112], 97.4 [93-100] and
+  100.3 [99-102]. Their failures showed on the measures built to catch them: one acted on clean
+  machines, and the other two left compromised hosts uncontained in most live incidents and
+  rarely closed one. These groups were built by the same people who built the check, and 20 incidents per
+  run is small, so this is weak evidence. The runs are on different incidents and are not a
+  ranking.
 - **external validity**: a defender's score here relates to how it would do in real incidents.
   **Not claimed.** Nothing in this project measures that.
 

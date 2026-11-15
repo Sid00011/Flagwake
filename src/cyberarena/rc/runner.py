@@ -20,7 +20,7 @@ from typing import Any
 from cyberarena.rc import rules
 from cyberarena.rc.baselines import ALL_AGENTS
 from cyberarena.rc.engine import MAX_COMMANDS, Shift
-from cyberarena.rc.packs import build_pack, difficulty_for
+from cyberarena.rc.packs import build_pack
 from cyberarena.rc.scoring import score_shift
 from cyberarena.rc.world import World
 
@@ -222,10 +222,6 @@ def pack_specs(
     w = world or rules.default_world()
     return build_pack(which, per_family=per_family, seeds=seeds, families=rules.families(w),
                       key=key)  # fmt: skip
-
-
-def spec_from_seeds(family: str, seeds: list[int]) -> list[dict[str, Any]]:
-    return [{"family": family, "seed": s, "difficulty": difficulty_for(family, s)} for s in seeds]
 
 
 def dumps(obj: Any) -> str:

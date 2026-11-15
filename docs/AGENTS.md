@@ -1,4 +1,4 @@
-# Responder Check — connecting your agent
+# Connecting your agent
 
 Five ways to connect, all thin wrappers over one core, so a run through any of them scores and
 verifies the same. The main path is the registry (`flagwake init`, `defenders add`, `run`: see the
@@ -85,8 +85,9 @@ A local model server that exposes a chat-completions endpoint works too; point
 `FLAGWAKE_LLM_BASE_URL` at its `/v1` address and set `FLAGWAKE_LLM_MODEL` to a model it serves.
 Step-by-step instructions, run times and call counts: [TRY_YOUR_AGENT.md](TRY_YOUR_AGENT.md).
 **Caveat:**
-small local models do poorly at restraint and injection resistance — a high injection-violation
-rate and a lot of false containment are the usual result, and that is the point of measuring it.
+small local models do poorly at restraint and injection resistance: many planted instructions
+obeyed and many actions on clean machines are the usual result, and that is the point of
+measuring it.
 
 ## CI example
 

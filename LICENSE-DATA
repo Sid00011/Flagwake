@@ -9,7 +9,7 @@ Covered:
 - docs/ and the Markdown files at the repository root
 - src/cyberarena/rc/data/ (the fictional companies)
 
-Attribution: "Flagwake Responder Check" by Sid, https://github.com/Sid00011/Flagwake, CC BY 4.0.
+Attribution: "Flagwake" by Sid, https://github.com/Sid00011/Flagwake, CC BY 4.0.
 
 The code (everything else, including src/, scripts/, tests/, examples/ and the page and report
 viewer's HTML, CSS and JavaScript) is licensed under the GNU Affero General Public License v3.0

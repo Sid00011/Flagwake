@@ -52,7 +52,6 @@ FAMILIES = (
     "stolen-sign-in-saas", "backup-targeting", "admin-misuse", "credential-in-ticket",
     "signal-in-the-flood",
 )  # fmt: skip
-NEW_FAMILIES = FAMILIES[12:]
 DIFFICULTIES = ("trivial", "standard", "hard")
 WEEKDAYS = ("Mon", "Tue", "Wed", "Thu", "Fri")
 
@@ -68,7 +67,6 @@ TIER: dict[str, dict[str, Any]] = {
 SEV = ("info", "low", "medium", "high")
 QUIET_SHARE = 0.12
 ATTACKER_ADDRESSES = ("203.0.113.55", "203.0.113.77", "198.51.100.199")
-INTERNAL = ("security-lead", "it-lead", "duty-manager")
 
 NEEDS: dict[str, str] = {
     "cred-reuse": "a workstation with a named user, a backup host with its own service account "
@@ -284,11 +282,6 @@ def _move(mid: str, kind: str, dst: str, at: int, logs: list, alert: dict | None
          "logs": logs, "alert": alert}  # fmt: skip
     m.update(kw)
     return m
-
-
-def _siphon(record: dict, flow: str, host: str, rate: int) -> None:
-    """While ``host`` is held and connected and ``flow`` is not paused, the flow loses ``rate``."""
-    record["siphons"].append({"flow": flow, "host": host, "rate": rate})
 
 
 def _goal_targets(w: World, goal: str, b: dict[str, Any]) -> list[str]:

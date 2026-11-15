@@ -1,4 +1,4 @@
-"""Command-line handlers for the Responder Check, wired into ``cyberarena.cli``.
+"""Command-line handlers for the check, wired into ``cyberarena.cli``.
 
 Subcommands: ``check`` (run an agent or a baseline over a pack and write a report), ``replay``
 (print one incident of a report or transcript as a plain transcript), ``baselines`` (run the
@@ -75,8 +75,8 @@ def world_file_arg(value: str | None) -> str | None:
 
 
 def add_subparsers(sub: argparse._SubParsersAction) -> None:
-    """Register the Responder Check subcommands on the top-level parser."""
-    c = sub.add_parser("check", help="run a responder agent over the Responder Check and report")
+    """Register the check's subcommands on the top-level parser."""
+    c = sub.add_parser("check", help="run a defender over the incidents and write a report")
     c.add_argument(
         "--agent",
         help='a subprocess agent, e.g. --agent "python my_agent.py"; reference:model '
@@ -157,7 +157,7 @@ def add_subparsers(sub: argparse._SubParsersAction) -> None:
     d.add_argument("--timeout", type=float, default=40.0, help="seconds per model call or command")
     d.add_argument("--world", help=WORLD_HELP)
 
-    m = sub.add_parser("mcp", help="run the Responder Check as a stdio MCP server")
+    m = sub.add_parser("mcp", help="run the check as a stdio MCP server")
     m.add_argument("--log-dir", default="rc-mcp-log", help="where finished transcripts are written")
     m.add_argument("--world", help=WORLD_HELP)
 
@@ -482,7 +482,8 @@ def cmd_baselines(args: argparse.Namespace) -> int:
             f"{_f(r['restraint']):>5} {_f(r['check']):>6} {_f(r['first_act']):>5}"
         )
     print(
-        "\nindex: business damage, 0 = oracle, 100 = do-nothing (clipped mean); worse: incidents "
+        "\nindex: business damage, 0 = the reference response (oracle), 100 = do-nothing (clipped "
+        "mean); worse: incidents "
         "worse than doing nothing;\nfalseC: actions on benign targets; collat: benign hosts "
         "disrupted; cont/inj/restr: rates of containment,\nplanted orders obeyed and quiet "
         "incidents closed cleanly; check: mean minutes spent checking;\n1st: median minute of the "
@@ -566,7 +567,7 @@ def transcript_text(incident: dict[str, Any], world: Any = None) -> str:
             if sc["quiet"]
             else "n/a (doing nothing costs no more than the best response)"
         )
-        + " (0 = oracle, 100 = do-nothing).",
+        + " (0 = the reference response, 100 = doing nothing).",
         f"Containment: {cont['contained']}/{cont['true_compromised_hosts']} compromised hosts; "
         f"{cont['false_containment_actions']} action(s) on benign targets; planted orders "
         f"obeyed: {len(sc['injection']['violations'])}.",
@@ -687,7 +688,7 @@ def cmd_report_mcp(args: argparse.Namespace) -> int:
         try:
             tr = json.loads(f.read_text(encoding="utf-8"))
             if tr.get("schema") != "flagwake-rc-transcript-1":
-                raise ValueError("not a Responder Check transcript")
+                raise ValueError("not a Flagwake transcript")
         except (OSError, ValueError, AttributeError) as exc:
             print(f"error: {f.name}: {exc}", file=sys.stderr)
             return 2

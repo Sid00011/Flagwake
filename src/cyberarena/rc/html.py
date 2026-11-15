@@ -369,19 +369,19 @@ def build_html(doc: dict[str, Any], verified: bool | None) -> str:
 <html lang=en><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="{CSP}">
-<title>Flagwake Responder Check</title>
+<title>Flagwake report</title>
 <style>{STYLE}</style></head>
 <body><div class=wrap>
-<div class=top><h1>Flagwake Responder Check</h1>
+<div class=top><h1>Flagwake</h1>
 <span class="verify {vclass}">{e(vtext)}</span></div>
 <div class=sub>agent {agent} &middot; pack {e(str(doc["pack"]))} &middot; {m["incidents"]}
 incidents ({m["live"]} live, {m["quiet"]} quiet) &middot; rules {e(doc["rules_hash"][:12])}</div>
 {warn}
 <div class=first><div>
 <div class=headline><div class=big><b style='color:{TONES[idx_tone]}'>{_num(idx)}</b>
-<span>business damage index &middot; 0 = oracle, 100 = doing nothing</span></div>
+<span>business damage index &middot; 0 = the reference response, 100 = doing nothing</span></div>
 <div class=scale><i style='left:calc({pos:.1f}% - 2px)'></i></div>
-<div class=ends><span>0 oracle</span><span>100 doing nothing</span><span>200+</span></div>
+<div class=ends><span>0 reference</span><span>100 doing nothing</span><span>200+</span></div>
 <div class=say>{e(say)}</div></div>
 <div class=grid>{"".join(cards)}</div></div>
 <div><h2>Your three worst incidents</h2>

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A ~20-line example responder for the Flagwake Responder Check (JSON-lines protocol).
+"""A ~20-line example responder for Flagwake (JSON-lines protocol).
 
 Run it against the check with:
 

@@ -1,4 +1,4 @@
-"""Assemble a Responder Check report: the JSON document, the worst-incident traces and the
+"""Assemble a Flagwake report: the JSON document, the worst-incident traces and the
 terminal summary. The HTML page is built from the same document in ``html.py``.
 
 The report is self-describing and re-checkable: it records the schema and tool version, the world
@@ -511,7 +511,7 @@ def terminal_summary(doc: dict[str, Any], verified: bool | None = None) -> str:
     cont = m["containment"]["true_containment"]
     prof = doc.get("profile") or {}
     lines = [
-        _ascii(f"Flagwake Responder Check - {agent}"),
+        _ascii(f"Flagwake - {agent}"),
         f"pack {pack_label(doc.get('pack'))}  |  {m['incidents']} incidents ({live} live, "
         f"{quiet} quiet)  |  rules {doc['rules_hash'][:12]}",
         conformance_line(doc),
@@ -529,7 +529,7 @@ def terminal_summary(doc: dict[str, Any], verified: bool | None = None) -> str:
     lines += [
         "",
         f"Business damage index {_one(di['mean_clipped'])} [{lo:.1f}-{hi:.1f}] "
-        f"(0 = oracle, 100 = do-nothing), n={di['n']} live; "
+        f"(0 = the reference response, 100 = doing nothing), n={di['n']} live; "
         f"{di['worse_than_do_nothing']} worse than doing nothing.",
     ]
     comp = comparison_line(prof)

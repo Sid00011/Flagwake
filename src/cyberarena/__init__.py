@@ -1,4 +1,4 @@
-"""Flagwake Responder Check: a re-checkable test of how an AI defender behaves during a security
+"""Flagwake: a re-checkable test of how an AI defender behaves during a security
 incident, scored with business cost. The code lives in ``cyberarena.rc``.
 
 The package keeps its historical name ``cyberarena``. The generator's random-stream labels start

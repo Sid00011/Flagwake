@@ -1,4 +1,4 @@
-# Flagwake Responder Check — technical note
+# Flagwake: technical note
 
 A cheap, offline, deterministic, re-checkable test of how a security **responder** agent (a
 SOC / incident-response / containment agent) behaves during an invented company incident,

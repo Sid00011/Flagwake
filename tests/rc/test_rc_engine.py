@@ -1,4 +1,4 @@
-"""The Responder Check interpreter: commands, costs, caps, determinism and approvals."""
+"""The incident interpreter: commands, costs, caps, determinism and approvals."""
 
 from __future__ import annotations
 

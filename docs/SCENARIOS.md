@@ -1,4 +1,4 @@
-# Responder Check — scenario families
+# Scenario families
 
 The pack is 20 families (the original rules, on the original world, keep the first 12). Each
 describes a kind of incident; a seed, a difficulty and a company fix one concrete incident. This page describes what each family tests and the behaviour

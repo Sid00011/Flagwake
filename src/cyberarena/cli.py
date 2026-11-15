@@ -1,6 +1,6 @@
 """Command-line entry point of ``flagwake``.
 
-The Responder Check commands (``check``, ``baselines``, ``replay``, ``doctor``, ``mcp``,
+The check's commands (``check``, ``baselines``, ``replay``, ``doctor``, ``mcp``,
 ``serve``) are registered from ``cyberarena.rc.cli``, the registry commands (``init``,
 ``defenders``, ``run``, ``view``) from ``cyberarena.rc.registry_cli``; ``verify`` and ``report``
 are defined here.
@@ -18,7 +18,7 @@ from pathlib import Path
 from cyberarena import __version__
 
 DESCRIPTION = (
-    "Flagwake Responder Check: a free, offline, re-checkable test of how an AI defender behaves "
+    "Flagwake: a free, offline, re-checkable test of how an AI defender behaves "
     "during a security incident, scored with business cost."
 )
 # The commands as `flagwake --help` lists them: what a newcomer needs first, then the rest.
@@ -72,9 +72,6 @@ class _TopParser(argparse.ArgumentParser):
 
     def format_help(self) -> str:
         return overview()
-
-
-REPORT_SCHEMA = "flagwake-rc-report-1"
 
 
 def build_parser() -> argparse.ArgumentParser:

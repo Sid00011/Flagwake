@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below, with the version and the rules hash of your reports."
-title: "Flagwake Responder Check"
+title: "Flagwake"
 abstract: >-
   A free, offline, re-checkable test of how an AI defender behaves during a security incident,
   scored with business cost. Fictional incidents in an invented company, a scripted intruder,

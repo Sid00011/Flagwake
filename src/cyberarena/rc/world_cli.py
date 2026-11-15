@@ -13,7 +13,7 @@ from pathlib import Path
 from cyberarena.rc.company import CompanyError
 
 TEMPLATE = """\
-# A company file for the Flagwake Responder Check (format: docs/COMPANY_FORMAT.md).
+# A company file for Flagwake (format: docs/COMPANY_FORMAT.md).
 # Describe your own organisation, or keep this invented one. Strict subset of YAML: unknown
 # fields are rejected. Nothing in this file is sent anywhere or run; it is data.
 schema: flagwake-company-1

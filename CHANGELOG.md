@@ -3,6 +3,20 @@
 All notable changes. Dates are UTC. Incidents are versioned by the generator version, the rules by
 the rules hash (see `docs/METHODOLOGY.md`).
 
+## Unreleased
+
+No change to incidents, scores or verification: the generator version, the rules hash and the
+golden fingerprint are unchanged, and every earlier report verifies as before.
+
+- **One name.** Reports, the local page, `flagwake --help`, the MCP tool descriptions and the docs
+  call the check Flagwake. The earlier working name is gone from everything but this changelog.
+- **docs/VALIDITY.md** lists the signed runs of hosted models as known-groups evidence.
+- **README:** a one-command start with pipx, and where the earlier history is.
+- **CONTRIBUTING:** what the historical names `rc`, rules 1 and 2, and `legacy` mean.
+- **Terms:** one name per idea where readers see it (the reference response, planted
+  instructions, actions on clean machines), and a short glossary in docs/SCORING.md.
+- Unused functions and constants removed.
+
 ## 0.5.0rc6 (2026-11-14)
 
 - **Replies are read more carefully.** Flagwake's model agent now skips reasoning in

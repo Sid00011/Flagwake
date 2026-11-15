@@ -1,6 +1,6 @@
-# Responder Check — limitations
+# Limitations
 
-Read this before you trust a number. The Responder Check is a cheap regression test of judgement
+Read this before you trust a number. Flagwake is a cheap regression test of judgement
 and restraint, not a certification and not a substitute for testing an agent in your own
 environment.
 

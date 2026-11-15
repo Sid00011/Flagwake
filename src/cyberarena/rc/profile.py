@@ -30,7 +30,7 @@ import json
 import statistics as st
 from typing import Any
 
-from cyberarena.rc.metrics import INDEX_CLIP, _bootstrap_mean, aggregate, rate
+from cyberarena.rc.metrics import INDEX_CLIP, _bootstrap_mean, aggregate
 from cyberarena.rc.world import WORLD, World
 
 LATE_MINUTES = 60
@@ -482,17 +482,6 @@ def comparison_line(profile: dict[str, Any] | None) -> str | None:
         lo, hi = ref["ci95"]
         parts.append(f"{name} {ref['value']:.1f} [{lo:.1f}-{hi:.1f}]: {ref['verdict']}")
     return "vs baselines on the same incidents: " + "; ".join(parts) if parts else None
-
-
-def rate_text(x: dict[str, Any]) -> str:
-    """'64% [39-84], n=14' or 'n/a'."""
-    r = rate(0, 0) if x is None else x
-    v = r.get("value", r.get("rate"))
-    if v is None:
-        return "n/a"
-    lo, hi = r["ci95"]
-    n = r.get("n", r.get("den"))
-    return f"{v * 100:.0f}% [{lo * 100:.0f}-{hi * 100:.0f}], n={n}"
 
 
 def bootstrap(values: list[float], seed: str) -> list[float]:

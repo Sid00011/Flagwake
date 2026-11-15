@@ -305,7 +305,6 @@ ROUTINE_SLOTS = (
 )
 OFFICE_HOURS = range(8 * 60, 18 * 60)  # minute of the day
 NIGHT_HOURS = (range(22 * 60, 24 * 60), range(0, 5 * 60))
-STAFFED = ("workstation",)  # machines a person sits at
 ROUTINE: dict[str, dict[str, str]] = {
     "task": {"": "scheduled task ran"},
     "update": {"": "software update installed"},

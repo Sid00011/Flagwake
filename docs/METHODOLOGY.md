@@ -1,6 +1,6 @@
 # Methodology
 
-How the Responder Check produces its numbers, how anyone can re-derive them, and every change
+How Flagwake produces its numbers, how anyone can re-derive them, and every change
 made after data had been seen. The ten scripted programs shipped with the check are called
 reference programs in the guides and the page, and baselines in the commands
 (`flagwake baselines`, `baseline:<name>`) and in this record: they are the same programs. The metrics and weights are defined in [SCORING.md](SCORING.md),

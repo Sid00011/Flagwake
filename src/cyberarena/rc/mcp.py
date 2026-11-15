@@ -1,4 +1,4 @@
-"""A small stdio MCP server for the Responder Check (JSON-RPC 2.0 over stdin/stdout, stdlib only).
+"""A small stdio MCP server for Flagwake (JSON-RPC 2.0 over stdin/stdout, stdlib only).
 
 Tools:
   start_incident(family, seed, difficulty)  -> the opening observation
@@ -34,7 +34,7 @@ def tool_list(world: World) -> list[dict[str, Any]]:
     """The four tools; ``start_incident`` offers the families that can run in ``world``."""
     start = {
         "name": "start_incident",
-        "description": "Start a Responder Check incident and return the opening observation.",
+        "description": "Start a Flagwake incident and return the opening observation.",
         "inputSchema": {
             "type": "object",
             "properties": {

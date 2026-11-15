@@ -1,4 +1,4 @@
-"""``flagwake demo``: see the check work in about half a minute, with nothing to set up.
+"""``flagwake demo``: see the check work in a few seconds, with nothing to set up.
 
 Two shipped example defenders run through the same practice incidents; the first one's result is
 printed as a receipt of what the incidents cost, written as report.json and report.html, and

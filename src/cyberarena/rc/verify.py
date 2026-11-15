@@ -1,4 +1,4 @@
-"""Re-derive every number in a Responder Check report from its transcripts.
+"""Re-derive every number in a Flagwake report from its transcripts.
 
 ``verify(doc)`` rebuilds each incident from (family, seed, difficulty), replays the stored commands
 through a fresh interpreter, recomputes every observation hash and the per-incident outcome, then

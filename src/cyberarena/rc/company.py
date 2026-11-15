@@ -40,7 +40,6 @@ LINK_KINDS = ("partner", "supplier", "provider")
 SERVICE_KINDS = ("saas", "cloud")
 FLOW_KINDS = ("orders", "payroll", "payments", "support", "tracking", "other")
 LOG_SOURCES = ("identity", "endpoint", "network", "cloud")
-ACCOUNT_TYPES = ("service", "admin")
 APPROVAL_ACTIONS = ("isolate", "restore", "block", "reset", "patch", "pause", "resume")
 DAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 WEIGHT_KEYS = (

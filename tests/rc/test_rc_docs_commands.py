@@ -35,7 +35,7 @@ SKIP_PREFIX = ("python -m venv", ". .venv", "source ", "pip ", "set ")
 
 
 def commands(path: Path) -> list[str]:
-    """Shell lines of the fenced blocks (Responder Check part) plus inline `flagwake ...` spans."""
+    """Shell lines of the fenced blocks plus inline `flagwake ...` spans."""
     text = path.read_text(encoding="utf-8")
     if path.name == "README.md":  # only the quick start; the development block is not a demo
         start = text.index("## Quick start")

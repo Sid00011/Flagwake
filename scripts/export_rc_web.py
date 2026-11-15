@@ -1,4 +1,4 @@
-"""Keep the packaged copy of the Responder Check report viewer equal to web/rc.
+"""Keep the packaged copy of the report viewer equal to web/rc.
 
 `flagwake serve` serves the viewer from src/cyberarena/rc/web, so a wheel works without the
 repository. This script copies web/rc there (--write) or fails if the two differ (--check, run

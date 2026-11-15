@@ -30,7 +30,6 @@ import json
 import re
 import secrets
 import subprocess
-import sys
 import threading
 import time
 import urllib.error
@@ -481,20 +480,3 @@ def http_driver_factory(
         return HttpAgent(url, step_timeout, first, wall_timeout)
 
     return make
-
-
-def selfcheck() -> int:  # pragma: no cover - a tiny manual aid
-    """Round-trip a trivial echo agent to confirm the protocol wiring (manual use)."""
-    code = (
-        "import sys,json\n"
-        "for line in sys.stdin:\n"
-        "    m=json.loads(line)\n"
-        "    if m.get('type')=='end': break\n"
-        "    print(json.dumps({'cmd':'look'}));sys.stdout.flush()\n"
-    )
-    from cyberarena.rc.runner import run_incident
-
-    factory = subprocess_driver_factory([sys.executable, "-c", code])
-    spec = {"family": "quiet", "seed": 130000, "difficulty": "standard"}
-    shift, _tr, _o = run_incident(spec, factory())
-    return 0 if shift.done else 1

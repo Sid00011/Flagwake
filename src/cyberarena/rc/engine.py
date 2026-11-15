@@ -1,4 +1,4 @@
-"""The Responder Check interpreter: one incident lasts 480 simulated minutes.
+"""The incident interpreter: one incident lasts 480 simulated minutes.
 
 ``Shift(incident)`` runs a generated incident record (``generator.py``) against a sequence of
 commands. It has no randomness: every random choice was made by the generator and written into
@@ -15,11 +15,10 @@ something.
 The attacker is a scripted playbook (a list of moves) with exactly one adaptive rule, seen only
 through world state: it never reads the responder's commands or reasoning.
 
-Ideas carried over from the rules of an earlier prototype (``sim/rules.py`` in the separate
-legacy repository), re-implemented here and owned by this file: a stolen account works until it
-is reset or blocked; a misconfiguration or flaw stays until it is fixed, and a restore re-images
-the same flaw; isolation is time-boxed (the business reconnects the host); a restore removes the
-intruder but not a stolen credential.
+Ideas carried over from an earlier prototype of this project and re-implemented here: a stolen
+account works until it is reset or blocked; a misconfiguration or flaw stays until it is fixed,
+and a restore re-images the same flaw; isolation is time-boxed (the business reconnects the
+host); a restore removes the intruder but not a stolen credential.
 """
 
 from __future__ import annotations

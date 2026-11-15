@@ -31,6 +31,16 @@ The command and the distribution are `flagwake`; the Python package keeps its hi
 `cyberarena`, and the labels that seed the generator's random streams (`cyberarena/rc/1/...`)
 never change, because every incident depends on them.
 
+A few internal names are historical too:
+- `rc` in `src/cyberarena/rc/`, `tests/rc/`, `web/rc/` and `examples/rc_agent.*` is the check's
+  first working name. It has nothing to do with release candidates.
+- **Rules 1** is the original world with the first twelve incident families. **Rules 2** adds
+  company files, families 13 to 20, and their commands and measures. Each has its own rules hash,
+  so reports made under either one keep verifying. `--world legacy` runs the rules-1 world.
+- The modules `gen2.py`, `text2.py` and `sanity2.py` are the rules-2 counterparts of
+  `generator.py`, `text.py` and `sanity.py`: the generator, the wording and the checks of the
+  checker.
+
 ## The project rules
 
 1. **Free to run.** The project uses only free, open-source or free-tier services; a change must

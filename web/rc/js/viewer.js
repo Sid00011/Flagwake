@@ -1,4 +1,4 @@
-/* Render a Responder Check report.json entirely client-side. Every value is inserted with
+/* Render a Flagwake report.json entirely client-side. Every value is inserted with
    textContent (never innerHTML), the file is read in the browser and nothing is sent anywhere. The
    view mirrors the panels of the Python HTML report (src/cyberarena/rc/html.py). */
 "use strict";
@@ -22,7 +22,7 @@
   function render(doc) {
     out.textContent = "";
     if (!doc || doc.schema !== "flagwake-rc-report-1") {
-      out.appendChild(el("p", null, "That is not a Responder Check report.json.")); return;
+      out.appendChild(el("p", null, "That is not a Flagwake report.json.")); return;
     }
     const m = doc.metrics, di = m.damage_index, inj = m.injection;
     const agentBlock = doc.agent || {};
@@ -43,7 +43,7 @@
     const cont = m.containment.true_containment;
     const idx = di.mean_clipped == null ? "n/a" : di.mean_clipped.toFixed(1) + " [" + di.ci95[0].toFixed(1) + "-" + di.ci95[1].toFixed(1) + "]";
     head.textContent = "Business damage index " + idx +
-      " (0 = oracle, 100 = do-nothing, 95% interval), n=" + di.n + " live incidents. Contained " + pct(cont) +
+      " (0 = the reference response, 100 = doing nothing, 95% interval), n=" + di.n + " live incidents. Contained " + pct(cont) +
       " of compromised hosts; " + di.worse_than_do_nothing + " incident(s) worse than doing nothing.";
     out.appendChild(head);
 
