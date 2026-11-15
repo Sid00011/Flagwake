@@ -11,6 +11,7 @@ authors:
   - name: "Sid"
 license: AGPL-3.0-only
 repository-code: "https://github.com/Sid00011/Flagwake"
+doi: 10.5281/zenodo.24254877
 keywords:
   - incident response
   - security agents

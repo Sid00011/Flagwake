@@ -9,6 +9,7 @@
   <a href="LICENSE"><img alt="License: AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-1f3f7a"></a>
   <img alt="Python 3.11 or newer" src="https://img.shields.io/badge/python-3.11%2B-1f3f7a">
   <img alt="Runs offline" src="https://img.shields.io/badge/runs-offline-1f3f7a">
+  <a href="https://doi.org/10.5281/zenodo.24254877"><img alt="DOI 10.5281/zenodo.24254877" src="https://img.shields.io/badge/DOI-10.5281%2Fzenodo.24254877-1f3f7a"></a>
 </p>
 
 ![The Flagwake local page: an example result and the three commands](docs/images/home.png)
