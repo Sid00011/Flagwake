@@ -555,7 +555,7 @@ def find_registry(path: str | None = None) -> Path:
 def load(path: Path) -> dict[str, Any]:
     """Read and validate a registry file."""
     try:
-        text = path.read_text(encoding="utf-8")
+        text = path.read_text(encoding="utf-8-sig")  # a byte-order mark is not content
     except FileNotFoundError as exc:
         raise RegistryError(f"{path} does not exist; run: flagwake init") from exc
     except (OSError, UnicodeDecodeError) as exc:

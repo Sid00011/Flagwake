@@ -180,7 +180,7 @@ def load_company(path: str | Path) -> dict[str, Any]:
     if len(raw) > 2_000_000:
         raise CompanyError([f"{p.name}: the file is larger than 2 MB"])
     try:
-        text = raw.decode("utf-8")
+        text = raw.decode("utf-8-sig")  # some editors start the file with a byte-order mark
     except UnicodeDecodeError as exc:
         raise CompanyError([f"{p.name}: the file is not UTF-8 text"]) from exc
     return validate_company(parse_text(text, p.name))

@@ -501,7 +501,7 @@ def _f(x: Any) -> str:
 
 def cmd_replay(args: argparse.Namespace) -> int:
     try:
-        doc = json.loads(Path(args.source).read_text(encoding="utf-8"))
+        doc = json.loads(Path(args.source).read_text(encoding="utf-8-sig"))
     except (OSError, ValueError) as exc:
         print(f"error: cannot read {args.source}: {exc}", file=sys.stderr)
         return 2
@@ -686,7 +686,7 @@ def cmd_report_mcp(args: argparse.Namespace) -> int:
     raw = []
     for f in files:
         try:
-            tr = json.loads(f.read_text(encoding="utf-8"))
+            tr = json.loads(f.read_text(encoding="utf-8-sig"))
             if tr.get("schema") != "flagwake-rc-transcript-1":
                 raise ValueError("not a Flagwake transcript")
         except (OSError, ValueError, AttributeError) as exc:

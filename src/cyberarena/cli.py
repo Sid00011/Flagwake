@@ -145,7 +145,7 @@ def build_parser() -> argparse.ArgumentParser:
 def _verify_one(path: str, world: str | None = None) -> tuple[list[str], str | None, bytes, dict]:
     try:
         raw = Path(path).read_bytes()
-        doc = json.loads(raw.decode("utf-8"))
+        doc = json.loads(raw.decode("utf-8-sig"))  # a byte-order mark is not content
     except RecursionError:
         return ["cannot read: the file nests too deeply to be a report"], None, b"", {}
     except (OSError, ValueError, UnicodeDecodeError) as exc:

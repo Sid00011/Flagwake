@@ -16,6 +16,11 @@ golden fingerprint are unchanged, and every earlier report verifies as before.
 - **Terms:** one name per idea where readers see it (the reference response, planted
   instructions, actions on clean machines), and a short glossary in docs/SCORING.md.
 - Unused functions and constants removed.
+- **Files saved by Windows editors.** A report, a company file or `flagwake.yaml` that starts
+  with a UTF-8 byte-order mark now reads as the same file without it. Before, `verify` and
+  `replay` answered "cannot read", and the company file and the defender list failed on line 1.
+  A signed report must still be the exact bytes that were signed, so `--provenance` refuses a
+  copy that gained a byte-order mark.
 
 ## 0.5.0rc6 (2026-11-14)
 
