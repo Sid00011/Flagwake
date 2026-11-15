@@ -3,10 +3,11 @@
 All notable changes. Dates are UTC. Incidents are versioned by the generator version, the rules by
 the rules hash (see `docs/METHODOLOGY.md`).
 
-## Unreleased
+## 0.5.0 (2026-11-15)
 
-No change to incidents, scores or verification: the generator version, the rules hash and the
-golden fingerprint are unchanged, and every earlier report verifies as before.
+The first stable release. Incidents, scoring and verification are those of 0.5.0rc6: the
+generator version, the rules hash and the golden fingerprint are unchanged, and every earlier
+report verifies as before.
 
 - **One name.** Reports, the local page, `flagwake --help`, the MCP tool descriptions and the docs
   call the check Flagwake. The earlier working name is gone from everything but this changelog.
