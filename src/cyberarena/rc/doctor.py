@@ -171,6 +171,12 @@ def _probe(req: urllib.request.Request, timeout: float) -> tuple[str, str, str]:
     return "PASS", f"endpoint reachable, model answered in {seconds:.1f} s ({answer})", ""
 
 
+def _progress(f: Findings, done: int, total: int, t0: float) -> None:
+    """One line per finished incident, so a slow or rate-limited provider never looks frozen."""
+    f.out.write(f"      incident {done} of {total} done ({time.monotonic() - t0:.0f} s so far)\n")
+    f.out.flush()
+
+
 def run_smoke(factory: Any, f: Findings, label: str) -> dict[str, Any] | None:
     """Run the three incidents; report what went wrong in plain words."""
     from cyberarena.rc.protocol import ProtocolError
@@ -180,7 +186,9 @@ def run_smoke(factory: Any, f: Findings, label: str) -> dict[str, Any] | None:
 
     t0 = time.monotonic()
     try:
-        result = run_pack(factory, SPECS)
+        result = run_pack(
+            factory, SPECS, progress=lambda done, total: _progress(f, done, total, t0)
+        )
     except (OSError, ProtocolError) as exc:
         why = str(exc)
         if "invalid replies" in why:
