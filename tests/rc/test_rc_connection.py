@@ -27,6 +27,10 @@ from cyberarena.rc.ui_text import plain_checks
         ("(model call failed: HTTP 404: The model `old-model` does not exist)", "missing", True),
         ("(model call failed: HTTP 400: max_tokens is too large)", "rejected", True),
         ("(model call failed: HTTP 413: Request too large)", "rejected", True),
+        ("(model call failed: HTTP 400: Please pass a valid API key)", "key", True),
+        ("(model call failed: HTTP 400: models/old-model is not found for this API)", "missing",
+         True),
+        ("(model call failed: HTTP 400: Quota exceeded for this project)", "quota", True),
         ("(model call failed: HTTP 503)", "provider_error", True),
         ("(model call failed: timeout)", "timeout", True),
         ("(model call failed: cannot connect)", "unreachable", True),
@@ -148,6 +152,7 @@ def _doctor(monkeypatch, script, key="test-token-abcdef"):
         (429, "Rate limit reached for tokens per day", "refuses requests for now (HTTP 429"),
         (404, "The model `old-model` does not exist", "no such model or API at this address"),
         (400, "Unknown field 'foo'", "the endpoint answered HTTP 400: Unknown field"),
+        (400, "Please pass a valid API key", "the endpoint refused the key (HTTP 400: Please"),
     ],
 )
 def test_doctor_quotes_the_provider(monkeypatch, status, message, said):

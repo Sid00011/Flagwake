@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from cyberarena import USER_AGENT
-from cyberarena.rc.connection import CAUSES, diagnose_incidents
+from cyberarena.rc.connection import CAUSES, classify, diagnose_incidents
 from cyberarena.rc.model_agent import key_transport_problem, open_keyed, provider_message
 from cyberarena.rc.protocol import NET_ERRORS
 
@@ -98,11 +98,12 @@ def _probe(req: urllib.request.Request, timeout: float) -> tuple[str, str, str]:
                     "console"
                 ),
             )
-        if exc.code in (401, 403):
+        cause = classify(exc.code, said)
+        if exc.code in (401, 403) or cause == "key":
             if key:
                 return (
                     "FAIL",
-                    f"the endpoint refused the key (HTTP {exc.code})",
+                    f"the endpoint refused the key (HTTP {exc.code}{': ' + said if said else ''})",
                     ("check FLAGWAKE_LLM_KEY: wrong, expired, or without access to this model"),
                 )
             return (
@@ -119,7 +120,7 @@ def _probe(req: urllib.request.Request, timeout: float) -> tuple[str, str, str]:
                     "redirects, so the key never goes to an address you did not choose"
                 ),
             )
-        if exc.code == 404:
+        if exc.code == 404 or cause == "missing":
             return (
                 "FAIL",
                 f"no such model or API at this address (HTTP 404{': ' + said if said else ''})",

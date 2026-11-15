@@ -76,19 +76,37 @@ CAUSES = {
 CONNECTION = frozenset(CAUSES) - {"unreadable", "refused"}
 
 
+# Words in a provider's message that name the cause when its status code does not: some
+# providers answer a bad key, an unknown model or a used-up quota with a plain HTTP 400.
+KEY_WORDS = ("api key", "authorization", "unauthenticated", "unauthorized", "permission",
+             "credential")  # fmt: skip
+MISSING_WORDS = ("not found", "does not exist", "no such model", "unknown model")
+QUOTA_WORDS = ("rate limit", "quota", "resource_exhausted", "too many requests")
+
+
+def classify(code: int, message: str = "") -> str:
+    """The cause of an error answer, from its status code and the provider's own words."""
+    text = message.lower()
+    if code == 429:
+        return "quota"
+    if code in (401, 403):
+        return "key"
+    if code == 404:
+        return "missing"
+    if 400 <= code < 500 and code != 413:
+        for cause, words in (("key", KEY_WORDS), ("missing", MISSING_WORDS),
+                             ("quota", QUOTA_WORDS)):  # fmt: skip
+            if any(w in text for w in words):
+                return cause
+    if 400 <= code < 500:
+        return "rejected"
+    return "provider_error"
+
+
 def _failure_cause(detail: str) -> str:
     m = HTTP.match(detail)
     if m:
-        code = int(m.group(1))
-        if code == 429:
-            return "quota"
-        if code in (401, 403):
-            return "key"
-        if code == 404:
-            return "missing"
-        if 400 <= code < 500:
-            return "rejected"
-        return "provider_error"
+        return classify(int(m.group(1)), m.group(2) or "")
     if detail.startswith("timeout") or "no time left" in detail:
         return "timeout"
     if detail.startswith("cannot connect"):
