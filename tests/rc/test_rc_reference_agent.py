@@ -225,7 +225,7 @@ def test_the_default_reply_limit_leaves_room_to_reason(monkeypatch, capsys):
         _talk(monkeypatch, capsys, fake, [START, {"type": "end"}])
     finally:
         fake.close()
-    assert fake.requests[0]["body"]["max_tokens"] == 1024
+    assert fake.requests[0]["body"]["max_tokens"] == 4096
 
 
 def test_notes_list_every_command_with_the_start_of_its_result():
@@ -636,3 +636,50 @@ def test_retries_stop_after_a_fixed_number_of_requests(monkeypatch, capsys):
         fake.close()
     assert sent[0]["cmd"] == "(model call failed: HTTP 503)"
     assert len(fake.requests) == ref.MAX_ATTEMPTS
+
+
+def test_a_reply_cut_off_before_any_command_is_asked_again_with_more_room(monkeypatch, capsys):
+    # A model that reasons first used the whole reply limit and sent no answer (finish_reason
+    # "length"); with four times the room it answers.
+    fake = FakeModel([("cut", (16384, "logs web-01"))])
+    try:
+        code, sent, err = _talk(monkeypatch, capsys, fake, [START, {"type": "end"}])
+    finally:
+        fake.close()
+    assert code == 0 and [m["cmd"] for m in sent] == ["logs web-01"]
+    assert [r["body"]["max_tokens"] for r in fake.requests] == [4096, 16384]
+    u = sent[-1]["usage"]
+    assert (u["calls"], u["no_command"], u["failed_calls"]) == (2, 0, 0)
+    assert "cut_off" not in u and "cut off" not in err
+
+
+@pytest.mark.parametrize("content", ["empty", "null"])
+def test_a_reply_still_cut_off_is_counted_and_its_reasoning_never_read(monkeypatch, capsys,
+                                                                       content):  # fmt: skip
+    fake = FakeModel([("cut", content)])
+    try:
+        code, sent, err = _talk(monkeypatch, capsys, fake, [START, OBS, {"type": "end"}])
+    finally:
+        fake.close()
+    assert code == 0
+    assert [m["cmd"] for m in sent] == ["(no command in the model reply)"] * 2
+    # More room did not help on the first command, so the second is not asked again.
+    assert [r["body"]["max_tokens"] for r in fake.requests] == [4096, 16384, 4096]
+    u = sent[-1]["usage"]
+    assert (u["cut_off"], u["no_command"], u["failed_calls"]) == (2, 2, 0)
+    assert "cut off by the reply limit 2" in err
+
+
+def test_the_retry_limit_can_be_set_or_switched_off(monkeypatch, capsys):
+    fake = FakeModel([("cut", None)])
+    try:
+        _talk(monkeypatch, capsys, fake, [START, {"type": "end"}], "--max-tokens", "1000",
+              "--retry-tokens", "3000")  # fmt: skip
+        assert [r["body"]["max_tokens"] for r in fake.requests] == [1000, 3000]
+        fake.requests.clear()
+        code, sent, _err = _talk(monkeypatch, capsys, fake, [START, {"type": "end"}],
+                                 "--retry-tokens", "0")  # fmt: skip
+    finally:
+        fake.close()
+    assert [r["body"]["max_tokens"] for r in fake.requests] == [4096]  # no second try
+    assert code == 0 and sent[-1]["usage"]["cut_off"] == 1

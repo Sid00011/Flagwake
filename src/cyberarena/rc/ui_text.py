@@ -343,17 +343,20 @@ PACK_WORDS = {
 
 def plain_result(doc: dict[str, Any]) -> dict[str, Any]:
     """Everything the result page says, as plain strings and lists."""
-    from cyberarena.rc.report import scope_box
+    from cyberarena.rc.report import measurement_problem, scope_box
 
     m = doc["metrics"]
     di = m["damage_index"]
+    problem = measurement_problem(doc)
+    word, tone = ("Not a measurement of the defender", "none") if problem else verdict(doc)
     return {
-        "headline": headline(doc),
-        "warning": small_run_warning(doc),
+        "headline": problem or headline(doc),
+        "warning": problem or small_run_warning(doc),
+        "problem": problem,
         "pack": PACK_WORDS.get(str(doc.get("pack")), str(doc.get("pack"))),
         "conformance": plain_connection(doc),
-        "verdict": verdict(doc)[0],
-        "tone": verdict(doc)[1],
+        "verdict": word,
+        "tone": tone,
         "good": chips(doc)[0],
         "bad": chips(doc)[1],
         "bars": bars(doc),

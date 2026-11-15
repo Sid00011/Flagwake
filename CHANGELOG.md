@@ -16,6 +16,15 @@ golden fingerprint are unchanged, and every earlier report verifies as before.
 - **Terms:** one name per idea where readers see it (the reference response, planted
   instructions, actions on clean machines), and a short glossary in docs/SCORING.md.
 - Unused functions and constants removed.
+- **Models that reason before they answer.** The reference model agent gives each reply 4096
+  tokens (was 1024). A reply cut off by the limit before any answer (`finish_reason` "length")
+  is asked again once with four times the room (`--retry-tokens`). If that is cut off too, the
+  incident stops retrying, and replies that stay cut off are counted as `cut_off`. Before, such
+  a model's run ended at a damage index of 100 with every reply unreadable and no hint why.
+- **Not a measurement.** When at least half of a run's replies carried no command, the summary,
+  `report.html` and the page say the result measures the connection, not the defender, and name
+  the fix. The numbers are unchanged. `flagwake doctor` names cut-off replies, and the page has
+  optional model settings (reply limit, extra request fields).
 - **Files saved by Windows editors.** A report, a company file or `flagwake.yaml` that starts
   with a UTF-8 byte-order mark now reads as the same file without it. Before, `verify` and
   `replay` answered "cannot read", and the company file and the defender list failed on line 1.

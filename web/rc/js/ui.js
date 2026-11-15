@@ -230,6 +230,7 @@
     $("f-local").hidden = what !== "local";
     $("f-online").hidden = what !== "online";
     $("f-own").hidden = what !== "own";
+    $("f-model-opts").hidden = !(what === "local" || what === "online");
     $("f-name").hidden = false;
     if (what === "local") detect();
     if (what === "online") $("name").value = slug($("o-model").value);
@@ -281,6 +282,12 @@
       Object.assign(body, { kind: "model-endpoint", base_url: $("o-url").value.trim(), model: $("o-model").value.trim() });
       if ($("o-use-env").checked) body.key_env = $("o-env").value.trim();
       else if ($("o-key").value) body.key = $("o-key").value;
+    }
+    if (what === "local" || what === "online") {
+      const limit = $("m-max-tokens").value.trim();
+      if (limit) body.max_tokens = Number(limit);
+      const extra = $("m-extra").value.trim();
+      if (extra) body.extra_body = extra;
     } else if (what === "own") {
       const how = (document.querySelector("input[name=own]:checked") || {}).value;
       if (how === "http") Object.assign(body, { kind: "http", url: $("own-url").value.trim() });
@@ -531,7 +538,7 @@
     clear(warn);
     const warnText = [p.warning, p.contamination].filter(Boolean).join(" ");
     warn.hidden = !warnText;
-    if (warnText) { warn.appendChild(document.createTextNode(p.warning && p.warning.startsWith("Too few") ? "Too few incidents to be sure" : "Rough result")); tip(warn, warnText); }
+    if (warnText) { warn.appendChild(document.createTextNode(p.problem ? "Not a measurement" : p.warning && p.warning.startsWith("Too few") ? "Too few incidents to be sure" : "Rough result")); tip(warn, warnText); }
     chipList("r-well", p.good, "good", "nothing stood out");
     chipList("r-badly", p.bad, "bad", "nothing stood out");
     const bars = $("r-compare");

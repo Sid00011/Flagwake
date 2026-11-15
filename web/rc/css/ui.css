@@ -67,7 +67,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .panel { background: var(--layer1); border: 1px solid var(--border); border-radius: 10px; }
 .form { padding: 18px; margin-top: 16px; display: grid; gap: 12px; }
 .row { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
-input[type=text], input[type=url], input[type=password], select { width: 100%; height: 40px; padding: 0 12px; border-radius: 6px;
+input[type=text], input[type=url], input[type=password], input[type=number], select { width: 100%; height: 40px; padding: 0 12px; border-radius: 6px;
   border: 1px solid var(--border-strong); background: var(--bg); }
 input:focus, select:focus { border-color: var(--link); outline: none; box-shadow: 0 0 0 1px var(--link); }
 input::placeholder { color: var(--text3); }
@@ -237,6 +237,8 @@ input::placeholder { color: var(--text3); }
 .more { margin-top: 10px; padding: 0 18px; }
 .more summary { cursor: pointer; padding: 13px 0; font-weight: 600; font-size: .92rem; list-style-position: inside; }
 .more[open] { padding-bottom: 16px; }
+.opts { display: grid; gap: 12px; }
+#f-model-opts { margin-top: 12px; }
 .example { padding: 10px 0; border-top: 1px solid var(--border); }
 .example b { display: block; font-weight: 600; font-size: .88rem; }
 .example span { display: block; color: var(--text2); font-size: .86rem; }

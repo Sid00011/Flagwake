@@ -97,6 +97,15 @@
       <p class="fine">The key stays in memory. Never saved.</p>
     </div>
 
+    <details id="f-model-opts" class="panel more" hidden>
+      <summary>Model settings (optional)</summary>
+      <div class="opts">
+        <input id="m-max-tokens" type="number" min="1" max="100000" step="1" inputmode="numeric" placeholder="Reply limit in tokens (default 4096)" aria-label="Reply limit in tokens">
+        <input id="m-extra" type="text" maxlength="500" placeholder='Extra request fields, e.g. {"reasoning_effort": "low"}' aria-label="Extra request fields, as JSON" autocomplete="off">
+        <p class="fine">For a model that reasons before it answers: a larger reply limit, or less reasoning if its server has a field for it.</p>
+      </div>
+    </details>
+
     <div id="f-own" class="panel form" hidden>
       <div class="seg" role="radiogroup" aria-label="How is it reached?">
         <label><input type="radio" name="own" value="http" checked class="sr"><span>Address</span></label>

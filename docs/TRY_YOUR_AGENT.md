@@ -94,7 +94,7 @@ flagwake check --agent "python examples/reference_llm_agent.py" --pack practice 
 ```
 
 The key goes only into the request header to the URL you set; it is never printed or written.
-Limits per incident: `--max-calls 30`, `--token-budget 150000`, `--max-tokens 1024`, and
+Limits per incident: `--max-calls 30`, `--token-budget 150000`, `--max-tokens 4096`, and
 `--timeout 40` seconds for one request; `--rpm N` keeps to N requests a minute (each also as
 `FLAGWAKE_LLM_MAX_CALLS`, `FLAGWAKE_LLM_RPM` etc.; see "Time, calls and rate limits" below).
 Pass flags inside the quotes:
@@ -114,13 +114,34 @@ export FLAGWAKE_LLM_MODEL=<a model the server has loaded>
 flagwake check --agent "python examples/reference_llm_agent.py --timeout 55" --pack practice --seeds 1
 ```
 
-Models that reason before they answer can spend the whole reply limit (`--max-tokens`, 1024 by
-default) on hidden reasoning and return an empty reply, which counts as an unrecognised command.
-Switch that reasoning off for the run with `FLAGWAKE_LLM_EXTRA_BODY`, a JSON object merged into
-every request body (your server's docs name the field); it cannot replace the model, the messages,
-the temperature or the reply limit. Reasoning written into the reply itself is skipped when it
-sits in a `<think>`, `<thinking>`, `<thought>` or `<reasoning>` block; only what follows the block
-is read as the command.
+### Models that reason before they answer
+
+Such a model can spend the whole reply limit (`--max-tokens`, 4096 by default) on its reasoning
+and send no answer. The endpoint then ends the reply with `finish_reason` "length", and the
+reference agent does three things:
+- it asks once more with four times the room (`--retry-tokens`, at most 32768 by default;
+  `--retry-tokens 0` turns this off);
+- if that longer try is cut off too, it stops asking again for the rest of the incident, so a
+  free quota is not spent on it;
+- it counts the replies that stay cut off as `cut_off` in its self-reported usage.
+
+When at least half of a run's replies carry no command, the terminal summary, `report.html` and
+the local page say the result is **not a measurement of the defender's decisions** and name the
+likely fix (see docs/SCORING.md, "Defender profile"). `flagwake doctor` reports cut-off replies
+before a run.
+
+Two fixes, from the command line, `flagwake.yaml` or the page ("Model settings" under the
+address):
+- **A larger reply limit:** `--max-tokens 16384`, `caps: {max_tokens: 16384}`, or the page's
+  reply limit.
+- **Less reasoning:** `FLAGWAKE_LLM_EXTRA_BODY`, `extra_body` or the page's extra request
+  fields, a JSON object merged into every request body. Your server's docs name the field; a
+  common one is `{"reasoning_effort": "low"}`. It cannot replace the model, the messages, the
+  temperature or the reply limit.
+
+Reasoning written into the reply itself is skipped when it sits in a `<think>`, `<thinking>`,
+`<thought>` or `<reasoning>` block; only what follows the block is read as the command. The
+reasoning a server returns in a separate field is never read.
 
 In the registry: `kind: model-endpoint`, `base_url: http://localhost:<port>/v1`, and the field
 as `extra_body: {"<field>": <value>}`; `caps` with `step_timeout: 120` and `max_tokens` for slow or

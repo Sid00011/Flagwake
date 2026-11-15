@@ -452,11 +452,51 @@ def scope_box(doc: dict[str, Any]) -> list[str]:
     return lines
 
 
+NO_MEASUREMENT_SHARE = 0.5  # replies without a command, as a share of all commands
+
+
+def measurement_problem(doc: dict[str, Any]) -> str | None:
+    """When most of the defender's replies carried no command (unreadable, cut off by a reply
+    limit, or failed calls), the score measures the connection, not the defender's decisions:
+    a plain sentence saying so, with the likely cause and fix; None otherwise. It reads only
+    the profile's count of such replies and the self-reported usage, so it never changes a
+    stored number."""
+    prof = doc.get("profile") or {}
+    empty = int((prof.get("harness_vs_behaviour") or {}).get("placeholder_commands") or 0)
+    total = int(((doc.get("metrics") or {}).get("cost") or {}).get("commands") or 0)
+    if not total or empty < NO_MEASUREMENT_SHARE * total:
+        return None
+    raw = doc.get("agent")
+    usage = (raw.get("usage") if isinstance(raw, dict) else None) or {}
+    cut = int(usage.get("cut_off") or 0) if isinstance(usage, dict) else 0
+    failed = int(usage.get("failed_calls") or 0) if isinstance(usage, dict) else 0
+    text = (f"Not a measurement of the defender's decisions: {empty} of its {total} replies "
+            "carried no command.")  # fmt: skip
+    if cut:
+        return text + (
+            f" {cut} were cut off by the reply limit before any answer: the model reasons "
+            "first and used the whole limit. Raise the reply limit (the page's model "
+            "settings, max_tokens in flagwake.yaml, or --max-tokens) or lower the model's "
+            "reasoning effort, then run again."
+        )
+    if failed * 2 >= empty:
+        return text + (
+            f" {failed} model calls failed (the endpoint refused or did not answer). Run "
+            "flagwake doctor to see why, then run again."
+        )
+    return text + (
+        " Its replies could not be read as commands. Run flagwake doctor to see why, then run "
+        "again."
+    )
+
+
 def header_notes(doc: dict[str, Any]) -> list[str]:
     """Pack, conformance and any contamination warning, one line each (plain text)."""
     raw = doc.get("agent")
     agent: dict[str, Any] = raw if isinstance(raw, dict) else {}
-    lines = [f"pack: {pack_label(doc.get('pack'))}", conformance_line(doc)]
+    problem = measurement_problem(doc)
+    lines = ["WARNING: " + problem] if problem else []
+    lines += [f"pack: {pack_label(doc.get('pack'))}", conformance_line(doc)]
     cover = family_coverage(doc)
     if cover:
         lines.append(cover)
@@ -516,6 +556,9 @@ def terminal_summary(doc: dict[str, Any], verified: bool | None = None) -> str:
         f"{quiet} quiet)  |  rules {doc['rules_hash'][:12]}",
         conformance_line(doc),
     ]
+    problem = measurement_problem(doc)
+    if problem:
+        lines.append(_ascii("WARNING: " + problem))
     lines += [_ascii(x) for x in world_notes(doc)]
     integ = integration_note(doc)
     if integ:

@@ -183,7 +183,15 @@ def run_smoke(factory: Any, f: Findings, label: str) -> dict[str, Any] | None:
             "too slow: raise --step-timeout in flagwake check, or use a faster model"
             if slow else "see agent-stderr.log in the output folder of a flagwake check run"
         ))  # fmt: skip
-    if unrec and unrec * 2 >= max(1, cmds):
+    cut = int((doc["agent"].get("usage") or {}).get("cut_off", 0))
+    if cut:  # the cause is known: the model reasons first and the reply limit stopped it
+        f.say("FAIL", f"replies cut off: {cut} ended at the reply limit before any answer", (
+            "the model reasons before it answers and used the whole limit: raise "
+            "FLAGWAKE_LLM_MAX_TOKENS (max_tokens in flagwake.yaml), or lower its reasoning "
+            "with FLAGWAKE_LLM_EXTRA_BODY, e.g. {\"reasoning_effort\": \"low\"} where the "
+            "server supports it (docs/TRY_YOUR_AGENT.md)"
+        ))  # fmt: skip
+    elif unrec and unrec * 2 >= max(1, cmds):
         f.say("FAIL", f"replies unparseable: {unrec} of {cmds} commands were not commands", (
             "an agent must answer one command per line, e.g. {\"cmd\": \"logs web-01\"}; a model "
             "must reply with only the command (docs/TRY_YOUR_AGENT.md)"

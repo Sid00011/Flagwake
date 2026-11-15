@@ -24,13 +24,25 @@ Configuration (environment only; nothing is written to disk):
 Limits (flag or environment variable; per incident):
     --max-calls N      FLAGWAKE_LLM_MAX_CALLS     model calls (default 30)
     --token-budget N   FLAGWAKE_LLM_TOKEN_BUDGET  tokens sent and received (default 150000)
-    --max-tokens N     FLAGWAKE_LLM_MAX_TOKENS    tokens per reply (default 1024, room for a
+    --max-tokens N     FLAGWAKE_LLM_MAX_TOKENS    tokens per reply (default 4096, room for a
                                                   model that reasons before it answers)
+    --retry-tokens N   FLAGWAKE_LLM_RETRY_TOKENS  the reply limit for one more try when a reply
+                                                  is cut off before any command (default 4 x
+                                                  --max-tokens, at most 32768; 0 = no retry)
     --timeout S        FLAGWAKE_LLM_TIMEOUT       seconds one request may take (default 40)
     --rpm N            FLAGWAKE_LLM_RPM           requests per minute at most (default: no fixed
                                                   pace; the program slows down by itself when the
                                                   endpoint says it is sending too fast)
     --dry              no model at all: a canned stub, to check the wiring
+
+A model that reasons before it answers can spend the whole reply limit on its reasoning and
+send no answer: the endpoint then ends the reply with finish_reason "length" (or
+"max_tokens"). Such a reply is asked again once with the larger --retry-tokens limit, within
+the same command's time; when that longer try is cut off too, the rest of the incident is not
+asked again. A reply still cut off is counted as cut_off in the usage, so the
+summaries can say why the replies held no command and how to fix it (a larger --max-tokens, or
+less reasoning through FLAGWAKE_LLM_EXTRA_BODY). The reasoning itself is never read as a
+command.
 
 Speed never changes a score: the incident runs on a simulated clock. What a rate limit can do is
 refuse calls, so the program respects it. Requests are spaced by the --rpm pace, if one is set.
@@ -99,6 +111,9 @@ INSTRUCTION = (
 )
 DRY = ["look", "hosts", 'report {"compromised": [], "summary": "dry run"}']
 MAX_FAILS_IN_A_ROW = 4
+CUT_REASONS = ("length", "max_tokens")  # finish reasons of a reply stopped by the reply limit
+MAX_RETRY_TOKENS = 32768  # the default retry limit never asks for more than this
+MIN_RETRY_SECONDS = 5.0  # a retry needs at least this much of the command's time left
 HISTORY_EXCHANGES = 6  # earlier observations kept in the conversation, besides the opening one
 HISTORY_CHARS = 3000  # each kept observation is cut to this many characters
 NOTE_CHARS = 200  # each line of the notes: one command and the start of what it showed
@@ -309,6 +324,9 @@ class Model:
         self.extra = extra_body(os.environ.get("FLAGWAKE_LLM_EXTRA_BODY", ""))
         self.args = args
         self.calls = self.failed = self.no_command = 0
+        self.cut_off = 0  # replies still cut off by the reply limit, before any command
+        self.last_cut = False  # whether the latest reply was stopped by the reply limit
+        self.retry_useless = False  # a longer try was also cut off: do not spend more on it
         self.served = ""  # the model id the endpoint says answered (its own word)
         self.prompt_tokens = self.reply_tokens = 0
         self.seconds = 0.0
@@ -342,6 +360,7 @@ class Model:
             **({"rate_limited": self.rate_limited} if self.rate_limited else {}),
             **({"server_errors": self.server_errors} if self.server_errors else {}),
             **({"waited_seconds": round(self.waited, 3)} if self.waited else {}),
+            **({"cut_off": self.cut_off} if self.cut_off else {}),
         }
 
     def capped(self) -> str | None:
@@ -351,7 +370,32 @@ class Model:
             return f"token budget ({self.args.token_budget}) reached"
         return None
 
-    def ask(self, messages: list[dict[str, str]], timeout: float) -> str:
+    def command(self, messages: list[dict[str, str]], budget: float) -> str | None:
+        """The next command from the model, or None when its reply holds none.
+
+        A reply cut off by the reply limit before any command is asked again once with the
+        larger retry limit, if the command's time and the call cap allow; a reply still cut off
+        is counted in ``cut_off``, and once a longer try was cut off too, later replies of the
+        incident are not asked again (it would only spend the endpoint's quota). Raises like
+        :meth:`ask`."""
+        t0 = time.monotonic()
+        parsed = parse_command(self.ask(messages, budget))
+        if parsed is not None or not self.last_cut:
+            return parsed
+        bigger = getattr(self.args, "retry_tokens", 0)
+        left = budget - (time.monotonic() - t0)
+        retry = bigger > self.args.max_tokens and not self.retry_useless
+        if retry and left > MIN_RETRY_SECONDS and self.capped() is None:
+            parsed = parse_command(self.ask(messages, left, bigger))
+            if parsed is not None or not self.last_cut:
+                return parsed
+            self.retry_useless = True  # more room did not help: keep the rest of the quota
+        self.cut_off += 1
+        return None
+
+    def ask(
+        self, messages: list[dict[str, str]], timeout: float, max_tokens: int | None = None
+    ) -> str:
         """The reply text; raises on any failure (the caller records it as a failed command).
 
         ``timeout`` is all the time this command may take, waits for the pace and retries
@@ -361,7 +405,7 @@ class Model:
             "model": self.model,
             "messages": messages,
             "temperature": 0,
-            "max_tokens": self.args.max_tokens,
+            "max_tokens": max_tokens or self.args.max_tokens,
         }
         req = urllib.request.Request(
             self.url,
@@ -386,7 +430,11 @@ class Model:
             self.reply_tokens += _int(usage.get("completion_tokens"))
         else:  # rough estimate, so the token budget still bites
             self.prompt_tokens += sum(len(m["content"]) for m in messages) // 4
-        content = data["choices"][0]["message"]["content"]
+        choice = data["choices"][0]
+        self.last_cut = choice.get("finish_reason") in CUT_REASONS
+        content = choice["message"].get("content")
+        if content is None and self.last_cut:  # stopped while reasoning: no answer yet
+            content = ""
         if isinstance(content, list):  # some servers return content parts
             content = "".join(p.get("text", "") for p in content if isinstance(p, dict))
         if not isinstance(content, str):
@@ -602,13 +650,16 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--token-budget", type=int, default=int(env("FLAGWAKE_LLM_TOKEN_BUDGET", "150000"))
     )
-    ap.add_argument("--max-tokens", type=int, default=int(env("FLAGWAKE_LLM_MAX_TOKENS", "1024")))
+    ap.add_argument("--max-tokens", type=int, default=int(env("FLAGWAKE_LLM_MAX_TOKENS", "4096")))
+    ap.add_argument("--retry-tokens", type=int, default=int(env("FLAGWAKE_LLM_RETRY_TOKENS", "-1")))
     ap.add_argument("--timeout", type=float, default=float(env("FLAGWAKE_LLM_TIMEOUT", "40")))
     ap.add_argument("--rpm", type=float, default=float(env("FLAGWAKE_LLM_RPM", "0")))
     args = ap.parse_args(argv)
     if args.rpm < 0:
         sys.stderr.write("--rpm must be 0 (no fixed pace) or more\n")
         return 2
+    if args.retry_tokens < 0:  # not set: four times the reply limit, within a sane ceiling
+        args.retry_tokens = min(4 * args.max_tokens, MAX_RETRY_TOKENS)
     try:
         model = Model(args)
     except ValueError as exc:
@@ -659,7 +710,7 @@ def main(argv: list[str] | None = None) -> int:
                 break
             msgs = conversation(opening, exchanges, text, args.max_calls)
             try:
-                parsed = parse_command(model.ask(msgs, budget))
+                parsed = model.command(msgs, budget)
                 if parsed is None:
                     model.no_command += 1
                     cmd = "(no command in the model reply)"
@@ -685,6 +736,7 @@ def main(argv: list[str] | None = None) -> int:
             ("rate_limited", f" | rate-limited answers {u.get('rate_limited')}"),
             ("server_errors", f" | server errors {u.get('server_errors')}"),
             ("waited_seconds", f" | waited {u.get('waited_seconds', 0):.1f} s"),
+            ("cut_off", f" | cut off by the reply limit {u.get('cut_off')}"),
         )
         if u.get(key)
     )

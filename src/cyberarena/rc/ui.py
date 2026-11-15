@@ -345,6 +345,7 @@ class App:
                 {"step_timeout": 120, "incident_timeout": 1800} if local else {"step_timeout": 60}
             )
             entry["meta"] = {"model_label": entry["model"]}
+            _model_settings_of(body, entry)
             if body.get("key_env"):
                 entry["key_env"] = _text(body.get("key_env"), "variable name", 64)
             elif body.get("key"):
@@ -853,6 +854,29 @@ def describe(entry: dict[str, Any]) -> str:
     if kind == "baseline":
         return f"An example program shipped with the check ({entry['baseline']})"
     return f"A program on this computer: {entry.get('command', '')}"
+
+
+EXTRA_HINT = 'Extra request fields must be a JSON object, e.g. {"reasoning_effort": "low"}.'
+
+
+def _model_settings_of(body: dict[str, Any], entry: dict[str, Any]) -> None:
+    """The optional reply limit and extra request fields of a model defender, checked."""
+    limit = body.get("max_tokens")
+    if limit not in (None, ""):
+        if isinstance(limit, bool) or not isinstance(limit, int | float) or limit != int(limit):
+            raise UiError("The reply limit must be a whole number of tokens.")
+        if not 1 <= int(limit) <= 100_000:
+            raise UiError("The reply limit must be between 1 and 100000 tokens.")
+        entry["caps"]["max_tokens"] = int(limit)
+    if body.get("extra_body") not in (None, ""):
+        text = _text(body.get("extra_body"), "extra request fields", 500)
+        try:
+            extra = json.loads(text)
+        except ValueError as exc:
+            raise UiError(EXTRA_HINT) from exc
+        if not isinstance(extra, dict) or not extra:
+            raise UiError(EXTRA_HINT)
+        entry["extra_body"] = extra
 
 
 def _text(value: Any, field: str, limit: int) -> str:

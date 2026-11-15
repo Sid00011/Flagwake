@@ -65,6 +65,20 @@ class FakeModel:
                     self.end_headers()
                     self.wfile.write(data)
                     return
+                if kind == "cut":  # the reasoning used the whole reply limit: no answer yet
+                    need, answer = arg if isinstance(arg, tuple) else (None, None)
+                    if need is not None and body.get("max_tokens", 0) >= need:
+                        kind, arg = "ok", answer  # enough room: the answer comes
+                    else:
+                        msg = {
+                            "role": "assistant",
+                            "content": None if arg == "null" else "",
+                            "reasoning": "Let me think about the alerts first. " * 50,
+                        }
+                        cut = {"choices": [{"message": msg, "finish_reason": "length"}],
+                               "usage": {"prompt_tokens": 100, "completion_tokens": 1024},
+                               "model": "fake-model-2026-01"}  # fmt: skip
+                        kind, arg = "raw", json.dumps(cut).encode()
                 if kind == "raw":
                     data = bytes(arg)
                 else:
