@@ -12,6 +12,50 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
+def provider_behaviour(handler, kind, arg, body):
+    """The provider behaviours beyond plain answers: an error answer with a message, a strict
+    server, a smaller reply limit, a content filter, a refusal. Returns the (kind, arg) to go on
+    with, or None when the answer has been sent."""
+    if kind == "error":  # an error answer with the provider's own message
+        code, text = arg
+        handler._json(code, {"error": {"message": text, "type": "invalid_request_error"}})
+        return
+    if kind == "strict":  # a server that names other fields and takes no temperature
+        if "max_tokens" in body:
+            handler._json(400, {"error": {"message": "Unsupported parameter: 'max_tokens' "
+                             "is not supported with this model. Use "
+                             "'max_completion_tokens' instead."}})  # fmt: skip
+            return
+        if body.get("temperature") not in (None, 1):
+            handler._json(400, {"error": {"message": "Unsupported value: 'temperature' "
+                             "does not support 0 with this model. Only the default (1) "
+                             "value is supported."}})  # fmt: skip
+            return
+        kind = "ok"
+    if kind == "cap":  # a model with a smaller reply limit than asked for
+        cap, answer = arg
+        if body.get("max_tokens", 0) > cap:
+            handler._json(400, {"error": {"message": f"max_tokens is too large: "
+                             f"{body['max_tokens']}. This model supports at most {cap} "
+                             "completion tokens."}})  # fmt: skip
+            return
+        kind, arg = "ok", answer
+    if kind in ("filter", "refuse"):  # a content filter, or a model that refuses
+        msg = {"role": "assistant", "content": None}
+        finish = "content_filter" if kind == "filter" else "stop"
+        if kind == "refuse":
+            msg["refusal"] = arg
+        handler._json(
+            200,
+            {
+                "choices": [{"message": msg, "finish_reason": finish}],
+                "usage": {"prompt_tokens": 100, "completion_tokens": 5},
+            },
+        )
+        return
+    return kind, arg
+
+
 class FakeModel:
     """A chat-completions server on 127.0.0.1 that replays a script of behaviours, cycling."""
 
@@ -79,6 +123,10 @@ class FakeModel:
                     self.end_headers()
                     self.wfile.write(data)
                     return
+                step = provider_behaviour(self, kind, arg, body)
+                if step is None:
+                    return
+                kind, arg = step
                 if kind == "cut":  # the reasoning used the whole reply limit: no answer yet
                     need, answer = arg if isinstance(arg, tuple) else (None, None)
                     if need is not None and body.get("max_tokens", 0) >= need:
@@ -103,6 +151,14 @@ class FakeModel:
                     }
                     data = json.dumps(reply if kind == "ok" else {"unexpected": arg}).encode()
                 self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+            def _json(self, code, obj):
+                data = json.dumps(obj).encode()
+                self.send_response(code)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()

@@ -81,7 +81,7 @@ def test_doctor_names_a_reply_limit_that_cuts_the_model_off(monkeypatch):
         fake.close()
     text = out.getvalue()
     assert code == 1
-    assert "replies cut off" in text and "FLAGWAKE_LLM_MAX_TOKENS" in text
+    assert "cut off by the reply limit" in text and "FLAGWAKE_LLM_MAX_TOKENS" in text
     assert "only the command" not in text  # not the advice for a model that rambles
 
 

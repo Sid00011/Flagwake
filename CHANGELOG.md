@@ -3,6 +3,32 @@
 All notable changes. Dates are UTC. Incidents are versioned by the generator version, the rules by
 the rules hash (see `docs/METHODOLOGY.md`).
 
+## Unreleased
+
+No change to incidents, scores or verification.
+
+- **Why a reply held no command, for any provider.** A failed call is now written with the
+  provider's own message, for example `(model call failed: HTTP 404: The model ... does not
+  exist)`, with anything shaped like a key masked. A reply without a command says why when the
+  endpoint said: cut off by the reply limit, blocked by a content filter, or refused by the model.
+- **One diagnosis everywhere.** The connection check, the page, the result summaries and
+  `flagwake doctor` read those lines the same way. They name the cause (quota or rate limit, key,
+  unknown model, rejected request, provider error, timeout, unreachable address, reply limit,
+  content filter, refusal, or a reply that is not a command) and its fix. Before, a provider's
+  quota running out during the connection check was reported as the model sending commands it
+  is not allowed to use.
+- **Common API differences are handled once, by themselves.** If an endpoint wants
+  `max_completion_tokens` instead of `max_tokens`, refuses `temperature: 0`, or allows a smaller
+  reply limit, the reference model agent changes that one setting for the rest of the incident
+  and says so in `agent-stderr.log`. If the longer try after a cut-off reply is rejected, the
+  reply counts as cut off, not as a failed call.
+- **`flagwake doctor`** says what it is doing while it runs the three incidents, warns when the
+  provider limits the rate, quotes the provider on HTTP 429, 404 and 400, and explains an empty
+  first reply.
+- **The page** says Flagwake is not running any more, instead of the browser's "Failed to fetch".
+- **`python -m cyberarena`** runs the `flagwake` command where its script is not on PATH.
+- **docs/TRY_YOUR_AGENT.md** has a section on a model that does not connect.
+
 ## 0.5.1 (2026-11-15)
 
 No change to incidents, scores or verification.

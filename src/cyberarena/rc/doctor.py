@@ -23,7 +23,8 @@ from pathlib import Path
 from typing import Any
 
 from cyberarena import USER_AGENT
-from cyberarena.rc.model_agent import key_transport_problem, open_keyed
+from cyberarena.rc.connection import CAUSES, diagnose_incidents
+from cyberarena.rc.model_agent import key_transport_problem, open_keyed, provider_message
 from cyberarena.rc.protocol import NET_ERRORS
 
 SPECS = [
@@ -77,8 +78,17 @@ def _probe(req: urllib.request.Request, timeout: float) -> tuple[str, str, str]:
         with open_keyed(req, timeout) as resp:  # the user's endpoint; no redirects
             raw = resp.read(1_000_000)
     except urllib.error.HTTPError as exc:
+        said = provider_message(exc)  # the provider's own words, key-like text masked
+        if exc.code == 429:  # a rate limit or a quota that ran out
+            return (
+                "FAIL",
+                f"the provider refuses requests for now (HTTP 429{': ' + said if said else ''})",
+                (
+                    "a rate limit or a quota that ran out: wait and try again, or use a plan "
+                    "with a larger allowance"
+                ),
+            )
         if exc.code == 403:  # the key, a model the key cannot use, or a firewall
-            said = _short_body(exc)
             return (
                 "FAIL",
                 f"the endpoint refused the request (HTTP 403{': ' + said if said else ''})",
@@ -112,7 +122,7 @@ def _probe(req: urllib.request.Request, timeout: float) -> tuple[str, str, str]:
         if exc.code == 404:
             return (
                 "FAIL",
-                "no chat-completions API at this address (HTTP 404)",
+                f"no such model or API at this address (HTTP 404{': ' + said if said else ''})",
                 (
                     "FLAGWAKE_LLM_BASE_URL should be the API base, usually ending in /v1, and "
                     "FLAGWAKE_LLM_MODEL a model the server actually serves"
@@ -120,8 +130,8 @@ def _probe(req: urllib.request.Request, timeout: float) -> tuple[str, str, str]:
             )
         return (
             "FAIL",
-            f"the endpoint answered HTTP {exc.code}",
-            ("check the model id and the server's own log"),
+            f"the endpoint answered HTTP {exc.code}{': ' + said if said else ''}",
+            ("check the model id, the key and any extra request fields"),
         )
     except NET_ERRORS as exc:  # unreachable, refused, timed out, bad TLS
         if "timed out" in str(exc) or isinstance(exc, TimeoutError):
@@ -154,17 +164,10 @@ def _probe(req: urllib.request.Request, timeout: float) -> tuple[str, str, str]:
             f"endpoint reachable but slow ({seconds:.1f} s for a tiny call)",
             ("a full run makes hundreds of calls; consider a faster model"),
         )
-    return "PASS", f"endpoint reachable, model answered in {seconds:.1f} s ({str(text)[:30]!r})", ""
-
-
-def _short_body(exc: urllib.error.HTTPError) -> str:
-    """The start of an error answer, printable ASCII only (it never holds the key we sent)."""
-    try:
-        raw = exc.read(300).decode("utf-8", "replace")
-    except Exception:  # noqa: BLE001 - an unreadable body just says nothing
-        return ""
-    text = " ".join("".join(c for c in raw if c.isascii() and c.isprintable()).split())
-    return text[:120]
+    answer = (
+        repr(str(text)[:30]) if text else "an empty reply, normal for a model that reasons first"
+    )
+    return "PASS", f"endpoint reachable, model answered in {seconds:.1f} s ({answer})", ""
 
 
 def run_smoke(factory: Any, f: Findings, label: str) -> dict[str, Any] | None:
@@ -207,14 +210,12 @@ def run_smoke(factory: Any, f: Findings, label: str) -> dict[str, Any] | None:
             "too slow: raise --step-timeout in flagwake check, or use a faster model"
             if slow else "see agent-stderr.log in the output folder of a flagwake check run"
         ))  # fmt: skip
-    cut = int((doc["agent"].get("usage") or {}).get("cut_off", 0))
-    if cut:  # the cause is known: the model reasons first and the reply limit stopped it
-        f.say("FAIL", f"replies cut off: {cut} ended at the reply limit before any answer", (
-            "the model reasons before it answers and used the whole limit: raise "
-            "FLAGWAKE_LLM_MAX_TOKENS (max_tokens in flagwake.yaml), or lower its reasoning "
-            "with FLAGWAKE_LLM_EXTRA_BODY, e.g. {\"reasoning_effort\": \"low\"} where the "
-            "server supports it (docs/TRY_YOUR_AGENT.md)"
-        ))  # fmt: skip
+    diag = diagnose_incidents(doc["incidents"])
+    if diag and diag["main"] != "unreadable":  # the cause has a name: say it, with the fix
+        what, fix = CAUSES[diag["main"]]
+        said = f" ({diag['example']})" if diag["example"] else ""
+        level = "FAIL" if diag["empty"] * 2 >= max(1, cmds) else "WARN"
+        f.say(level, f"{what}: {diag['empty']} of {cmds} replies carried no command{said}", fix)
     elif unrec and unrec * 2 >= max(1, cmds):
         f.say("FAIL", f"replies unparseable: {unrec} of {cmds} commands were not commands", (
             "an agent must answer one command per line, e.g. {\"cmd\": \"logs web-01\"}; a model "
@@ -261,6 +262,8 @@ def doctor(args: Any, out: Any = None) -> int:
             factory = subprocess_driver_factory(
                 split_command(args.agent), min(args.timeout, 15.0), str(tmp / "stderr.log"), 15.0
             )
+            out.write("Running 3 short incidents with your program ...\n")
+            out.flush()
             run_smoke(factory, f, "agent")
             _stderr_tail(tmp / "stderr.log", out)
         else:
@@ -293,9 +296,18 @@ def doctor(args: Any, out: Any = None) -> int:
             factory = subprocess_driver_factory(
                 argv, args.timeout + 5, str(tmp / "stderr.log"), 15 + latency
             )
+            out.write("Running 3 short incidents with the model; a few minutes if the provider "
+                      "limits its rate ...\n")  # fmt: skip
+            out.flush()
             doc = run_smoke(factory, f, "reference model agent")
             if doc is not None:
                 u = doc["agent"].get("usage") or {}
+                if u.get("rate_limited"):
+                    f.say("WARN", f"the provider limited the rate: {u['rate_limited']} answers "
+                          f"asked to wait ({u.get('waited_seconds', 0):.0f} s in all)", (
+                              "a full run will be slow; set a pace below the provider's limit "
+                              "(requests_per_minute in flagwake.yaml, FLAGWAKE_LLM_RPM)"
+                          ))  # fmt: skip
                 calls = int(u.get("calls", 0))
                 failed = int(u.get("failed_calls", 0))
                 if calls and failed * 2 >= calls:

@@ -30,7 +30,10 @@
   async function api(path, body) {
     const opt = { method: body === undefined ? "GET" : "POST", headers: { "X-Flagwake-Token": TOKEN } };
     if (body !== undefined) { opt.headers["Content-Type"] = "application/json"; opt.body = JSON.stringify(body); }
-    const r = await fetch(path, opt);
+    let r;
+    try { r = await fetch(path, opt); } catch (e) {
+      throw new Error("Flagwake is not running any more. Start it again with flagwake ui and open the address it prints.");
+    }
     let data = {};
     try { data = await r.json(); } catch (e) { data = {}; }
     if (!r.ok) throw new Error(data.error || ("That did not work (" + r.status + ")."));

@@ -27,6 +27,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from cyberarena.rc.connection import diagnose
 from cyberarena.rc.engine import COMMANDS, CONSEQUENTIAL, HELP, parse_command
 
 CANARY_SPECS = [
@@ -195,6 +196,14 @@ def run_conformance(entry: dict[str, Any], factory: Any, progress: Any = None) -
         return _result(base, checks)
 
     all_cmds = [c for r in real for c in r["tr"]["commands"]] + denial + malformed
+    usage: dict[str, float] = {}
+    for u in [r["tr"].get("usage") for r in real] + [d_driver.notes.usage, m_driver.notes.usage]:
+        for k, v in (u or {}).items():
+            if isinstance(v, int | float) and not isinstance(v, bool):
+                usage[k] = usage.get(k, 0) + v
+    conn = diagnose(all_cmds, usage)
+    # Failures that the provider or the settings caused say so, instead of blaming the model.
+    blame = "connection" if conn and conn["connection"] else None
     checks = []
 
     first_ok = [bool(r["tr"]["commands"]) and r["tr"]["commands"][0] != INVALID_REPLY for r in real]
@@ -207,15 +216,16 @@ def run_conformance(entry: dict[str, Any], factory: Any, progress: Any = None) -
     )
 
     bad = [c for c in all_cmds if parse_command(c)[0] not in COMMANDS]
-    checks.append(
-        _check(
-            "valid_commands",
-            not bad,
-            "every command used one of the 13 verbs"
-            if not bad
-            else f"{len(bad)} of {len(all_cmds)} commands were not valid, e.g. {bad[0][:60]!r}",
+    chosen = [c for c in bad if not c.startswith("(")]  # what the program itself sent
+    if not bad:
+        detail = "every command used one of the 13 verbs"
+    elif chosen:
+        detail = (
+            f"{len(chosen)} of {len(all_cmds)} commands were not valid, e.g. {chosen[0][:60]!r}"
         )
-    )
+    else:
+        detail = f"{len(bad)} of {len(all_cmds)} replies carried no command, e.g. {bad[0][:80]!r}"
+    checks.append(_check("valid_commands", not bad, detail, None if chosen else blame))
 
     over = []
     for r in real:
@@ -239,6 +249,7 @@ def run_conformance(entry: dict[str, Any], factory: Any, progress: Any = None) -
             "report",
             all(closed),
             f"closed {sum(closed)} of {len(real)} real canaries with a JSON report",
+            blame,
         )
     )
 
@@ -264,6 +275,7 @@ def run_conformance(entry: dict[str, Any], factory: Any, progress: Any = None) -
             if readable and not died
             else "no readable reply after the garbled observation"
             + (f" ({m_driver.notes.error})" if m_driver.notes.error else ""),
+            blame,
         )
     )
 
@@ -271,7 +283,10 @@ def run_conformance(entry: dict[str, Any], factory: Any, progress: Any = None) -
     checks.append(
         _check("no_hang", not hung, "no timeouts" if not hung else "; ".join(sorted(set(hung))))
     )
-    return _result(base, checks)
+    result = _result(base, checks)
+    if conn:
+        result["connection"] = conn
+    return result
 
 
 def _usage_over(entry: dict[str, Any], usage: dict[str, float], label: str) -> list[str]:
@@ -299,8 +314,11 @@ def _most_retried(replies: list[str]) -> tuple[str, int]:
     return cmd, counts[cmd] - 1
 
 
-def _check(cid: str, passed: bool, detail: str) -> dict[str, Any]:
-    return {"id": cid, "name": dict(CHECKS)[cid], "passed": bool(passed), "detail": detail}
+def _check(cid: str, passed: bool, detail: str, cause: str | None = None) -> dict[str, Any]:
+    out = {"id": cid, "name": dict(CHECKS)[cid], "passed": bool(passed), "detail": detail}
+    if cause and not passed:  # the provider or the settings, not the program's own choices
+        out["cause"] = cause
+    return out
 
 
 def _result(base: dict[str, Any], checks: list[dict[str, Any]]) -> dict[str, Any]:

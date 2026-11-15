@@ -466,27 +466,13 @@ def measurement_problem(doc: dict[str, Any]) -> str | None:
     total = int(((doc.get("metrics") or {}).get("cost") or {}).get("commands") or 0)
     if not total or empty < NO_MEASUREMENT_SHARE * total:
         return None
-    raw = doc.get("agent")
-    usage = (raw.get("usage") if isinstance(raw, dict) else None) or {}
-    cut = int(usage.get("cut_off") or 0) if isinstance(usage, dict) else 0
-    failed = int(usage.get("failed_calls") or 0) if isinstance(usage, dict) else 0
-    text = (f"Not a measurement of the defender's decisions: {empty} of its {total} replies "
-            "carried no command.")  # fmt: skip
-    if cut:
-        return text + (
-            f" {cut} were cut off by the reply limit before any answer: the model reasons "
-            "first and used the whole limit. Raise the reply limit (the page's model "
-            "settings, max_tokens in flagwake.yaml, or --max-tokens) or lower the model's "
-            "reasoning effort, then run again."
-        )
-    if failed * 2 >= empty:
-        return text + (
-            f" {failed} model calls failed (the endpoint refused or did not answer). Run "
-            "flagwake doctor to see why, then run again."
-        )
-    return text + (
-        " Its replies could not be read as commands. Run flagwake doctor to see why, then run "
-        "again."
+    from cyberarena.rc.connection import diagnose_incidents
+
+    diag = diagnose_incidents([i for i in doc.get("incidents") or [] if isinstance(i, dict)])
+    why = f" {diag['text']}" if diag else ""
+    return (
+        f"Not a measurement of the defender's decisions: {empty} of its {total} replies "
+        f"carried no command.{why} flagwake doctor checks the connection in a minute."
     )
 
 

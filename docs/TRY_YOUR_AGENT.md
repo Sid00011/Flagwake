@@ -217,6 +217,40 @@ A rehearsal with a scripted stand-in model made 191 calls for the 120 practice i
 real models investigate more and make more calls. The report shows the calls and tokens your agent
 reported (labelled self-reported).
 
+## When a model does not connect
+
+Run `flagwake doctor` first: it makes one small call, then three short incidents, and names what
+went wrong in the provider's own words. The connection check on the page and the result page use
+the same diagnosis. When most replies of a run carry no command, the result says it is not a
+measurement of the defender and names the cause:
+
+| what it says | what it means | what to do |
+|---|---|---|
+| refused calls because a rate limit or quota was reached (HTTP 429) | the free tier or plan allows fewer calls or tokens than the run needs | wait, set a pace (`requests_per_minute`), or use a plan with a larger allowance; a full run makes a few hundred calls |
+| refused the key or this model (HTTP 401, 403) | a wrong or expired key, a model the key may not use, or the provider's firewall | check the key and the model in the provider's console |
+| does not know this address or model (HTTP 404) | a wrong address, or a model the provider has retired | check the address (usually ending in `/v1`) and the model id |
+| rejected the request (HTTP 400, 413, 422) | a setting this model does not accept | lower the reply limit or remove an extra request field |
+| cut off by the reply limit | a model that reasons first used the whole limit | raise the reply limit or lower the reasoning effort |
+| blocked by the provider's content filter | the provider's filter blocked incident text | use another provider or model |
+| text that is not a command | the model did not follow the reply format | try a model that follows instructions better |
+
+The reference model agent adapts once, by itself, to the most common differences between
+chat-completions servers, and says so in `agent-stderr.log`. If a model wants
+`max_completion_tokens` instead of `max_tokens`, it switches. If it refuses `temperature: 0`, it
+leaves the temperature out. If it allows a smaller reply limit, it halves the limit (down to 256
+tokens). It never changes the model, the messages or anything that is scored.
+
+Three things that are not about the model:
+- **`flagwake` is not recognised as a command.** The virtual environment is not active: run
+  `.venv\Scripts\activate` (Windows) or `. .venv/bin/activate`, or use `python -m cyberarena`
+  in place of `flagwake`.
+- **On Windows, `set` a key without angle brackets**: `set FLAGWAKE_LLM_KEY=YOUR_KEY`. In `cmd`,
+  `<` and `>` redirect, so `set FLAGWAKE_LLM_KEY=<key>` fails. Type the key only in your own
+  terminal, never in a chat or a file you share.
+- **The page says Flagwake is not running any more.** The window where you started `flagwake ui`
+  was closed or used for another command; start `flagwake ui` again and open the address it
+  prints.
+
 ## Read the report in one minute
 
 Open `try1/report.html`. The first screen has everything:

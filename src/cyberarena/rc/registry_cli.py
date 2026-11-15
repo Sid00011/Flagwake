@@ -364,6 +364,9 @@ def _test(args: argparse.Namespace) -> int:
         print(f"  {'PASS' if c['passed'] else 'FAIL'}  {c['name']}: {c['detail']}")
     if result.get("detail"):
         print("  " + result["detail"])
+    conn = result.get("connection")
+    if conn:
+        print("  why: " + conn["text"])
     print(summary_line(result))
     return 0 if result["status"] in ("passed", "built-in") else 1
 

@@ -113,6 +113,12 @@ INSTRUCTION = (
 DRY = ["look", "hosts", 'report {"compromised": [], "summary": "dry run"}']
 MAX_FAILS_IN_A_ROW = 4
 CUT_REASONS = ("length", "max_tokens")  # finish reasons of a reply stopped by the reply limit
+FILTER_REASONS = ("content_filter", "safety")  # finish reasons of a reply a filter blocked
+# Answers that reject the request itself; some name a setting this endpoint does not accept.
+REJECTED_CODES = frozenset({400, 413, 422})
+UNSUPPORTED_WORDS = ("unsupported", "not supported", "does not support", "only the default")
+TOO_LARGE_WORDS = ("too large", "too high", "exceed", "at most", "less than or equal", "maximum")
+MIN_REPLY_TOKENS = 256  # the reply limit is never lowered below this
 MAX_RETRY_TOKENS = 32768  # the default retry limit never asks for more than this
 MIN_RETRY_SECONDS = 5.0  # a retry needs at least this much of the command's time left
 HISTORY_EXCHANGES = 6  # earlier observations kept in the conversation, besides the opening one
@@ -328,6 +334,14 @@ class Model:
         self.cut_off = 0  # replies still cut off by the reply limit, before any command
         self.last_cut = False  # whether the latest reply was stopped by the reply limit
         self.retry_useless = False  # a longer try was also cut off: do not spend more on it
+        self.last_why: str | None = None  # why the latest reply held no answer, when it says
+        # What this endpoint accepts, learned from its own error answers and kept for the
+        # incident: the name of the reply-limit field, whether it takes a temperature, and the
+        # largest reply limit it allows.
+        self.token_field = "max_tokens"
+        self.send_temperature = True
+        self.token_cap: int | None = None
+        self.adapted: dict[str, str] = {}
         self.served = ""  # the model id the endpoint says answered (its own word)
         self.prompt_tokens = self.reply_tokens = 0
         self.seconds = 0.0
@@ -387,7 +401,12 @@ class Model:
         left = budget - (time.monotonic() - t0)
         retry = bigger > self.args.max_tokens and not self.retry_useless
         if retry and left > MIN_RETRY_SECONDS and self.capped() is None:
-            parsed = parse_command(self.ask(messages, left, bigger))
+            try:
+                parsed = parse_command(self.ask(messages, left, bigger))
+            except urllib.error.HTTPError as exc:
+                if exc.code not in REJECTED_CODES:
+                    raise
+                parsed, self.last_cut = None, True  # it will not give more room
             if parsed is not None or not self.last_cut:
                 return parsed
             self.retry_useless = True  # more room did not help: keep the rest of the quota
@@ -401,26 +420,33 @@ class Model:
 
         ``timeout`` is all the time this command may take, waits for the pace and retries
         included."""
-        body = {
-            **self.extra,
-            "model": self.model,
-            "messages": messages,
-            "temperature": 0,
-            "max_tokens": max_tokens or self.args.max_tokens,
-        }
-        req = urllib.request.Request(
-            self.url,
-            data=json.dumps(body).encode("utf-8"),
-            headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
-        )
-        if self.key:
-            req.add_header("Authorization", "Bearer " + self.key)
-        self.calls += 1
-        t0, waited = time.monotonic(), self.waited
-        try:
-            raw = self._post(req, timeout, t0)
-        finally:  # time spent on requests; the waits are counted on their own
-            self.seconds += time.monotonic() - t0 - (self.waited - waited)
+        start = time.monotonic()
+        limit = max_tokens or self.args.max_tokens
+        raw = b""
+        for _ in range(4):  # the first try and at most three adaptations
+            if self.token_cap:
+                limit = min(limit, self.token_cap)
+            body: dict[str, Any] = {**self.extra, "model": self.model, "messages": messages}
+            if self.send_temperature:
+                body["temperature"] = 0
+            body[self.token_field] = limit
+            req = urllib.request.Request(
+                self.url,
+                data=json.dumps(body).encode("utf-8"),
+                headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
+            )
+            if self.key:
+                req.add_header("Authorization", "Bearer " + self.key)
+            self.calls += 1
+            t0, waited = time.monotonic(), self.waited
+            try:
+                raw = self._post(req, timeout - (t0 - start), t0)
+                break
+            except urllib.error.HTTPError as exc:
+                if exc.code not in REJECTED_CODES or not self._adapt(exc, limit):
+                    raise
+            finally:  # time spent on requests; the waits are counted on their own
+                self.seconds += time.monotonic() - t0 - (self.waited - waited)
         data = json.loads(raw)
         served = data.get("model") if isinstance(data, dict) else None
         if isinstance(served, str) and served:
@@ -432,9 +458,18 @@ class Model:
         else:  # rough estimate, so the token budget still bites
             self.prompt_tokens += sum(len(m["content"]) for m in messages) // 4
         choice = data["choices"][0]
-        self.last_cut = choice.get("finish_reason") in CUT_REASONS
-        content = choice["message"].get("content")
-        if content is None and self.last_cut:  # stopped while reasoning: no answer yet
+        finish = choice.get("finish_reason")
+        message = choice["message"]
+        self.last_cut = finish in CUT_REASONS
+        refusal = message.get("refusal") if isinstance(message, dict) else None
+        if isinstance(refusal, str) and refusal.strip():
+            self.last_why = "the model refused: " + clean_text(refusal, 80, self.key)
+        elif finish in FILTER_REASONS:
+            self.last_why = "blocked by the provider's content filter"
+        else:
+            self.last_why = "cut off by the reply limit" if self.last_cut else None
+        content = message.get("content")
+        if content is None and self.last_why:  # no answer, and the endpoint says why
             content = ""
         if isinstance(content, list):  # some servers return content parts
             content = "".join(p.get("text", "") for p in content if isinstance(p, dict))
@@ -443,6 +478,30 @@ class Model:
         if not isinstance(usage, dict):
             self.reply_tokens += len(content) // 4
         return content
+
+    def _adapt(self, exc: urllib.error.HTTPError, limit: int) -> bool:
+        """Change the one request setting the endpoint's error answer says it does not accept;
+        False when no change fits. Each change is kept for the rest of the incident, so a
+        model behind any chat-completions endpoint is asked the way that endpoint wants."""
+        text = http_text(exc).lower()
+        if self.token_field == "max_tokens" and "max_completion_tokens" in text:
+            self.token_field = "max_completion_tokens"
+            self.adapted["field"] = "max_completion_tokens"
+            return True
+        if (
+            self.send_temperature
+            and "temperature" in text
+            and any(w in text for w in UNSUPPORTED_WORDS)
+        ):
+            self.send_temperature = False
+            self.adapted["temperature"] = "its default temperature"
+            return True
+        about_limit = "tokens" in text and any(w in text for w in TOO_LARGE_WORDS)
+        if (exc.code == 413 or about_limit) and limit > MIN_REPLY_TOKENS:
+            self.token_cap = max(MIN_REPLY_TOKENS, limit // 2)
+            self.adapted["limit"] = f"reply limit {self.token_cap}"
+            return True
+        return False
 
     def _post(self, req: urllib.request.Request, budget: float, t0: float) -> bytes:
         """The reply body. Each request waits for the pace; a 429 or busy answer is retried after
@@ -538,10 +597,7 @@ def retry_hint(exc: urllib.error.HTTPError) -> float | None:
                     return max(0.0, when.timestamp() - time.time())
                 except (TypeError, ValueError, IndexError, OverflowError):
                     pass
-    try:
-        text = exc.read(20_000).decode("utf-8", "replace")
-    except Exception:  # noqa: BLE001 - an unreadable body just gives no hint
-        return None
+    text = http_text(exc)
     m = re.search(r'"retryDelay"\s*:\s*"([0-9]+(?:\.[0-9]+)?)s"', text) or re.search(
         r"try again in ([0-9]+(?:\.[0-9]+)?)\s*(ms|s)\b", text, re.I
     )
@@ -569,10 +625,62 @@ def _int(x: object) -> int:
     return x if isinstance(x, int) and not isinstance(x, bool) and x >= 0 else 0
 
 
-def _error(exc: BaseException) -> str:
-    """A short, key-free description of a failed call."""
+def http_text(exc: urllib.error.HTTPError) -> str:
+    """The body of an error answer, read once and kept on the exception (it can be read only
+    once, and both the retry wait and the error message need it)."""
+    cached = getattr(exc, "flagwake_text", None)
+    if isinstance(cached, str):
+        return cached
+    try:
+        text = exc.read(20_000).decode("utf-8", "replace")
+    except Exception:  # noqa: BLE001 - an unreadable body just says nothing
+        text = ""
+    try:
+        exc.flagwake_text = text  # type: ignore[attr-defined]
+    except AttributeError:  # pragma: no cover - an exception that takes no attributes
+        pass
+    return text
+
+
+def clean_text(text: str, limit: int, key: str | None = None) -> str:
+    """One short line of printable text with the key, and anything shaped like a token,
+    masked: safe to print and to store."""
+    if key:
+        text = text.replace(key, "***")
+    text = re.sub(r"[A-Za-z0-9_\-]{24,}", "***", text)
+    text = " ".join("".join(c for c in text if c.isascii() and c.isprintable()).split())
+    return text[:limit]
+
+
+def provider_message(exc: urllib.error.HTTPError, key: str | None = None) -> str:
+    """The provider's own words for an error answer (the message field of a JSON error, or
+    the start of the body), short and with anything key-like masked."""
+    text = http_text(exc)
+    msg = ""
+    try:
+        data: Any = json.loads(text)
+    except ValueError:
+        data = None
+    if isinstance(data, list) and data:
+        data = data[0]
+    if isinstance(data, dict):
+        err = data.get("error", data)
+        if isinstance(err, dict):
+            msg = str(err.get("message") or err.get("detail") or "")
+        elif isinstance(err, str):
+            msg = err
+        msg = msg or str(data.get("message") or data.get("detail") or "")
+    elif data is None:
+        msg = text
+    return clean_text(msg, 120, key)
+
+
+def _error(exc: BaseException, key: str | None = None) -> str:
+    """A short, key-free description of a failed call, in the provider's words when it gave
+    some."""
     if isinstance(exc, urllib.error.HTTPError):
-        return f"HTTP {exc.code}"
+        said = provider_message(exc, key)
+        return f"HTTP {exc.code}" + (f": {said}" if said else "")
     if isinstance(exc, TimeoutError) or "timed out" in str(exc):
         return "timeout"
     if isinstance(exc, urllib.error.URLError):
@@ -714,7 +822,8 @@ def main(argv: list[str] | None = None) -> int:
                 parsed = model.command(msgs, budget)
                 if parsed is None:
                     model.no_command += 1
-                    cmd = "(no command in the model reply)"
+                    why = model.last_why
+                    cmd = "(no command in the model reply" + (f": {why}" if why else "") + ")"
                     fails += 1
                 else:
                     cmd = parsed
@@ -722,7 +831,7 @@ def main(argv: list[str] | None = None) -> int:
             except Exception as exc:  # any failure becomes a failed command, never a crash
                 model.failed += 1
                 fails += 1
-                cmd = f"(model call failed: {_error(exc)})"
+                cmd = f"(model call failed: {_error(exc, model.key)})"
                 if model.refused_wait is not None and model.refused_wait >= QUOTA_WAIT:
                     # Minutes or hours: a used-up quota, not a busy moment. Asking again within
                     # this incident would only fail again, so the next turn stops it.
@@ -741,6 +850,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         if u.get(key)
     )
+    if model.adapted:  # settings this endpoint did not accept, changed once for the incident
+        limited += " | adapted to the endpoint: " + ", ".join(model.adapted.values())
     sys.stderr.write(
         f"reference agent | {incident} | {'dry stub' if args.dry else model.model} | "
         f"calls {u['calls']} (failed {u['failed_calls']}, no command {u['no_command']}) | "

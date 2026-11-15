@@ -74,9 +74,26 @@ def plain_checks(result: dict[str, Any] | None) -> list[dict[str, Any]]:
                  "text": "This is an example program shipped with the check; it needs no "
                          "connection test."}]  # fmt: skip
     out = []
+    conn = result.get("connection") if isinstance(result.get("connection"), dict) else None
+    told = False
     for c in result.get("checks", []):
         title, ok_text, fix = CHECK_TEXT.get(c.get("id", ""), (c["name"], "Passed.", c["detail"]))
         text = ok_text if c["passed"] else fix
+        if not c["passed"] and conn and c.get("cause") == "connection":
+            # The provider or the settings, not the model: say what happened once, plainly.
+            text = (
+                ("Not about the model's decisions. " + conn["text"])
+                if not told
+                else ("Same cause as above: the provider or the settings, not the model.")
+            )
+            told = True
+        elif (
+            not c["passed"]
+            and conn
+            and c.get("id") == "valid_commands"
+            and conn["main"] == "refused"
+        ):
+            text = conn["text"]
         if not c["passed"] and "could not be run" in c.get("detail", ""):
             text = UNREACHABLE
         if not c["passed"] and c.get("detail") == "not reached":

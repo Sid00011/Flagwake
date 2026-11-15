@@ -663,7 +663,9 @@ def test_a_reply_still_cut_off_is_counted_and_its_reasoning_never_read(monkeypat
     finally:
         fake.close()
     assert code == 0
-    assert [m["cmd"] for m in sent] == ["(no command in the model reply)"] * 2
+    assert [m["cmd"] for m in sent] == [
+        "(no command in the model reply: cut off by the reply limit)"
+    ] * 2
     # More room did not help on the first command, so the second is not asked again.
     assert [r["body"]["max_tokens"] for r in fake.requests] == [4096, 16384, 4096]
     u = sent[-1]["usage"]
