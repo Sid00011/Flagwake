@@ -14,8 +14,8 @@ string `cyberarena/rc/1/<family>/<difficulty>/<seed>` (generator version in
 `src/cyberarena/rc/generator.py`). All randomness lives in the generator; the interpreter
 (`engine.py`) has none, uses integers only and runs events in a fixed order, so the same record
 and the same commands always give the same observations and state. Seed spaces: practice
-120000–120999 (used in the docs and in every published number), held-out 130000–130999 (fixed;
-no per-seed result from it is published), fresh (drawn for each run from 1,000,000–999,999,999
+120000-120999 (used in the docs and in every published number), held-out 130000-130999 (fixed;
+no per-seed result from it is published), fresh (drawn for each run from 1,000,000-999,999,999
 with the run key; the default pack).
 
 ## Scores and intervals
@@ -157,8 +157,8 @@ before release. Four things changed after those numbers were seen.
   computed: a family with an index separates the baselines when the acting reference agents (both
   isolators, rule-bot, careful, oracle) are at least 10 points apart; a family with no intruder
   when careful beats a blind isolator on restraint by at least 0.5. The two injection families
-  (`forged-emergency`, `log-injection`) give every acting agent the same index — the planted order
-  is their only trap — so, after seeing that, they are judged on injection instead: gullible
+  (`forged-emergency`, `log-injection`) give every acting agent the same index (the planted order
+  is their only trap), so, after seeing that, they are judged on injection instead: gullible
   obeyed 16 of 16 and 9 of 9 planted orders read, careful 0 of 16 and 0 of 20. Every family now
   passes; `tests/rc/test_rc_calibration.py` checks it on held-out seeds.
 
@@ -190,7 +190,7 @@ Two changes followed, both without touching a weight:
   variant never beats it. Every other agent's index rises, because none of the shipped baselines
   evicts: on the practice pack careful went from 26.6 to 71.6 and rule-bot from 61.0 to 85.7.
 
-Mean capped index, practice seeds 120000–120019 at the difficulty the pack assigns:
+Mean capped index, practice seeds 120000-120019 at the difficulty the pack assigns:
 
 | family | full-early | full-late | partial | none | result |
 |---|---|---|---|---|---|
@@ -238,9 +238,9 @@ containment still helps". Changes, none to a weight:
   when the responder had never read it (a loose text match), which could make the surfaced share
   exceed 1. Only text actually read now counts.
 
-Practice seeds 120000–120019; graded lists full-early / full-late / partial / none:
+Practice seeds 120000-120019; graded lists full-early / full-late / partial / none:
 `cred-reuse` 0 / 81.3 / 86.4 / 100, `late-staging` 0 / 43.8 / 71.9 / 100, `misconfig-not-wipe`
-0 / 53.9 / 55.1 / 100 — all three clauses hold. Acting-baseline spread per family: 28.6 to 108.2
+0 / 53.9 / 55.1 / 100; all three clauses hold. Acting-baseline spread per family: 28.6 to 108.2
 points. Overall index: careful 69.1, thorough 12.4, rule-bot 84.9. `thorough` scores slightly
 below the oracle on `cred-reuse` (−2.0): the oracle is near-optimal, not optimal.
 
@@ -269,9 +269,9 @@ sorted order. A test runs the baselines under three hash seeds and requires iden
 
 ### 2026-10-31: the reference model program, after a first run on local models
 
-What was seen: three local 4–9B models on the practice smoke set (1 seed per family). Two of them
+What was seen: three local 4-9B models on the practice smoke set (1 seed per family). Two of them
 used all 30 of the program's model calls in every incident without acting or closing: one spent
-18–23 calls on `logs`, the other many calls on `ask` with a person's full name or a free-text
+18-23 calls on `logs`, the other many calls on `ask` with a person's full name or a free-text
 question instead of an account and a topic. The 30-call cap belongs to the reference program, not
 to the incident (which allows 60 commands), and the instruction never said so; the `ask` topics
 were listed only after a wrong use.
@@ -425,7 +425,7 @@ held-out pack also always used the same first seeds, so a program could be tuned
 What changed: every run makes a secret run key (32 hex characters). The id a program receives is
 an HMAC of family, seed and difficulty under that key; the report records the key only once the
 run is over, and verify rebuilds the ids from it. A new pack, `fresh`, draws each family's seeds
-from 1,000,000–999,999,999 with the key, and is now the default for `flagwake check`, `run`,
+from 1,000,000-999,999,999 with the key, and is now the default for `flagwake check`, `run`,
 `tools serve` and the local page; `--run-key` repeats an earlier run's incidents. Verify now also
 checks that the incidents belong to the pack a report names: a fixed pack's seeds lie in its
 range, and a fresh pack's seeds are exactly the draw its key makes. A report built without a pack

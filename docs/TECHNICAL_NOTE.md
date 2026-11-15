@@ -19,17 +19,17 @@ planted instructions. The responder closes with a `report`. Generation is determ
 no randomness, so a transcript replays exactly. Every incident opens with the same plain
 observation (company, clock, business status, alert queue, command list), and
 `flagwake replay` prints any stored incident as a plain transcript. The damage index puts each
-incident between an **oracle** (0) — a command list built from the ground truth that resets stolen credentials, patches flaws, blocks the attacker's address and
-evicts (restores) the hosts the intruder holds — and **doing nothing** (100). Metrics and their
+incident between an **oracle** (0), a command list built from the ground truth that resets stolen credentials, patches flaws, blocks the attacker's address and
+evicts (restores) the hosts the intruder holds, and **doing nothing** (100). Metrics and their
 exact definitions are in [SCORING.md](SCORING.md); the families in [SCENARIOS.md](SCENARIOS.md).
 
-Seed spaces: practice 120000–120999 (used in this note and the docs), held-out 130000–130999
+Seed spaces: practice 120000-120999 (used in this note and the docs), held-out 130000-130999
 (fixed; no per-seed result from it is published), fresh (drawn for each run from
-1,000,000–999,999,999; the default).
+1,000,000-999,999,999; the default).
 
 ## 2. Baselines (scripted, shipped, deterministic)
 
-Practice pack (generator `rc-gen-5`), 12 families × 20 seeds (120000–120019, 240 incidents,
+Practice pack (generator `rc-gen-5`), 12 families × 20 seeds (120000-120019, 240 incidents,
 each at the difficulty the pack assigns), this build. Reproduce with `flagwake baselines --pack practice --seeds 20`.
 "index": clipped mean business-damage index; "worse": incidents worse than doing nothing;
 "falseC": actions on benign targets; "collat": benign hosts disrupted; "cont": compromised hosts
@@ -72,7 +72,7 @@ intruder returns to the hosts they cut off; that is why they sit far from the or
 Baselines can tie on a family simply because none of them makes the decisive move, so the gate
 also runs four command lists built from the ground truth: the oracle's list (*full-early*), the same
 after a 60-minute wait (*full-late*), the oracle's first containment action only (*partial*) and
-do-nothing (*none*). Mean capped index, practice seeds 120000–120019:
+do-nothing (*none*). Mean capped index, practice seeds 120000-120019:
 
 | family | full-early | full-late | partial | none |
 |---|---|---|---|---|

@@ -100,15 +100,15 @@ Shell (`examples/rc_agent.sh`) and Node (`examples/rc_agent.js`) are included an
 
 ## Other ways in
 
-- **Python API** — `from cyberarena.rc import make; env = make("cred-reuse", 120000); obs =
+- **Python API**: `from cyberarena.rc import make; env = make("cred-reuse", 120000); obs =
   env.reset(); obs, info = env.step("logs web-01")`, and `run_pack(...)` to run a pack in process.
-- **HTTP** — `flagwake check --http http://127.0.0.1:PORT/act` POSTs the same observation JSON and
+- **HTTP**: `flagwake check --http http://127.0.0.1:PORT/act` POSTs the same observation JSON and
   expects `{"cmd": "..."}` back. Localhost only.
-- **A defender that is an MCP server** — register it with `kind: mcp` in `flagwake.yaml`; the
+- **A defender that is an MCP server**: register it with `kind: mcp` in `flagwake.yaml`; the
   harness starts it from its `command`, calls its `act` tool (or the tool the entry names) with
   `{"message": <the start/obs/end message above>}` and reads the next command from the text it
   returns (a bare command line, or the JSON reply above).
-- **MCP** — `flagwake mcp` is a stdio MCP server with `start_incident`, `run_command`,
+- **MCP**: `flagwake mcp` is a stdio MCP server with `start_incident`, `run_command`,
   `incident_status`, `finish_incident`; score a finished run with
   `flagwake report --mcp-log <dir>`. See [AGENTS.md](AGENTS.md).
 

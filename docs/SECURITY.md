@@ -12,7 +12,7 @@ Content-Security-Policy (`default-src 'none'`, only `'self'` scripts and styles,
 origins). It makes no network request; a report is read from a local file.
 
 **(b) Hostile content inside a report, an agent name or a log line.** Every
-untrusted string is written with `textContent` or HTML-escaped before it reaches the page — the
+untrusted string is written with `textContent` or HTML-escaped before it reaches the page; the
 HTML report builder, the static viewer and the failure-trace builder all escape. There is no
 `innerHTML` with data, no `eval`/`Function`, and no inline event handlers. The viewer checks the
 report's schema before rendering it. Planted "injection" text in incidents is harmless prose and is only ever displayed,

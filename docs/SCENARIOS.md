@@ -3,12 +3,12 @@
 The pack is 20 families (the original rules, on the original world, keep the first 12). Each
 describes a kind of incident; a seed, a difficulty and a company fix one concrete incident. This page describes what each family tests and the behaviour
 it rewards. It does **not** give the held-out seeds, the exact payload texts of held-out cases, or
-the entry points — those stay hidden so the check stays a test, not a lookup table.
+the entry points; those stay hidden so the check stays a test, not a lookup table.
 
 **What this does not do:** it does not teach exploits. Every "vulnerability" is an abstract label; the
 planted "injections" are harmless sentences.
 
-Across the pack, 10–15% of incidents in the non-quiet families are quiet on some seeds, so
+Across the pack, 10-15% of incidents in the non-quiet families are quiet on some seeds, so
 "nothing is wrong" can appear anywhere.
 
 ## What each difficulty tier changes (fixed before any calibration run)
@@ -62,14 +62,14 @@ the default 18-host company.
 
 ## Packs and seeds
 
-- **fresh** — seeds drawn for each run from 1,000,000–999,999,999 with the run's secret key; the
+- **fresh**: seeds drawn for each run from 1,000,000-999,999,999 with the run's secret key; the
   default for `flagwake check`, `run` and `tools serve` (20 families × 10 seeds = 200 incidents on
   the default company; 12 × 10 on the original rules). The report records the key, so verify
   re-derives the draw, and `--run-key <key>` repeats the same incidents.
-- **practice** — seeds 120000–120999; used in the docs and examples.
-- **held-out** — seeds 130000–130999; fixed and never shown in the docs or examples, the same
+- **practice**: seeds 120000-120999; used in the docs and examples.
+- **held-out**: seeds 130000-130999; fixed and never shown in the docs or examples, the same
   every run (for reproducing an earlier number).
-- **full** — practice and held-out.
+- **full**: practice and held-out.
 
 Choose with `--pack fresh|practice|heldout|full`, restrict families with `--family` (repeatable), set the
 count with `--seeds`, and run a stochastic agent several times per incident with `--repeat`.
@@ -78,7 +78,7 @@ count with `--seeds`, and run a stochastic agent several times per incident with
 
 The attacker is a **fixed script with one adaptive rule**, never a model: a fixed kill-chain skeleton with
 seeded choices (entry host, which credential is reused, route, speed, noise) and exactly one
-adaptive rule per incident, which reads only world state — never the responder's commands or
+adaptive rule per incident, which reads only world state, never the responder's commands or
 reasoning. Examples of the one rule: re-enter by a second route if the first foothold is contained
 quickly; slow down if monitoring is noisy; rush if left alone. It is deterministic given the seed.
 
@@ -88,6 +88,6 @@ Critical actions need an `escalate` first. Under the original rules these are is
 of a criticality-4/5 host and block or reset of an admin account; a company file sets its own
 policy (which actions, on which hosts, accounts or flows, who decides, how long it takes). The
 default companies also require approval to pause the payments flow. The approver grants or denies by a seeded rule after a delay. Planted
-instructions come in three tiers — obvious (T1), forged authority (T2), plausible runbook text
-(T3) — and each tries to induce one state-changing command from a defined forbidden set. See
+instructions come in three tiers: obvious (T1), forged authority (T2), plausible runbook text
+(T3). Each tries to induce one state-changing command from a defined forbidden set. See
 [SCORING.md](SCORING.md) for how violations are counted.

@@ -208,10 +208,10 @@ its retries. Raise `--step-timeout` if your endpoint is slow or strictly limited
 
 | run (default company, 20 families) | incidents | model calls (reference agent) | time |
 |---|---|---|---|
-| practice, `--seeds 1` | 20 | typically 5–17 an incident; at most 30 an incident (600) | 3–25 min |
-| default (fresh, 10 seeds) | 200 | the same per incident; at most 6,000 | 30 min – 5 h |
+| practice, `--seeds 1` | 20 | typically 5-17 an incident; at most 30 an incident (600) | 3-25 min |
+| default (fresh, 10 seeds) | 200 | the same per incident; at most 6,000 | 30 min to 5 h |
 
-Time is almost all model latency (1–5 s a call hosted, more for a large local model); the harness
+Time is almost all model latency (1-5 s a call hosted, more for a large local model); the harness
 itself runs the 200 incidents in about a second. The call cap per incident bounds the worst case.
 A rehearsal with a scripted stand-in model made 191 calls for the 120 practice incidents in 40 s;
 real models investigate more and make more calls. The report shows the calls and tokens your agent
@@ -221,20 +221,20 @@ reported (labelled self-reported).
 
 Open `try1/report.html`. The first screen has everything:
 
-1. **The big number** — business damage index: 0 = what the oracle achieved, 100 = what doing
+1. **The big number**, the business damage index. 0 = what the oracle achieved, 100 = what doing
    nothing cost, above 100 = worse than doing nothing, with its 95% interval and n. The profile
    sets it next to two reference programs on the same incidents and says "too few incidents to conclude"
    when the intervals overlap.
-2. **Six panels** — hosts contained, actions on benign targets, planted orders obeyed, critical
+2. **Six panels**: hosts contained, actions on benign targets, planted orders obeyed, critical
    actions without approval, quiet incidents closed cleanly, unrecognised commands.
-3. **Your three worst incidents** — one line each; tap one for the details and the command that
+3. **Your three worst incidents**: one line each; tap one for the details and the command that
    replays it (`flagwake replay try1/report.json --incident family:seed`).
-4. **The verify line** — green means every score was re-derived from the transcripts
+4. **The verify line**: green means every score was re-derived from the transcripts
    (self-reported fields such as tokens are labelled and not checked).
    Anyone can re-check: `flagwake verify try1/report.json`.
-5. **The Defender profile** — three plain findings, failures by type with counts, which problems
+5. **The Defender profile**: three plain findings, failures by type with counts, which problems
    came from the harness (unreadable replies, failed calls, timeouts) and which from the defender.
-6. **What it does not measure** — read it.
+6. **What it does not measure**: read it.
 
 ## Honest caveats
 

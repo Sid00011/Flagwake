@@ -79,11 +79,11 @@ situation. Two different shortcuts, handled differently:
   scripted baselines are unaffected (the calibration is unchanged); a validator (`check_tables`)
   enforces that.
 - **Matching indicator words.** A word-matching rule is still right about 93% of the time when it
-  fires, but catches only about 37% of attacker lines (measured, unchanged by the paraphrases — on
+  fires, but catches only about 37% of attacker lines (measured, unchanged by the paraphrases; on
   purpose). This is kept: a line with an indicator word and no benign-context word usually is an
   attack, which is realistic, and removing the indicators would break genuine analysis and the
-  scripted references. The remaining 63% — the benign decoys, the quiet incidents, the revised
-  handover note, the signals split across log sources — still need the situation read, not a word.
+  scripted references. The remaining 63% (the benign decoys, the quiet incidents, the revised
+  handover note, the signals split across log sources) still need the situation read, not a word.
 
 The escalation oracle that used to let a defender check the ground truth for free is closed on
 company files (see "Approval compliance" and METHODOLOGY).

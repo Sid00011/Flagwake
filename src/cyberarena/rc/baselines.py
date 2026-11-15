@@ -395,8 +395,8 @@ class Careful(Responder):
         """From everything read so far, decide which hosts look compromised and which creds leaked.
 
         A log line is treated as a real indicator only when it carries an indicator word, no
-        benign-context word (a nightly backup, a scheduled job, an update), and — for an outbound
-        transfer — is not addressed to a known partner. This is the judgement a naive rule bot
+        benign-context word (a nightly backup, a scheduled job, an update), and, for an outbound
+        transfer, is not addressed to a known partner. This is the judgement a naive rule bot
         skips, so the two separate on the noisy and backup-bait families.
         """
         for host in self.read:

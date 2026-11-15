@@ -191,7 +191,7 @@ GOAL_VERBS: dict[str, tuple[list[str], str]] = {
 # the same indicator phrase (the words IOC_RE / IOC2_RE match), so the careful program and the
 # keyword check behave identically whichever wording is drawn; ``check_tables`` enforces both. The
 # indicator phrase is shown in CAPITALS in the comments only as a reminder; the strings keep it
-# verbatim. Only the surrounding words vary — the facts never do.
+# verbatim. Only the surrounding words vary; the facts never do.
 VARIANTS: dict[str, list[str]] = {
     # -- footholds and credential theft (indicator: "unknown program", "sign-in tokens")
     "log.unknown-program": [

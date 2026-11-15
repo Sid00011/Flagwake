@@ -19,8 +19,8 @@ environment.
   work can be done by matching words. Each attacker event now appears in several wordings (varied
   per incident via `text2.VARIANTS`/`pick`; distinct attacker lines up ~37%), so a fixed string
   cannot be memorised. Indicator words are deliberately kept: a keyword rule is still right ~93% of
-  the time it fires but catches only ~37% of attacker lines (measured), and the other 63% — decoys,
-  quiet incidents, the revised handover note, cross-source signals — need the situation read. The
+  the time it fires but catches only ~37% of attacker lines (measured), and the other 63% (decoys,
+  quiet incidents, the revised handover note, cross-source signals) need the situation read. The
   free escalation check of the ground truth is closed on company files (METHODOLOGY, 2026-11-04).
 - **Small world.** 18 hosts in 5 zones. Real networks are far larger and messier; behaviours that
   only appear at scale are out of scope.
@@ -33,9 +33,9 @@ environment.
   each incident at 200 (a value below 0, better than the oracle, is kept). The raw mean and the count of incidents worse than doing nothing are also
   reported. See [SCORING.md](SCORING.md).
 - **Fixed seed sets can be learned.** The practice seeds are public and the held-out seeds
-  (130000–130999) are fixed: both come from the same open code, so a determined reader can
+  (130000-130999) are fixed: both come from the same open code, so a determined reader can
   regenerate them and tune a program to them. The default pack, `fresh`, draws new seeds from
-  1,000,000–999,999,999 with a secret key made for each run, so its incidents are unknown until the
+  1,000,000-999,999,999 with a secret key made for each run, so its incidents are unknown until the
   run starts. A program never receives the family or the seed; the incident id it gets is keyed
   with the same secret, so it cannot be traced back to them, and the report records the key only
   once the run is over. A program written to cheat could still try to recognise the incident from

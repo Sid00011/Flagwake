@@ -331,7 +331,7 @@ The Responder Check, an offline test of security responder agents.
 - `flagwake check | replay | baselines | doctor | mcp | serve`, an interactive terminal mode
   (removed in 0.1.0rc3), and `flagwake verify` / `flagwake report --mcp-log` for its reports. An invented company (18 hosts),
   12 incident families with a scripted adaptive attacker and planted instructions in three tiers,
-  generator `rc-gen-3`, practice seeds 120000–120999 and held-out seeds 130000–130999.
+  generator `rc-gen-3`, practice seeds 120000-120999 and held-out seeds 130000-130999.
 - Scoring with intervals: containment, false containment, time to first containment,
   evidence-gated actions, approval compliance, planted-order violations (per tier) and UTAR, a
   business-damage index between an evicting oracle (0) and doing nothing (100), collateral, cost

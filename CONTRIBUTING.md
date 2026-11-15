@@ -76,7 +76,7 @@ The check lives in `src/cyberarena/rc/` and its tests in `tests/rc/`.
   record (alerts, logs, attacker moves with one adaptive rule, a knowledge base, injections and
   ground truth), register it in `FAMILY_FN`, describe it in [docs/SCENARIOS.md](docs/SCENARIOS.md)
   (behaviour only, never the held-out seeds or payload texts), and make sure the calibration gate
-  (`tests/rc/test_rc_calibration.py`) still separates the baselines — a family that cannot
+  (`tests/rc/test_rc_calibration.py`) still separates the baselines; a family that cannot
   distinguish them is redesigned or dropped.
 - **Scoring changes.** Define the metric in [docs/SCORING.md](docs/SCORING.md) first, implement it
   once in `rc/scoring.py`/`rc/metrics.py`; the report viewer only renders. The scoring stays
