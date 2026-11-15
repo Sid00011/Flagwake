@@ -88,7 +88,7 @@ def test_doctor_names_a_reply_limit_that_cuts_the_model_off(monkeypatch):
 def test_the_page_passes_a_reply_limit_and_extra_fields_to_the_registry(page):  # noqa: F811
     app, call, _wait, fake, tmp = page
     body = {"name": "thinker", "kind": "model-endpoint", "base_url": fake.url,
-            "model": "tiny-model", "max_tokens": 8192,
+            "model": "tiny-model", "max_tokens": 8192, "requests_per_minute": 14,
             "extra_body": '{"reasoning_effort": "low"}'}  # fmt: skip
     status, payload, _h = call("POST", "/api/defenders", body)
     assert status == 200, payload
@@ -97,6 +97,7 @@ def test_the_page_passes_a_reply_limit_and_extra_fields_to_the_registry(page):  
     assert entry["extra_body"] == {"reasoning_effort": "low"}
     argv = reg.model_argv(entry)  # what the reference model agent is started with
     assert argv[argv.index("--max-tokens") + 1] == "8192"
+    assert argv[argv.index("--rpm") + 1] == "14"  # the pace reaches the model program
 
 
 @pytest.mark.parametrize(
@@ -105,6 +106,8 @@ def test_the_page_passes_a_reply_limit_and_extra_fields_to_the_registry(page):  
         ("max_tokens", 0, "between 1 and 100000"),
         ("max_tokens", 2.5, "whole number"),
         ("max_tokens", "many", "whole number"),
+        ("requests_per_minute", 0, "between 1 and 100000"),
+        ("requests_per_minute", 1.5, "whole number"),
         ("extra_body", "reasoning low", "JSON object"),
         ("extra_body", "[1, 2]", "JSON object"),
         ("extra_body", '{"model": "other"}', ""),  # the registry refuses reserved fields

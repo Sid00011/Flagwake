@@ -3,9 +3,11 @@
 With no option it checks the model endpoint named by FLAGWAKE_LLM_BASE_URL / FLAGWAKE_LLM_MODEL
 (and FLAGWAKE_LLM_KEY when set): one tiny probe call, then three practice incidents run by the
 reference model agent. With ``--agent "<command>"`` or ``--http <url>`` it runs the same three
-incidents with that agent. Every finding is printed as PASS / WARN / FAIL with the likely fix, and
-the whole check is bounded to about a minute. Nothing is written except a temporary folder that is
-removed at the end; the key is only ever sent in the request header to the endpoint you set.
+incidents with that agent. Every finding is printed as PASS / WARN / FAIL with the likely fix. Each
+test incident gets the same time whatever the model or the computer, with a line after each, and
+a slow model gets a warning with an estimate of how long a run takes, not a failure. Nothing is
+written except a temporary folder that is removed at the end; the key is only ever sent in the
+request header to the endpoint you set.
 """
 
 from __future__ import annotations
@@ -37,6 +39,14 @@ PROBE = [
     {"role": "user", "content": "Reply with: look"},
 ]
 SLOW_CALL = 10.0  # seconds per model call above which a full run gets long
+# Each test incident may take this long, whatever the model or the computer: a slow local
+# model or a provider that makes calls wait still gets a fair chance (a real run allows 15
+# minutes per incident). Progress is printed after each incident.
+INCIDENT_SECONDS = 180.0
+SMOKE_CALLS = 6  # model calls per test incident at most
+# Calls a default run (200 incidents) makes, at about 19 per incident: the mean of the shipped
+# model agent on reference runs. Used only to estimate how long a run takes.
+DEFAULT_RUN_CALLS = 3800
 
 
 class Findings:
@@ -177,6 +187,20 @@ def _progress(f: Findings, done: int, total: int, t0: float) -> None:
     f.out.flush()
 
 
+def _speed(f: Findings, per_call: float) -> None:
+    """How long a default run would take at the speed the test calls had, waits included."""
+    hours = per_call * DEFAULT_RUN_CALLS / 3600
+    took = f"about {per_call:.1f} s per model call, waits included"
+    if per_call > SLOW_CALL:
+        f.say("WARN", f"slow: {took}; the default run of 200 incidents takes about "
+              f"{hours:.0f} h at this speed", (
+                  "try it first on 20 incidents (--pack practice --seeds 1); a faster model or "
+                  "plan shortens it, and the scores do not depend on speed"
+              ))  # fmt: skip
+    else:
+        f.say("INFO", f"{took}; the default run of 200 incidents takes about {hours:.1f} h")
+
+
 def run_smoke(factory: Any, f: Findings, label: str) -> dict[str, Any] | None:
     """Run the three incidents; report what went wrong in plain words."""
     from cyberarena.rc.protocol import ProtocolError
@@ -214,11 +238,20 @@ def run_smoke(factory: Any, f: Findings, label: str) -> dict[str, Any] | None:
     f.say("PASS", f"ran {len(SPECS)} incidents in {seconds:.1f} s ({cmds} commands)")
     if h["incidents_with_errors"]:
         errs = "; ".join(f"{k} ({v})" for k, v in h["errors"].items())
-        slow = any("no answer" in k or "wall timeout" in k for k in h["errors"])
-        f.say("FAIL", f"{h['incidents_with_errors']} incident(s) ended early: {errs}", (
-            "too slow: raise --step-timeout in flagwake check, or use a faster model"
-            if slow else "see agent-stderr.log in the output folder of a flagwake check run"
-        ))  # fmt: skip
+        boxed = all("wall timeout" in k for k in h["errors"])
+        late = any("no answer" in k for k in h["errors"])
+        if boxed:
+            f.say("WARN", f"{h['incidents_with_errors']} test incident(s) used all the "
+                  f"{INCIDENT_SECONDS:.0f} s doctor allows for one: the model is slow", (
+                      "a real run allows 15 minutes per incident; the speed line below says how "
+                      "long a run would take"
+                  ))  # fmt: skip
+        else:
+            f.say("FAIL", f"{h['incidents_with_errors']} incident(s) ended early: {errs}", (
+                "an answer came later than the step timeout: raise --step-timeout in flagwake "
+                "check (and --timeout here), or use a faster model"
+                if late else "see agent-stderr.log in the output folder of a flagwake check run"
+            ))  # fmt: skip
     diag = diagnose_incidents(doc["incidents"])
     if diag and diag["main"] != "unreadable":  # the cause has a name: say it, with the fix
         what, fix = CAUSES[diag["main"]]
@@ -259,7 +292,7 @@ def doctor(args: Any, out: Any = None) -> int:
         if args.http:
             out.write(f"Checking the HTTP agent at {args.http}\n")
             try:
-                factory = http_driver_factory(args.http, min(args.timeout, 15.0), 15.0)
+                factory = http_driver_factory(args.http, args.timeout, INCIDENT_SECONDS)
             except ValueError as exc:
                 f.say("FAIL", str(exc), "use http://127.0.0.1:<port>/<path>")
                 return 1
@@ -269,7 +302,7 @@ def doctor(args: Any, out: Any = None) -> int:
 
             out.write(f"Checking this agent command: {args.agent}\n")
             factory = subprocess_driver_factory(
-                split_command(args.agent), min(args.timeout, 15.0), str(tmp / "stderr.log"), 15.0
+                split_command(args.agent), args.timeout, str(tmp / "stderr.log"), INCIDENT_SECONDS
             )
             out.write("Running 3 short incidents with your program ...\n")
             out.flush()
@@ -294,16 +327,16 @@ def doctor(args: Any, out: Any = None) -> int:
             if refused:
                 f.say("FAIL", refused, "use an https:// address (no key is needed locally)")
                 return 1
-            level, what, fix, latency = probe_endpoint(base, model, key, args.timeout)
+            level, what, fix, _latency = probe_endpoint(base, model, key, args.timeout)
             f.say(level, what, fix)
             if level == "FAIL":
                 return 1
-            # Size the smoke test from the probe so it stays near a minute: 3 incidents, ~45 s.
-            calls = max(1, min(6, int(15 / max(0.5, latency))))
-            argv = [sys.executable, "-m", "cyberarena.rc.model_agent", "--max-calls", str(calls),
-                    "--timeout", str(args.timeout)]  # fmt: skip
+            # The same small test for every model: the tiny probe says nothing about how long a
+            # real reply takes (a model that reasons first is slower), so it does not size it.
+            argv = [sys.executable, "-m", "cyberarena.rc.model_agent", "--max-calls",
+                    str(SMOKE_CALLS), "--timeout", str(args.timeout)]  # fmt: skip
             factory = subprocess_driver_factory(
-                argv, args.timeout + 5, str(tmp / "stderr.log"), 15 + latency
+                argv, args.timeout + 5, str(tmp / "stderr.log"), INCIDENT_SECONDS
             )
             out.write("Running 3 short incidents with the model; a few minutes if the provider "
                       "limits its rate ...\n")  # fmt: skip
@@ -323,9 +356,8 @@ def doctor(args: Any, out: Any = None) -> int:
                     f.say("FAIL", f"{failed} of {calls} model calls failed", (
                         "the endpoint fails under load or the model id is wrong; check its log"
                     ))  # fmt: skip
-                if calls and u.get("seconds", 0) / calls > SLOW_CALL:
-                    per = u["seconds"] / calls
-                    f.say("WARN", f"slow: {per:.1f} s per call; the default pack makes up to 3,600")
+                if calls:
+                    _speed(f, (u.get("seconds", 0) + u.get("waited_seconds", 0)) / calls)
         out.write(
             "\nAll checks passed.\n" if not f.failed else "\nSome checks failed (see fix:).\n"
         )

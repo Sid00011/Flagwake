@@ -860,7 +860,7 @@ EXTRA_HINT = 'Extra request fields must be a JSON object, e.g. {"reasoning_effor
 
 
 def _model_settings_of(body: dict[str, Any], entry: dict[str, Any]) -> None:
-    """The optional reply limit and extra request fields of a model defender, checked."""
+    """The optional reply limit, pace and extra request fields of a model defender, checked."""
     limit = body.get("max_tokens")
     if limit not in (None, ""):
         if isinstance(limit, bool) or not isinstance(limit, int | float) or limit != int(limit):
@@ -868,6 +868,13 @@ def _model_settings_of(body: dict[str, Any], entry: dict[str, Any]) -> None:
         if not 1 <= int(limit) <= 100_000:
             raise UiError("The reply limit must be between 1 and 100000 tokens.")
         entry["caps"]["max_tokens"] = int(limit)
+    pace = body.get("requests_per_minute")
+    if pace not in (None, ""):
+        if isinstance(pace, bool) or not isinstance(pace, int | float) or pace != int(pace):
+            raise UiError("Requests per minute must be a whole number.")
+        if not 1 <= int(pace) <= 100_000:
+            raise UiError("Requests per minute must be between 1 and 100000.")
+        entry["caps"]["requests_per_minute"] = int(pace)
     if body.get("extra_body") not in (None, ""):
         text = _text(body.get("extra_body"), "extra request fields", 500)
         try:

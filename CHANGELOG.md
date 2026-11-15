@@ -22,10 +22,14 @@ No change to incidents, scores or verification.
   reply limit, the reference model agent changes that one setting for the rest of the incident
   and says so in `agent-stderr.log`. If the longer try after a cut-off reply is rejected, the
   reply counts as cut off, not as a failed call.
-- **`flagwake doctor`** says what it is doing while it runs the three incidents, warns when the
-  provider limits the rate, quotes the provider on HTTP 429, 404 and 400, and explains an empty
-  first reply.
-- **The page** says Flagwake is not running any more, instead of the browser's "Failed to fetch".
+- **`flagwake doctor` treats every model and computer the same.** Each test incident gets up to
+  3 minutes (it was 15 seconds, sized from one tiny first call), with a line after each one. A
+  slow model gets a warning with an estimate of how long a run takes, not a false "too slow"
+  failure. Doctor also warns when the provider limits the rate, quotes the provider on HTTP 429,
+  404 and 400, and explains an empty first reply.
+- **The page** says Flagwake is not running any more, instead of the browser's "Failed to fetch",
+  and its model settings take a pace (requests per minute), as `flagwake.yaml` and `--rpm` do,
+  for a plan with a rate limit.
 - **`python -m cyberarena`** runs the `flagwake` command where its script is not on PATH.
 - **docs/TRY_YOUR_AGENT.md** has a section on a model that does not connect.
 

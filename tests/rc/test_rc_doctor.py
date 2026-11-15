@@ -211,3 +211,18 @@ def test_doctor_gets_past_a_firewall_that_refuses_the_default_python_client(monk
     code, text, fake = _doctor(monkeypatch, gate, key="test-token-abcdef")
     assert code == 0, text
     assert all(r["agent"].startswith("flagwake/") for r in fake.requests)
+
+
+def test_a_slow_model_gets_a_warning_with_an_estimate_not_a_failure(monkeypatch):
+    # Every reply takes a second (a model that reasons first, a busy server or a slow computer).
+    # The test incident's time box is shrunk so the test stays short; a real one is 3 minutes.
+    from cyberarena.rc import doctor as doctor_module
+
+    monkeypatch.setattr(doctor_module, "INCIDENT_SECONDS", 2.5)
+    monkeypatch.setattr(doctor_module, "SLOW_CALL", 0.5)
+    code, text, _ = _doctor(monkeypatch, [("ok", ""), ("slow", 1.0)])
+    assert code == 0, text  # slow is not broken
+    assert "test incident(s) used all the 2 s doctor allows for one: the model is slow" in text
+    assert "the default run of 200 incidents takes about" in text
+    assert "incident 1 of 3 done" in text
+    assert "too slow" not in text

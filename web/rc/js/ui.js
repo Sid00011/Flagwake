@@ -291,6 +291,8 @@
       if (limit) body.max_tokens = Number(limit);
       const extra = $("m-extra").value.trim();
       if (extra) body.extra_body = extra;
+      const rpm = $("m-rpm").value.trim();
+      if (rpm) body.requests_per_minute = Number(rpm);
     } else if (what === "own") {
       const how = (document.querySelector("input[name=own]:checked") || {}).value;
       if (how === "http") Object.assign(body, { kind: "http", url: $("own-url").value.trim() });
