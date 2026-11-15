@@ -22,6 +22,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from cyberarena import USER_AGENT
 from cyberarena.rc.model_agent import key_transport_problem, open_keyed
 from cyberarena.rc.protocol import NET_ERRORS
 
@@ -58,7 +59,9 @@ def probe_endpoint(
     url = url if url.endswith("/chat/completions") else url + "/chat/completions"
     body = json.dumps({"model": model, "messages": PROBE, "temperature": 0, "max_tokens": 16})
     req = urllib.request.Request(
-        url, data=body.encode(), headers={"Content-Type": "application/json"}
+        url,
+        data=body.encode(),
+        headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
     )
     if key:
         req.add_header("Authorization", "Bearer " + key)
@@ -74,6 +77,17 @@ def _probe(req: urllib.request.Request, timeout: float) -> tuple[str, str, str]:
         with open_keyed(req, timeout) as resp:  # the user's endpoint; no redirects
             raw = resp.read(1_000_000)
     except urllib.error.HTTPError as exc:
+        if exc.code == 403:  # the key, a model the key cannot use, or a firewall
+            said = _short_body(exc)
+            return (
+                "FAIL",
+                f"the endpoint refused the request (HTTP 403{': ' + said if said else ''})",
+                (
+                    "a missing, wrong or restricted key, a model this key cannot use, or the "
+                    "provider's firewall; check the key and the model id in the provider's "
+                    "console"
+                ),
+            )
         if exc.code in (401, 403):
             if key:
                 return (
@@ -141,6 +155,16 @@ def _probe(req: urllib.request.Request, timeout: float) -> tuple[str, str, str]:
             ("a full run makes hundreds of calls; consider a faster model"),
         )
     return "PASS", f"endpoint reachable, model answered in {seconds:.1f} s ({str(text)[:30]!r})", ""
+
+
+def _short_body(exc: urllib.error.HTTPError) -> str:
+    """The start of an error answer, printable ASCII only (it never holds the key we sent)."""
+    try:
+        raw = exc.read(300).decode("utf-8", "replace")
+    except Exception:  # noqa: BLE001 - an unreadable body just says nothing
+        return ""
+    text = " ".join("".join(c for c in raw if c.isascii() and c.isprintable()).split())
+    return text[:120]
 
 
 def run_smoke(factory: Any, f: Findings, label: str) -> dict[str, Any] | None:

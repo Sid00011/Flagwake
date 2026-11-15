@@ -82,6 +82,7 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
+from cyberarena import USER_AGENT
 from cyberarena.rc.engine import ASK_TOPICS, COMMANDS
 
 VERBS = COMMANDS
@@ -410,7 +411,7 @@ class Model:
         req = urllib.request.Request(
             self.url,
             data=json.dumps(body).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
+            headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
         )
         if self.key:
             req.add_header("Authorization", "Bearer " + self.key)

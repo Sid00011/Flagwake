@@ -35,8 +35,22 @@ class FakeModel:
                     kind, arg = model.script[model.i % len(model.script)]
                     model.i += 1
                     model.requests.append(
-                        {"auth": self.headers.get("Authorization"), "body": body, "path": self.path}
+                        {
+                            "auth": self.headers.get("Authorization"),
+                            "body": body,
+                            "path": self.path,
+                            "agent": self.headers.get("User-Agent"),
+                        }  # fmt: skip
                     )
+                if kind == "ua-gate":  # a firewall that refuses the default Python client
+                    if str(self.headers.get("User-Agent", "")).startswith("Python-urllib"):
+                        data = b"error code: 1010"
+                        self.send_response(403)
+                        self.send_header("Content-Length", str(len(data)))
+                        self.end_headers()
+                        self.wfile.write(data)
+                        return
+                    kind = "ok"
                 if kind == "slow":
                     time.sleep(float(arg))
                     kind, arg = "ok", "look"

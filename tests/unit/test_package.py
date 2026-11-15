@@ -13,14 +13,14 @@ from cyberarena import cli
 
 
 def test_version_labels() -> None:
-    assert cyberarena.__version__ == "0.5.0"
+    assert cyberarena.__version__ == "0.5.1"
 
 
 def test_cli_version(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as exc:
         cli.main(["--version"])
     assert exc.value.code == 0
-    assert capsys.readouterr().out.startswith("flagwake 0.5.0")
+    assert capsys.readouterr().out.startswith("flagwake 0.5.1")
 
 
 def test_cli_no_args_prints_help(capsys: pytest.CaptureFixture[str]) -> None:
@@ -35,7 +35,7 @@ def test_module_entry_point() -> None:
         text=True,
         check=True,
     )
-    assert "flagwake 0.5.0" in proc.stdout
+    assert "flagwake 0.5.1" in proc.stdout
 
 
 def _holder(root: Path) -> str:

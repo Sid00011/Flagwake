@@ -66,7 +66,7 @@ def test_missing_key(monkeypatch):
 
 
 def test_refused_key_is_never_printed(monkeypatch):
-    code, text, fake = _doctor(monkeypatch, [("http", 403)], key="test-token-abcdef")
+    code, text, fake = _doctor(monkeypatch, [("http", 401)], key="test-token-abcdef")
     assert code == 1 and "refused the key" in text and "test-token-abcdef" not in text
     assert fake.requests[0]["auth"] == "Bearer test-token-abcdef"
 
@@ -197,3 +197,17 @@ def test_doctor_never_sends_a_key_over_plain_http_to_another_machine(monkeypatch
     code, text, _ = _doctor(monkeypatch, url="http://remote.example/v1", key="test-token-plain")
     assert code == 1 and calls == []
     assert "refusing to send the key" in text and "test-token-plain" not in text
+
+
+def test_a_refused_request_names_the_key_the_model_or_a_firewall(monkeypatch):
+    code, text, fake = _doctor(monkeypatch, [("http", 403)], key="test-token-abcdef")
+    assert code == 1 and "refused the request (HTTP 403" in text and "firewall" in text
+    assert "test-token-abcdef" not in text
+    assert fake.requests[0]["agent"].startswith("flagwake/")
+
+
+def test_doctor_gets_past_a_firewall_that_refuses_the_default_python_client(monkeypatch):
+    gate = [("ua-gate", "Command: `logs ws-ops-01`"), ("ua-gate", 'report {"compromised": []}')]
+    code, text, fake = _doctor(monkeypatch, gate, key="test-token-abcdef")
+    assert code == 0, text
+    assert all(r["agent"].startswith("flagwake/") for r in fake.requests)

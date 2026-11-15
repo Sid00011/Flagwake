@@ -56,7 +56,7 @@ def _post(url: str, body: dict, headers: dict[str, str]) -> dict:
         url,
         data=json.dumps(body).encode("utf-8"),
         method="POST",
-        headers={"Content-Type": "application/json", **headers},
+        headers={"Content-Type": "application/json", "User-Agent": "flagwake-example", **headers},
     )
     with _OPENER.open(req, timeout=TIMEOUT) as r:  # configured endpoints; no redirects
         return json.loads(r.read().decode("utf-8"))
@@ -73,7 +73,11 @@ def catalogue() -> list[dict]:
     """The platform's tools in the chat-completions function format."""
     api = os.environ["FLAGWAKE_API_URL"].rstrip("/")
     req = urllib.request.Request(
-        f"{api}/tools", headers={"Authorization": f"Bearer {os.environ['FLAGWAKE_TOOLS_TOKEN']}"}
+        f"{api}/tools",
+        headers={
+            "Authorization": f"Bearer {os.environ['FLAGWAKE_TOOLS_TOKEN']}",
+            "User-Agent": "flagwake-example",
+        },
     )
     with _OPENER.open(req, timeout=TIMEOUT) as r:  # the token never follows a redirect
         tools = json.loads(r.read())["tools"]

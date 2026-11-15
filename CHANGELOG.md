@@ -3,6 +3,19 @@
 All notable changes. Dates are UTC. Incidents are versioned by the generator version, the rules by
 the rules hash (see `docs/METHODOLOGY.md`).
 
+## 0.5.1 (2026-11-15)
+
+No change to incidents, scores or verification.
+
+- **Providers behind a firewall.** Every request to a model endpoint or to the public log now
+  names Flagwake as its user agent (`flagwake/<version>`). Some providers sit behind a firewall
+  that refuses the default user agent of Python's HTTP client. Before, every call to such an
+  endpoint failed with HTTP 403, whatever the key or the model, and a run ended as "not a
+  measurement" with all its calls failed.
+- **`flagwake doctor` on HTTP 403** says the request was refused and names the possible causes
+  (the key, a model the key cannot use, or the provider's firewall) with the start of the
+  answer, instead of blaming the key.
+
 ## 0.5.0 (2026-11-15)
 
 The first stable release. Incidents, scoring and verification are those of 0.5.0rc6: the

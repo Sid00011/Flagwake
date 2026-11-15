@@ -31,6 +31,8 @@ from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Any, cast
 
+from cyberarena import USER_AGENT
+
 REKOR = "https://rekor.sigstore.dev"
 GITHUB_ISSUER = "https://token.actions.githubusercontent.com"
 HEADER = "flagwake attempt ticket 2"
@@ -147,7 +149,11 @@ Facts = Callable[[bytes, int], dict[str, str] | None]
 
 
 def _fetch(url: str, body: bytes | None) -> Any:
-    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": USER_AGENT,
+    }
     req = urllib.request.Request(url, data=body, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310 (the public log)

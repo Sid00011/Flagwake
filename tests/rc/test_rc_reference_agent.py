@@ -15,6 +15,7 @@ import time
 import pytest
 from rckit import FakeModel
 
+from cyberarena import USER_AGENT
 from cyberarena.rc import model_agent as ref
 from cyberarena.rc.protocol import subprocess_driver_factory
 from cyberarena.rc.report import build_report
@@ -683,3 +684,15 @@ def test_the_retry_limit_can_be_set_or_switched_off(monkeypatch, capsys):
         fake.close()
     assert [r["body"]["max_tokens"] for r in fake.requests] == [4096]  # no second try
     assert code == 0 and sent[-1]["usage"]["cut_off"] == 1
+
+
+def test_requests_name_flagwake_so_a_firewall_lets_them_through(monkeypatch, capsys):
+    # Some providers sit behind a firewall that refuses Python's default HTTP client: HTTP 403 on
+    # every call, whatever the key or the model. Flagwake names itself instead.
+    fake = FakeModel([("ua-gate", "look")])
+    try:
+        code, sent, _err = _talk(monkeypatch, capsys, fake, [START, {"type": "end"}])
+    finally:
+        fake.close()
+    assert code == 0 and [m["cmd"] for m in sent] == ["look"]
+    assert fake.requests[0]["agent"] == USER_AGENT and USER_AGENT.startswith("flagwake/")
