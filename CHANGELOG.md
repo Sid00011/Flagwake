@@ -3,9 +3,12 @@
 All notable changes. Dates are UTC. Incidents are versioned by the generator version, the rules by
 the rules hash (see `docs/METHODOLOGY.md`).
 
-## Unreleased
+## 0.5.2 (2026-11-16)
 
-No change to incidents, scores or verification.
+No change to incidents, scores or verification: the generator version, the rules hash and the
+golden fingerprint are unchanged, and every earlier report verifies as before. This release
+is about connecting any model through any provider, and saying plainly what went wrong when
+a connection does not work.
 
 - **Why a reply held no command, for any provider.** A failed call is now written with the
   provider's own message, for example `(model call failed: HTTP 404: The model ... does not
