@@ -848,12 +848,26 @@ def describe(entry: dict[str, Any]) -> str:
     if kind == "model-endpoint":
         host = urllib.parse.urlsplit(entry["base_url"]).hostname
         where = "on this computer" if host in ("127.0.0.1", "localhost") else "online"
-        return f"A model {where}: {entry['model']}"
+        return f"A model {where}: {entry['model']}" + _settings_words(entry)
     if kind == "http":
         return f"A service at {entry['url']}"
     if kind == "baseline":
         return f"An example program shipped with the check ({entry['baseline']})"
     return f"A program on this computer: {entry.get('command', '')}"
+
+
+def _settings_words(entry: dict[str, Any]) -> str:
+    """The model settings saved with a defender, in a few words, so a reader sees what a check
+    or a run will use (they are set when the defender is added)."""
+    caps = entry.get("caps") or {}
+    words = []
+    if caps.get("requests_per_minute"):
+        words.append(f"at most {int(caps['requests_per_minute'])} requests a minute")
+    if caps.get("max_tokens"):
+        words.append(f"reply limit {int(caps['max_tokens'])}")
+    if entry.get("extra_body"):
+        words.append("extra fields " + ", ".join(sorted(entry["extra_body"])))
+    return " (" + "; ".join(words) + ")" if words else " (no fixed pace)"
 
 
 EXTRA_HINT = 'Extra request fields must be a JSON object, e.g. {"reasoning_effort": "low"}.'

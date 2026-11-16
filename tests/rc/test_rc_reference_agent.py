@@ -587,7 +587,7 @@ def test_a_wait_that_does_not_fit_the_step_fails_at_once(monkeypatch, capsys):
                                   sleeps=sleeps)  # fmt: skip
     finally:
         fake.close()
-    assert sent[0]["cmd"] == "(model call failed: HTTP 429)" and sleeps == []
+    assert sent[0]["cmd"] == "(model call failed: HTTP 429 [asked to wait 40 s])" and sleeps == []
     assert sent[0]["usage"]["failed_calls"] == 1 and len(fake.requests) == 1
 
 
@@ -598,7 +598,7 @@ def test_a_used_up_quota_stops_the_incident_instead_of_asking_again(monkeypatch,
                                  sleeps=[])  # fmt: skip
     finally:
         fake.close()
-    assert sent[0]["cmd"] == "(model call failed: HTTP 429)"
+    assert sent[0]["cmd"] == "(model call failed: HTTP 429 [asked to wait 3600 s])"
     assert sent[1] == {"stop": True, "usage": sent[1]["usage"]} and len(sent) == 2
     assert len(fake.requests) == 1  # asked once, not four times
     assert "asked to wait 3600 s" in err and "quota" in err

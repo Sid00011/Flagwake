@@ -72,10 +72,12 @@ from __future__ import annotations
 
 import argparse
 import email.utils
+import hashlib
 import json
 import os
 import re
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -382,6 +384,11 @@ class Model:
         self.server_errors = 0  # HTTP 500 answers, retried or not
         self.waited = 0.0  # seconds spent waiting for the pace or for a retry
         self.refused_wait: float | None = None  # a wait asked for that did not fit, in seconds
+        # With a pace, every incident of a run (a new program each time) keeps the same pace:
+        # the time of the last request is shared through a small file in the temporary folder,
+        # one per endpoint and model, so the first request of an incident waits like any other.
+        self.pace_file = _pace_file(self.base, self.model) if self.base_gap > 0 else None
+        self._load_pace()
 
     @property
     def url(self) -> str:
@@ -579,6 +586,31 @@ class Model:
             if due > 0:
                 self._wait(min(due, max(0.0, left)))
         self.last_request = time.monotonic()
+        self._save_pace()
+
+    def _load_pace(self) -> None:
+        """The last request and gap of the previous incident of this endpoint and model, if it
+        was less than an hour ago. Only the pacing reads it; no score depends on it."""
+        if not self.pace_file:
+            return
+        try:
+            with open(self.pace_file, encoding="ascii") as fh:
+                wall, gap = (float(x) for x in fh.read().split()[:2])
+        except (OSError, ValueError):
+            return
+        ago = time.time() - wall
+        if 0 <= ago < 3600:
+            self.last_request = time.monotonic() - ago
+            self.gap = min(max(self.base_gap, gap), MAX_GAP)
+
+    def _save_pace(self) -> None:
+        if not self.pace_file:
+            return
+        try:
+            with open(self.pace_file, "w", encoding="ascii") as fh:
+                fh.write(f"{time.time():.3f} {self.gap:.3f}")
+        except OSError:  # a read-only temporary folder only loses the shared pace
+            pass
 
     def _wait(self, seconds: float) -> None:
         if seconds > 0:
@@ -653,6 +685,12 @@ def _int(x: object) -> int:
     return x if isinstance(x, int) and not isinstance(x, bool) and x >= 0 else 0
 
 
+def _pace_file(base: str, model: str) -> str:
+    """Where the incidents of a run share their pace: one file per endpoint and model."""
+    name = hashlib.sha256(f"{base}|{model}".encode()).hexdigest()[:16]
+    return os.path.join(tempfile.gettempdir(), f"flagwake-pace-{name}")
+
+
 def _what_it_said(reply: str, key: str | None) -> str:
     """The start of a reply that held no command, so a reader sees what the model wrote."""
     said = clean_text(reply, 80, key)
@@ -706,7 +744,7 @@ def provider_message(exc: urllib.error.HTTPError, key: str | None = None) -> str
         msg = msg or str(data.get("message") or data.get("detail") or "")
     elif data is None:
         msg = text
-    return clean_text(msg, 120, key)
+    return clean_text(msg, 240, key)
 
 
 def _error(exc: BaseException, key: str | None = None) -> str:
@@ -865,7 +903,9 @@ def main(argv: list[str] | None = None) -> int:
             except Exception as exc:  # any failure becomes a failed command, never a crash
                 model.failed += 1
                 fails += 1
-                cmd = f"(model call failed: {_error(exc, model.key)})"
+                asked = model.refused_wait
+                note = f" [asked to wait {asked:.0f} s]" if asked is not None else ""
+                cmd = f"(model call failed: {_error(exc, model.key)}{note})"
                 if model.refused_wait is not None and model.refused_wait >= QUOTA_WAIT:
                     # Minutes or hours: a used-up quota, not a busy moment. Asking again within
                     # this incident would only fail again, so the next turn stops it.

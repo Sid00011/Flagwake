@@ -21,6 +21,8 @@ from typing import Any
 FAILED = re.compile(r"^\(model call failed: (.*)\)$", re.S)
 NO_COMMAND = re.compile(r"^\(no command in the model reply(?:: (.*))?\)$", re.S)
 HTTP = re.compile(r"^HTTP (\d{3})(?:: (.*))?$", re.S)
+ASKED_WAIT = re.compile(r"\[asked to wait (\d+) s\]")  # the wait a refusal asked for
+LONG_WAIT = 600  # seconds: a refusal asking for longer is a daily (or longer) quota
 
 # One plain sentence per cause: what happened and what to do. The provider's own words follow.
 CAUSES = {
@@ -133,6 +135,20 @@ def _empty_cause(why: str | None) -> str:
     return "unreadable"
 
 
+def line_cause(line: str) -> tuple[str, str] | None:
+    """The cause of one line that stands in for a command, with its words; None for a command."""
+    if not isinstance(line, str) or not line.startswith("("):
+        return None
+    m = FAILED.match(line)
+    if m:
+        detail = ASKED_WAIT.sub("", m.group(1)).strip()
+        return _failure_cause(detail), detail
+    n = NO_COMMAND.match(line)
+    if n:
+        return _empty_cause(n.group(1)), n.group(1) or ""
+    return "unreadable", ""  # (invalid reply) or another line the harness could not read
+
+
 def diagnose(commands: list[str], usage: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """What the lines that stand in for commands say, or None when every reply was a command.
 
@@ -143,18 +159,14 @@ def diagnose(commands: list[str], usage: dict[str, Any] | None = None) -> dict[s
     usage = usage or {}
     counts: dict[str, int] = {}
     example: dict[str, str] = {}
+    longest = 0
     for c in commands:
-        if not isinstance(c, str) or not c.startswith("("):
+        found = line_cause(c)
+        if found is None:
             continue
-        m = FAILED.match(c)
-        if m:
-            cause, said = _failure_cause(m.group(1)), m.group(1)
-        else:
-            n = NO_COMMAND.match(c)
-            if n:
-                cause, said = _empty_cause(n.group(1)), n.group(1) or ""
-            else:  # (invalid reply) or another line the harness could not read
-                cause, said = "unreadable", ""
+        cause, said = found
+        for w in ASKED_WAIT.findall(c):
+            longest = max(longest, int(w))
         counts[cause] = counts.get(cause, 0) + 1
         if said and cause not in example:
             example[cause] = said[:160]
@@ -176,6 +188,13 @@ def diagnose(commands: list[str], usage: dict[str, Any] | None = None) -> dict[s
     waited = usage.get("waited_seconds") or 0
     limited = usage.get("rate_limited") or 0
     extra = ""
+    if main == "quota" and longest >= LONG_WAIT:
+        fix = (f"the provider asked to wait about {longest / 3600:.1f} h: a daily or longer "
+               "quota; try again later, or use a plan with a larger allowance")  # fmt: skip
+    elif main == "quota" and longest:
+        fix = (f"the provider asked to wait {longest} s: a per-minute limit; set a pace a little "
+               "below it (requests per minute in the page's model settings, "
+               "requests_per_minute in flagwake.yaml, --rpm)")  # fmt: skip
     if main == "quota" and limited:
         answers = "answer" if limited == 1 else "answers"
         extra = f" ({limited} {answers} asked to wait, {waited:.0f} s in all)"

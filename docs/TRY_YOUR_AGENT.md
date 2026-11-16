@@ -226,7 +226,7 @@ measurement of the defender and names the cause:
 
 | what it says | what it means | what to do |
 |---|---|---|
-| refused calls because a rate limit or quota was reached (HTTP 429) | the free tier or plan allows fewer calls or tokens than the run needs | wait, set a pace (`requests_per_minute`), or use a plan with a larger allowance; a full run makes a few hundred calls |
+| refused calls because a rate limit or quota was reached (HTTP 429) | the free tier or plan allows fewer calls or tokens than the run needs; the line says how long the provider asked to wait: seconds for a per-minute limit, hours for a daily one | for a per-minute limit, set a pace a little below it (requests per minute in the page's model settings, `requests_per_minute`, `--rpm`); for a daily one, try again later or use a larger plan; a full run makes a few hundred calls |
 | refused the key or this model (HTTP 401, 403) | a wrong or expired key, a model the key may not use, or the provider's firewall | check the key and the model in the provider's console |
 | does not know this address or model (HTTP 404) | a wrong address, or a model the provider has retired | check the address (usually ending in `/v1`) and the model id |
 | rejected the request (HTTP 400, 413, 422) | a setting this model does not accept | lower the reply limit or remove an extra request field |
@@ -239,6 +239,13 @@ chat-completions servers, and says so in `agent-stderr.log`. If a model wants
 `max_completion_tokens` instead of `max_tokens`, it switches. If it refuses `temperature: 0`, it
 leaves the temperature out. If it allows a smaller reply limit, it halves the limit (down to 256
 tokens). It never changes the model, the messages or anything that is scored.
+
+The connection check allows an occasional slip, the same for every model: one reply in twenty
+that is not a command, a few calls the provider refused or dropped, or one of the three test
+incidents not closed with a report. Each slip is still listed, and in a run every slip counts
+against the defender anyway. A pace you set holds across all the incidents of a run, not
+only within each one. The model settings are saved when you add the defender: the check page
+shows them, and to change them you remove the defender and add it again.
 
 Three things that are not about the model:
 - **`flagwake` is not recognised as a command.** The virtual environment is not active: run

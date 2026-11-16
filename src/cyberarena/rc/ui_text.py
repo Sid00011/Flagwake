@@ -79,6 +79,8 @@ def plain_checks(result: dict[str, Any] | None) -> list[dict[str, Any]]:
     for c in result.get("checks", []):
         title, ok_text, fix = CHECK_TEXT.get(c.get("id", ""), (c["name"], "Passed.", c["detail"]))
         text = ok_text if c["passed"] else fix
+        if c["passed"] and c.get("note"):  # passed, with occasional slips said plainly
+            text = "Passed; " + c["note"] + "."
         if not c["passed"] and conn and c.get("cause") == "connection":
             # The provider or the settings, not the model: say what happened once, plainly.
             text = (
@@ -161,9 +163,33 @@ def chips(doc: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any
     details = dict(_bad_details(doc))
     for key, short, use in BAD_CHIPS:
         n = (t.get(key) or {}).get(use, 0)
-        if n:
+        if n and key == "unrecognised":
+            bad += _reply_chips(doc, n)
+        elif n:
             bad.append({"short": short, "count": n, "detail": details[key]})
     return good, bad
+
+
+def _reply_chips(doc: dict[str, Any], n: int) -> list[dict[str, Any]]:
+    """Replies that were not commands, split into what the provider or the network did (refused
+    or dropped calls: not the defender's choice) and what the defender itself sent."""
+    from cyberarena.rc.connection import CONNECTION, diagnose_incidents
+
+    diag = diagnose_incidents([i for i in doc.get("incidents") or [] if isinstance(i, dict)])
+    causes = (diag or {}).get("causes") or {}
+    provider = sum(v for k, v in causes.items() if k in CONNECTION)
+    own = max(0, n - provider)
+    out = []
+    if provider:
+        out.append({"short": "Calls the provider refused or dropped", "count": provider,
+                    "detail": f"{provider} model call(s) failed on the provider's or the "
+                              "network's side (a rate limit, a dropped connection, a timeout): "
+                              "not the defender's choice."})  # fmt: skip
+    if own:
+        out.append({"short": "Replies that were not commands", "count": own,
+                    "detail": f"{own} of its replies were not commands the check "
+                              "understands."})  # fmt: skip
+    return out
 
 
 GOOD_CHIPS = (

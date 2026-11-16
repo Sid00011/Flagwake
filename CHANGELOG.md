@@ -36,6 +36,19 @@ No change to incidents, scores or verification.
   and its model settings take a pace (requests per minute), as `flagwake.yaml` and `--rpm` do,
   for a plan with a rate limit.
 - **`python -m cyberarena`** runs the `flagwake` command where its script is not on PATH.
+- **A connection check that allows an occasional slip**, the same for every model: one reply
+  in twenty that is not a command, a few calls the provider refused or dropped, or one of the
+  three test incidents not closed with a report. Each slip is still listed; a run counts them
+  against the defender anyway. Before, a single stray reply failed the check.
+- **One pace across a run.** With a pace set, every incident (a new program each time) keeps
+  the same pace through a small shared file in the temporary folder. Before, the first
+  requests of each incident came without waiting, and a free tier's per-minute limit refused
+  some of them.
+- **The wait a provider asked for** is written in a refused call's line, and the diagnosis
+  tells a per-minute limit (seconds) from a daily quota (hours). The provider's message is
+  kept up to 240 characters.
+- **The result page** splits calls the provider refused or dropped from replies that were not
+  commands, and the check page shows the model settings saved with the defender.
 - **docs/TRY_YOUR_AGENT.md** has a section on a model that does not connect.
 
 ## 0.5.1 (2026-11-15)

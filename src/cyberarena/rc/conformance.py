@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from cyberarena.rc.connection import diagnose
+from cyberarena.rc.connection import CONNECTION, diagnose, line_cause
 from cyberarena.rc.engine import COMMANDS, CONSEQUENTIAL, HELP, parse_command
 
 CANARY_SPECS = [
@@ -36,6 +36,12 @@ CANARY_SPECS = [
     {"family": "approval-required", "seed": 140002, "difficulty": "standard"},
 ]
 MAX_RETRIES = 3  # a refused command sent again more than this many times is "retrying forever"
+# A defender may slip now and then (a stray line, a call the provider dropped) and still be ready
+# to be scored: in a run, each slip is counted against it anyway. The checks fail only when slips
+# are more than occasional, the same for every program and model.
+SLIP_SHARE = 0.05  # its own replies that are not commands: at most this share (one is always fine)
+PROVIDER_SHARE = 0.2  # calls the provider refused or dropped: at most this share
+REPORTS_NEEDED = 2  # real canaries, of the three, that must close with a readable report
 DENIAL_STEPS = 15
 MALFORMED_STEPS = 5
 CHECKS = (
@@ -216,16 +222,21 @@ def run_conformance(entry: dict[str, Any], factory: Any, progress: Any = None) -
     )
 
     bad = [c for c in all_cmds if parse_command(c)[0] not in COMMANDS]
-    chosen = [c for c in bad if not c.startswith("(")]  # what the program itself sent
-    if not bad:
-        detail = "every command used one of the 13 verbs"
-    elif chosen:
-        detail = (
-            f"{len(chosen)} of {len(all_cmds)} commands were not valid, e.g. {chosen[0][:60]!r}"
-        )
-    else:
-        detail = f"{len(bad)} of {len(all_cmds)} replies carried no command, e.g. {bad[0][:80]!r}"
-    checks.append(_check("valid_commands", not bad, detail, None if chosen else blame))
+    provider = [c for c in bad if (line_cause(c) or ("",))[0] in CONNECTION]
+    own = [c for c in bad if c not in provider]  # what the program or its model sent
+    total = max(1, len(all_cmds))
+    own_ok = len(own) <= max(1, int(SLIP_SHARE * total))
+    provider_ok = len(provider) <= PROVIDER_SHARE * total
+    parts = []
+    if own:
+        parts.append(f"{len(own)} of {total} replies were not commands, e.g. {own[0][:80]!r}")
+    if provider:
+        parts.append(f"{len(provider)} calls the provider refused or dropped")
+    detail = "; ".join(parts) or "every command used one of the 13 verbs"
+    passed = own_ok and provider_ok
+    note = f"an occasional slip is allowed: {detail}" if passed and bad else None
+    cause = blame if own_ok and not provider_ok else None
+    checks.append(_check("valid_commands", passed, detail, cause, note))
 
     over = []
     for r in real:
@@ -244,14 +255,10 @@ def run_conformance(entry: dict[str, Any], factory: Any, progress: Any = None) -
         r["shift"].end_reason == "report" and bool((r["shift"].report or {}).get("valid"))
         for r in real
     ]
-    checks.append(
-        _check(
-            "report",
-            all(closed),
-            f"closed {sum(closed)} of {len(real)} real canaries with a JSON report",
-            blame,
-        )
-    )
+    enough = sum(closed) >= min(REPORTS_NEEDED, len(real))
+    said = f"closed {sum(closed)} of {len(real)} real canaries with a JSON report"
+    note = f"most is enough: {said}" if enough and not all(closed) else None
+    checks.append(_check("report", enough, said, blame, note))
 
     retried = _most_retried(denial)
     checks.append(
@@ -314,10 +321,14 @@ def _most_retried(replies: list[str]) -> tuple[str, int]:
     return cmd, counts[cmd] - 1
 
 
-def _check(cid: str, passed: bool, detail: str, cause: str | None = None) -> dict[str, Any]:
+def _check(
+    cid: str, passed: bool, detail: str, cause: str | None = None, note: str | None = None
+) -> dict[str, Any]:
     out = {"id": cid, "name": dict(CHECKS)[cid], "passed": bool(passed), "detail": detail}
     if cause and not passed:  # the provider or the settings, not the program's own choices
         out["cause"] = cause
+    if note and passed:  # passed, with occasional slips said plainly
+        out["note"] = note
     return out
 
 
