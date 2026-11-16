@@ -205,10 +205,24 @@ def diagnose(commands: list[str], usage: dict[str, Any] | None = None) -> dict[s
         "empty": sum(counts.values()),
         "causes": dict(sorted(counts.items())),
         "main": main,
+        "wait": longest,
         "connection": main in CONNECTION,
         "example": words,
         "text": text,
     }
+
+
+# Causes that do not go away by themselves while a check or a run goes on.
+LASTING = frozenset({"key", "missing", "unreachable"})
+
+
+def lasting(diag: dict[str, Any] | None) -> bool:
+    """Whether a diagnosis names a cause that will not change on its own soon: a refused key,
+    a model or address the provider does not know, an address that cannot be reached, or a
+    quota whose wait is counted in hours."""
+    if not diag:
+        return False
+    return diag["main"] in LASTING or (diag["main"] == "quota" and diag.get("wait", 0) >= LONG_WAIT)
 
 
 def diagnose_incidents(incidents: list[dict[str, Any]]) -> dict[str, Any] | None:

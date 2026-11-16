@@ -40,6 +40,10 @@ No change to incidents, scores or verification.
   in twenty that is not a command, a few calls the provider refused or dropped, or one of the
   three test incidents not closed with a report. Each slip is still listed; a run counts them
   against the defender anyway. Before, a single stray reply failed the check.
+- **The connection check stops early on a failure that will not go away**: a model the
+  provider does not know, a refused key, an address that cannot be reached, or a quota whose
+  wait is counted in hours. It stops after its first test incident, a handful of calls instead
+  of dozens, and says why; a passing hiccup does not stop it.
 - **One pace across a run.** With a pace set, every incident (a new program each time) keeps
   the same pace through a small shared file in the temporary folder. Before, the first
   requests of each incident came without waiting, and a free tier's per-minute limit refused

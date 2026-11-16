@@ -364,3 +364,42 @@ def test_the_pace_holds_across_the_incidents_of_a_run(monkeypatch, tmp_path):
                                            token_budget=150000))  # fmt: skip
     unpaced._pace(30)  # no pace set: nothing is shared or waited for
     assert len(sleeps) == 1
+
+
+# ------------------------------------------------------------------ stopping early
+
+
+def _counted_conformance(tmp_path, script):
+    from cyberarena.rc.conformance import run_conformance
+    from cyberarena.rc.registry import driver_factory
+
+    fake = FakeModel(script)
+    entry = {"name": "m", "kind": "model-endpoint", "role": "defender", "base_url": fake.url,
+             "model": "fake-model", "caps": {"step_timeout": 10}}  # fmt: skip
+    try:
+        result = run_conformance(entry, driver_factory(entry, tmp_path, tmp_path / "log"))
+    finally:
+        fake.close()
+    return result, len(fake.requests)
+
+
+@pytest.mark.parametrize(
+    ("script", "main"),
+    [
+        ([("error", (404, "models/old-model is not found for API version v1"))], "missing"),
+        ([("error", (401, "Invalid API Key"))], "key"),
+        ([("rate", 3600)], "quota"),  # a wait counted in hours: a daily quota
+    ],
+)
+def test_the_check_stops_early_on_a_failure_that_will_not_go_away(tmp_path, script, main):
+    result, calls = _counted_conformance(tmp_path, script)
+    assert result["stopped_early"] and result["connection"]["main"] == main
+    assert calls <= 10  # the first test incident only, not the dozens of the whole check
+    texts = [c["text"] for c in plain_checks(result)]
+    assert texts[0].startswith("Not about the model's decisions.")
+    assert all(t == "Not checked: the check stopped early, see above." for t in texts[1:])
+
+
+def test_a_passing_hiccup_does_not_stop_the_check(tmp_path):
+    result, _calls = _counted_conformance(tmp_path, [("http", 503)] + GOOD)
+    assert not result.get("stopped_early") and result["status"] == "passed", result["checks"]

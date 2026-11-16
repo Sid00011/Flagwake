@@ -99,7 +99,12 @@ def plain_checks(result: dict[str, Any] | None) -> list[dict[str, Any]]:
         if not c["passed"] and "could not be run" in c.get("detail", ""):
             text = UNREACHABLE
         if not c["passed"] and c.get("detail") == "not reached":
-            text = "Not checked, because the first check failed."
+            early = result.get("stopped_early")
+            text = (
+                "Not checked: the check stopped early, see above."
+                if early
+                else "Not checked, because the first check failed."
+            )
         out.append({"title": title, "passed": bool(c["passed"]), "text": text})
     return out
 

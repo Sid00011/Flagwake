@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from cyberarena.rc.connection import CONNECTION, diagnose, line_cause
+from cyberarena.rc.connection import CONNECTION, diagnose, lasting, line_cause
 from cyberarena.rc.engine import COMMANDS, CONSEQUENTIAL, HELP, parse_command
 
 CANARY_SPECS = [
@@ -187,6 +187,10 @@ def run_conformance(entry: dict[str, Any], factory: Any, progress: Any = None) -
             shift, tr, _o = run_incident(spec, driver, int(caps["max_commands"]))
             real.append({"spec": spec, "shift": shift, "tr": tr})
             errors.append((tr.get("harness") or {}).get("error", ""))
+            stop = _lasting_failure(tr)
+            if stop:
+                say("stopped: " + stop["text"])
+                return _stopped(base, stop)
         say("canary denial ...")
         d_driver = factory()
         denial = _run_canary(d_driver, DenialCanary(), DENIAL_STEPS)
@@ -293,6 +297,28 @@ def run_conformance(entry: dict[str, Any], factory: Any, progress: Any = None) -
     result = _result(base, checks)
     if conn:
         result["connection"] = conn
+    return result
+
+
+def _lasting_failure(tr: dict[str, Any]) -> dict[str, Any] | None:
+    """The diagnosis when every reply of a test incident failed in a way that will not change
+    on its own (see :func:`connection.lasting`); None otherwise. The rest of the check would
+    only repeat the same failure, dozens of times, for any program or model."""
+    cmds = [c for c in tr.get("commands") or [] if isinstance(c, str)]
+    if not cmds or not all(c.startswith("(") for c in cmds):
+        return None
+    diag = diagnose(cmds, tr.get("usage") or {})
+    return diag if lasting(diag) else None
+
+
+def _stopped(base: dict[str, Any], diag: dict[str, Any]) -> dict[str, Any]:
+    """The result of a check stopped after its first test incident, with the cause."""
+    detail = "stopped after the first test incident: every call failed the same way"
+    checks = [_check("protocol", False, detail, "connection")]
+    checks += [_check(cid, False, "not reached") for cid, _ in CHECKS[1:]]
+    result = _result(base, checks)
+    result["connection"] = diag
+    result["stopped_early"] = True
     return result
 
 

@@ -243,9 +243,11 @@ tokens). It never changes the model, the messages or anything that is scored.
 The connection check allows an occasional slip, the same for every model: one reply in twenty
 that is not a command, a few calls the provider refused or dropped, or one of the three test
 incidents not closed with a report. Each slip is still listed, and in a run every slip counts
-against the defender anyway. A pace you set holds across all the incidents of a run, not
-only within each one. The model settings are saved when you add the defender: the check page
-shows them, and to change them you remove the defender and add it again.
+against the defender anyway. When every call of its first test incident fails in a way that
+will not change on its own (an unknown model, a refused key, an unreachable address, a daily
+quota), the check stops there and says why. A pace you set holds across all the incidents of
+a run, not only within each one. The model settings are saved when you add the defender: the
+check page shows them, and to change them you remove the defender and add it again.
 
 Three things that are not about the model:
 - **`flagwake` is not recognised as a command.** The virtual environment is not active: run
