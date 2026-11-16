@@ -111,7 +111,7 @@ def test_bad_slow_and_unparseable_replies_are_failed_commands(monkeypatch, tmp_p
     assert "(model call failed: HTTP 500)" in cmds
     assert "(model call failed: timeout)" in cmds
     assert "(model call failed: not a chat-completions reply)" in cmds
-    assert "(no command in the model reply)" in cmds
+    assert '(no command in the model reply: answered "I am not sure what to do here.")' in cmds
     assert "hosts" in cmds and "logs ws-ops-01" in cmds
     usage = doc["agent"]["usage"]
     # every request is a call, except the retries of a server error (two per cycle of the script)
@@ -441,7 +441,7 @@ def test_the_loop_survives_noise_bad_replies_and_a_closed_input(monkeypatch, cap
         fake.close()
     assert code == 0
     assert [m["cmd"] for m in sent] == [
-        "(no command in the model reply)",
+        '(no command in the model reply: answered "I am not sure what to do.")',
         "(model call failed: not a chat-completions reply)",
         "(model call failed: HTTP 500)",
     ]

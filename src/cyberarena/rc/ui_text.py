@@ -91,9 +91,9 @@ def plain_checks(result: dict[str, Any] | None) -> list[dict[str, Any]]:
             not c["passed"]
             and conn
             and c.get("id") == "valid_commands"
-            and conn["main"] == "refused"
+            and conn["main"] in ("refused", "empty", "unreadable")
         ):
-            text = conn["text"]
+            text = conn["text"]  # with the model's own words, so a reader sees what it wrote
         if not c["passed"] and "could not be run" in c.get("detail", ""):
             text = UNREACHABLE
         if not c["passed"] and c.get("detail") == "not reached":

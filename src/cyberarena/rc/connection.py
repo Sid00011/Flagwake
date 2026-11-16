@@ -67,13 +67,18 @@ CAUSES = {
         "The model refused to answer",
         "use a model that accepts defensive security tasks",
     ),
+    "empty": (
+        "The model sent empty replies, with no reason given",
+        "raise the reply limit or lower the reasoning effort; some models put their whole "
+        "answer in a separate reasoning field",
+    ),
     "unreadable": (
         "The model answered with text that is not a command",
         "try a model that follows instructions better",
     ),
 }
 # Causes that come from the provider or the settings, not from the model's decisions.
-CONNECTION = frozenset(CAUSES) - {"unreadable", "refused"}
+CONNECTION = frozenset(CAUSES) - {"unreadable", "refused", "empty"}
 
 
 # Words in a provider's message that name the cause when its status code does not: some
@@ -123,6 +128,8 @@ def _empty_cause(why: str | None) -> str:
         return "filtered"
     if why.startswith("the model refused"):
         return "refused"
+    if why == "an empty reply":
+        return "empty"
     return "unreadable"
 
 

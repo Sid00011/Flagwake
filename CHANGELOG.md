@@ -11,6 +11,11 @@ No change to incidents, scores or verification.
   provider's own message, for example `(model call failed: HTTP 404: The model ... does not
   exist)`, with anything shaped like a key masked. A reply without a command says why when the
   endpoint said: cut off by the reply limit, blocked by a content filter, or refused by the model.
+  Otherwise it shows the start of what the model wrote, for example `(no command in the model
+  reply: answered "I would first look around.")`, or says it was an empty reply. The page shows
+  those words, so anyone can see whether the model or the reading of its reply is at fault.
+- **A command written as JSON is read.** A reply such as `{"cmd": "logs web-01"}` (also
+  `command`, `action` or `next_command`, with or without a code fence) counts as that command.
 - **One diagnosis everywhere.** The connection check, the page, the result summaries and
   `flagwake doctor` read those lines the same way. They name the cause (quota or rate limit, key,
   unknown model, rejected request, provider error, timeout, unreachable address, reply limit,

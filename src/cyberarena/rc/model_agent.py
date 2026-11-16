@@ -150,6 +150,9 @@ def parse_command(text: str | None) -> str | None:
         text = text[closes[-1].end() :]
     elif REASONING_OPEN.search(text):
         return None
+    from_json = _json_command(text)
+    if from_json is not None:
+        return from_json
     lines = text.replace("\r", "").split("\n")
     for i, raw in enumerate(lines):
         line = _clean(raw)
@@ -162,6 +165,29 @@ def parse_command(text: str | None) -> str | None:
         line = _clean(span)
         if line and _is_command(line):
             return " ".join(line.split())[:4000]
+    return None
+
+
+JSON_FIELDS = ("cmd", "command", "action", "next_command")  # where models put the command
+FENCE = re.compile(r"^```[A-Za-z]*\s*|\s*```$")
+
+
+def _json_command(text: str) -> str | None:
+    """The command of a reply written as a JSON object, such as {\"cmd\": \"logs web-01\"}, with
+    or without a code fence around it; None for anything else. Many models answer in JSON."""
+    body = FENCE.sub("", text.strip())
+    if not body.startswith("{"):
+        return None
+    try:
+        obj = json.loads(body)
+    except ValueError:
+        return None
+    if not isinstance(obj, dict):
+        return None
+    for field in JSON_FIELDS:
+        value = obj.get(field)
+        if isinstance(value, str) and value.strip() and not value.strip().startswith("{"):
+            return parse_command(value)
     return None
 
 
@@ -335,6 +361,7 @@ class Model:
         self.last_cut = False  # whether the latest reply was stopped by the reply limit
         self.retry_useless = False  # a longer try was also cut off: do not spend more on it
         self.last_why: str | None = None  # why the latest reply held no answer, when it says
+        self.last_reply = ""  # the text of the latest reply, to show when it held no command
         # What this endpoint accepts, learned from its own error answers and kept for the
         # incident: the name of the reply-limit field, whether it takes a temperature, and the
         # largest reply limit it allows.
@@ -469,7 +496,7 @@ class Model:
         else:
             self.last_why = "cut off by the reply limit" if self.last_cut else None
         content = message.get("content")
-        if content is None and self.last_why:  # no answer, and the endpoint says why
+        if content is None:  # an answer with no text: say so, it is not a failed call
             content = ""
         if isinstance(content, list):  # some servers return content parts
             content = "".join(p.get("text", "") for p in content if isinstance(p, dict))
@@ -477,6 +504,7 @@ class Model:
             raise ValueError("the reply has no text content")
         if not isinstance(usage, dict):
             self.reply_tokens += len(content) // 4
+        self.last_reply = content
         return content
 
     def _adapt(self, exc: urllib.error.HTTPError, limit: int) -> bool:
@@ -623,6 +651,12 @@ def extra_body(text: str) -> dict[str, object]:
 
 def _int(x: object) -> int:
     return x if isinstance(x, int) and not isinstance(x, bool) and x >= 0 else 0
+
+
+def _what_it_said(reply: str, key: str | None) -> str:
+    """The start of a reply that held no command, so a reader sees what the model wrote."""
+    said = clean_text(reply, 80, key)
+    return f'answered "{said}"' if said else "an empty reply"
 
 
 def http_text(exc: urllib.error.HTTPError) -> str:
@@ -822,7 +856,7 @@ def main(argv: list[str] | None = None) -> int:
                 parsed = model.command(msgs, budget)
                 if parsed is None:
                     model.no_command += 1
-                    why = model.last_why
+                    why = model.last_why or _what_it_said(model.last_reply, model.key)
                     cmd = "(no command in the model reply" + (f": {why}" if why else "") + ")"
                     fails += 1
                 else:

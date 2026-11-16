@@ -40,6 +40,8 @@ from cyberarena.rc.ui_text import plain_checks
         ("(no command in the model reply: the model refused: I can't help with that)",
          "refused", False),
         ("(no command in the model reply)", "unreadable", False),
+        ('(no command in the model reply: answered "Let me think.")', "unreadable", False),
+        ("(no command in the model reply: an empty reply)", "empty", False),
         ("(invalid reply)", "unreadable", False),
     ],
 )  # fmt: skip
@@ -200,3 +202,46 @@ def test_the_connection_check_names_a_quota_that_runs_out(tmp_path):
     failed = [c for c in result["checks"] if not c["passed"]]
     assert failed and all(c.get("cause") == "connection" for c in failed if c["id"] != "no_hang")
     assert json.loads(json.dumps(result)) == result  # stored as it is in a report
+
+
+@pytest.mark.parametrize(
+    ("reply", "command"),
+    [
+        ('{"cmd": "logs web-01"}', "logs web-01"),
+        ('{"command": "look", "why": "start with the alerts"}', "look"),
+        ('```json\n{"action": "hosts"}\n```', "hosts"),
+        ('{"cmd": "report {\\"compromised\\": []}"}', 'report {"compromised": []}'),
+        ('{"thoughts": "no command here"}', None),
+        ('{"cmd": "make coffee"}', None),
+    ],
+)
+def test_a_command_written_as_json_is_read(reply, command):
+    from cyberarena.rc.model_agent import parse_command
+
+    assert parse_command(reply) == command
+
+
+@pytest.mark.parametrize(
+    ("reply", "line"),
+    [
+        ("Let me look.", '(no command in the model reply: answered "Let me look.")'),
+        ("", "(no command in the model reply: an empty reply)"),
+    ],
+)
+def test_a_reply_without_a_command_shows_what_the_model_wrote(monkeypatch, capsys, reply, line):
+    fake = FakeModel([("ok", reply)])
+    try:
+        code, sent, _err = _talk(monkeypatch, capsys, fake, [START, {"type": "end"}])
+    finally:
+        fake.close()
+    assert code == 0 and sent[0]["cmd"] == line
+    assert sent[0]["usage"]["failed_calls"] == 0  # it answered; there was just no command
+
+
+def test_the_page_shows_what_the_model_wrote():
+    conn = diagnose(['(no command in the model reply: answered "I would first look around.")'] * 2)
+    result = {"status": "failed", "passed": 6, "total": 7, "connection": conn, "checks": [
+        {"id": "valid_commands", "name": "v", "passed": False, "detail": ""},
+    ]}  # fmt: skip
+    (text,) = [c["text"] for c in plain_checks(result) if not c["passed"]]
+    assert "not a command" in text and "I would first look around." in text
