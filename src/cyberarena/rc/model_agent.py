@@ -599,8 +599,10 @@ class Model:
         except (OSError, ValueError):
             return
         ago = time.time() - wall
-        if 0 <= ago < 3600:
-            self.last_request = time.monotonic() - ago
+        # The time is written to the millisecond, so a read in the same millisecond can find it a
+        # little in the future; a second of skew still means "just now".
+        if -1 <= ago < 3600:
+            self.last_request = time.monotonic() - max(ago, 0.0)
             self.gap = min(max(self.base_gap, gap), MAX_GAP)
 
     def _save_pace(self) -> None:

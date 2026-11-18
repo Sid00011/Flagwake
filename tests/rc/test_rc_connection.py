@@ -403,3 +403,31 @@ def test_the_check_stops_early_on_a_failure_that_will_not_go_away(tmp_path, scri
 def test_a_passing_hiccup_does_not_stop_the_check(tmp_path):
     result, _calls = _counted_conformance(tmp_path, [("http", 503)] + GOOD)
     assert not result.get("stopped_early") and result["status"] == "passed", result["checks"]
+
+
+def test_a_pace_written_a_moment_ago_is_kept_even_when_rounding_puts_it_ahead(
+    monkeypatch, tmp_path
+):
+    """The pace file holds the time to the millisecond: read back at once it can look a fraction of
+    a millisecond in the future, and that is still the previous request."""
+    import time
+
+    from cyberarena.rc import model_agent as ref
+
+    monkeypatch.setattr(ref.tempfile, "tempdir", str(tmp_path))
+    monkeypatch.setenv("FLAGWAKE_LLM_BASE_URL", "https://api.example.com/v1")
+    monkeypatch.setenv("FLAGWAKE_LLM_MODEL", "pace-model")
+    monkeypatch.delenv("FLAGWAKE_LLM_EXTRA_BODY", raising=False)
+    sleeps: list[float] = []
+    monkeypatch.setattr(ref, "_sleep", sleeps.append)
+    args = argparse.Namespace(rpm=30.0, max_tokens=4096, max_calls=30, token_budget=150000)
+    path = ref._pace_file("https://api.example.com/v1", "pace-model")
+    for ahead in (0.0004, 0.5):
+        with open(path, "w", encoding="ascii") as fh:
+            fh.write(f"{time.time() + ahead:.3f} 2.000")
+        ref.Model(args)._pace(30)
+    assert len(sleeps) == 2 and all(1.5 < s <= 2.6 for s in sleeps)
+    with open(path, "w", encoding="ascii") as fh:  # far in the future: not a real previous request
+        fh.write(f"{time.time() + 60:.3f} 2.000")
+    ref.Model(args)._pace(30)
+    assert len(sleeps) == 2

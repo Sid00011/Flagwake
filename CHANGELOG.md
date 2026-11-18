@@ -20,6 +20,10 @@ unchanged.
   reports a signature from Flagwake's signing workflow at v0.5.0rc4 to v0.5.2 as not
   official, names the calling workflow file to check by hand, and `--require-official`
   asks for a new run. SECURITY.md says how to judge an earlier result.
+- **The shared pace held only most of the time.** The pace file keeps the time to the
+  millisecond, so an incident that started in the same millisecond could read it as a
+  moment in the future and ignore it, sending a request too soon. A second of skew now
+  counts as "just now".
 
 ## 0.5.2 (2026-11-16)
 
