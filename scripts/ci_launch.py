@@ -8,6 +8,12 @@ own variables (in the action). In the signing workflow, MODEL_KEY_SECRET holds t
 model-key secret, which DEFENDER_ENV names as model-key (FLAGWAKE_LLM_KEY=model-key): a caller in
 another account or organisation can pass that one, where secrets inherit passes nothing.
 The defender runs as DEFENDER_USER (see cyberarena.rc.sandbox) unless ISOLATE is "false".
+
+A secret is never read from the job's own variables in the signing workflow, and never from a
+variable named ACTIONS_*, GITHUB_* or RUNNER_* anywhere: until 0.5.3 a calling workflow could
+name ACTIONS_ID_TOKEN_REQUEST_TOKEN in defender-env and hand the run's signing token to its own
+defender (SECURITY.md). The check itself is started without any ACTIONS_* variable, so it never
+holds the token either.
 Everything else comes from the step's environment: AGENT, PACK, SEEDS, WORLD, OUT, TICKET,
 TICKET_BUNDLE, DEFENDER_SRC, DEFENDER_CWD, STEP_TIMEOUT, INCIDENT_TIMEOUT.
 """
@@ -32,9 +38,15 @@ INHERIT_HINT = (
 )
 
 
+# The runner's own variables: the job's signing identity, its token for the run, its paths.
+RUNNER_PREFIXES = ("ACTIONS_", "GITHUB_", "RUNNER_")
+
+
 def defender_env(env: dict[str, str]) -> tuple[dict[str, str], list[str]]:
     """The environment for flagwake, and the names it may pass on to the defender."""
-    out = {k: v for k, v in env.items() if k not in ("SECRETS_JSON", "MODEL_KEY_SECRET")}
+    signing = "SECRETS_JSON" in env  # the signing workflow; the action passes no secrets JSON
+    drop = ("SECRETS_JSON", "MODEL_KEY_SECRET")
+    out = {k: v for k, v in env.items() if k not in drop and not k.upper().startswith("ACTIONS_")}
     names: list[str] = []
     # GitHub spells secret names in upper case whatever the workflow wrote; look up likewise.
     secrets = {k.upper(): v for k, v in json.loads(env.get("SECRETS_JSON") or "{}").items()}
@@ -48,8 +60,14 @@ def defender_env(env: dict[str, str]) -> tuple[dict[str, str], list[str]]:
                              f"FLAGWAKE_LLM_KEY={MODEL_KEY}")  # fmt: skip
         if not NAME.match(name) or not (NAME.match(source) or source.lower() == MODEL_KEY):
             raise SystemExit(f"error: not a NAME or NAME=SECRET entry: {entry!r}")
+        if source.upper().startswith(RUNNER_PREFIXES) and source.upper() not in secrets:
+            raise SystemExit(f"error: {source} is the runner's own variable, not a secret; a "
+                             "defender never gets those")  # fmt: skip
+        if signing:  # never the job's own variables: they hold the run's signing identity
+            value = secrets.get(source.upper(), "")
+        else:
+            value = secrets.get(source.upper(), env.get(source))
         # A secret always has a value, so an empty one is a secret that was not passed.
-        value = secrets.get(source.upper(), env.get(source))
         if not value:
             hint = INHERIT_HINT if "SECRETS_JSON" in env else "set it in this step's env"
             raise SystemExit(f"error: {source} did not arrive or is empty. {hint}")

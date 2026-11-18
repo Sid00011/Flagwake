@@ -89,6 +89,23 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install --disable-pip-version-check --quiet .
+      # A caller of the signing workflow controls defender-env. Until 0.5.3 it could name the
+      # job's signing token there; here the launcher runs with the real token present and must
+      # refuse, with and without a variable of the same name standing in as a secret.
+      - name: A caller cannot hand the run's signing token to its defender
+        env:
+          SECRETS_JSON: "{}"
+          AGENT: python examples/rc_agent.py
+          OUT: never-written
+        run: |
+          [ -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ] || { echo "the job has no signing token to protect"; exit 1; }
+          for entry in T=ACTIONS_ID_TOKEN_REQUEST_TOKEN U=ACTIONS_ID_TOKEN_REQUEST_URL T=actions_id_token_request_token R=ACTIONS_RUNTIME_TOKEN; do
+            if DEFENDER_ENV="$entry" python -I scripts/ci_launch.py 2> refused.txt; then
+              echo "handed over: $entry"; exit 1
+            fi
+            grep -q "runner's own variable" refused.txt || { cat refused.txt; exit 1; }
+          done
+          [ ! -e never-written ] && echo "refused every way, before anything ran"
       - name: The attacker as the harness's own user (no sandbox, nothing signed)
         run: |
           flagwake check --agent "python .github/redteam/attacker.py" --pack practice --seeds 1 --family quiet --out flagwake-result || true

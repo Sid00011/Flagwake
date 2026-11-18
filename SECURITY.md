@@ -44,6 +44,22 @@ python -m pypi_attestations verify pypi --repository https://github.com/Sid00011
 
 It prints `OK` for a file built by this repository and fails for any other.
 
+## Fixed security issues
+
+**Signed results, v0.5.0rc4 to v0.5.2 (fixed in 0.5.3, 2026-11-18).** In Flagwake's
+signing workflow (`.github/workflows/check.yml`), the calling workflow's `defender-env`
+could name one of the job's own variables, such as `ACTIONS_ID_TOKEN_REQUEST_TOKEN`, and
+the defender then received it. With that token a defender could obtain the run's signing
+identity and sign a report it made itself, so a signature from those releases does not
+prove the report came from the run. Unsigned reports, scores and `flagwake verify`
+without `--provenance` were not affected.
+
+From 0.5.3, `flagwake verify --provenance` calls such a signature not official and names
+the calling workflow file at the signed commit. A result signed by an affected release
+can still be judged by hand: if that file's `defender-env` names only your own secrets
+(no `ACTIONS_`, `GITHUB_` or `RUNNER_` variable, and no expression that could produce
+one), the defender never had the token. To be safe, run it again with 0.5.3 or later.
+
 ## Supported versions
 
 Only the latest commit on `main`. A fix that changes scores changes the rules hash or the

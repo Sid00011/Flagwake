@@ -161,12 +161,29 @@ def expected(rec: dict[str, str]) -> dict[str, str]:
     }
 
 
+# Releases of the signing workflow in which the calling workflow could hand the run's signing
+# token to its defender (fixed in 0.5.3, SECURITY.md): their signatures cannot vouch that the
+# report came from the run, so verify never calls them official.
+AFFECTED = frozenset({"v0.5.0rc4", "v0.5.0rc5", "v0.5.0rc6", "v0.5.0", "v0.5.1", "v0.5.2"})
+
+
+def affected(facts: dict[str, Any]) -> str | None:
+    """The release tag when the signer is one of the AFFECTED releases (None otherwise)."""
+    signer = str(facts.get("build_signer_uri") or "")
+    tag = signer[len(OFFICIAL) :].removeprefix("refs/tags/") if signer.startswith(OFFICIAL) else ""
+    return tag if tag in AFFECTED else None
+
+
 def harness(facts: dict[str, Any]) -> tuple[str, bool]:
     """(what signed, official release?) from the certificate's build-signer facts."""
     signer = str(facts.get("build_signer_uri") or "")
     if signer.startswith(OFFICIAL):
         ref = signer[len(OFFICIAL) :]
         tag = ref.removeprefix("refs/tags/")
+        if affected(facts):
+            return (f"Flagwake's signing workflow at release {tag}, in which the calling "
+                    "workflow could hand the run's signing token to its defender (fixed in "
+                    "0.5.3; SECURITY.md): not official"), False  # fmt: skip
         if ref.startswith("refs/tags/v"):
             return f"Flagwake's signing workflow at release {tag}", True
         return f"Flagwake's signing workflow at {ref} (not a release)", False
@@ -202,6 +219,7 @@ def summary(rec: dict[str, str], facts: dict[str, Any], doc: dict[str, Any]) -> 
     lines = [
         "signature: " + describe(rec) + signed,
         "harness: " + who,
+        *_affected_check(rec, facts),
         f"defender: {rec['defender_command'] or '(not recorded)'}; {ran}",
         f"incidents: {rec['incidents']}; pack {doc.get('pack')}, {n} incidents in "
         f"{ran_families} of {available} families",
@@ -223,10 +241,26 @@ def summary(rec: dict[str, str], facts: dict[str, Any], doc: dict[str, Any]) -> 
     return lines
 
 
+def _affected_check(rec: dict[str, str], facts: dict[str, Any]) -> list[str]:
+    """For an AFFECTED signer: what a reader can check by hand in the calling workflow."""
+    if not affected(facts):
+        return []
+    path = rec["workflow_ref"].split("@", 1)[0].split("/", 2)[-1]
+    url = f"{rec['server']}/{rec['repository']}/blob/{rec['commit']}/{path}"
+    return [
+        f"check by hand: the calling workflow at that commit ({url}) names no ACTIONS_ "
+        "variable in defender-env; if it does, the report may not come from the run"
+    ]
+
+
 def official_problems(rec: dict[str, str], facts: dict[str, Any], doc: dict[str, Any]) -> list[str]:
     """For --require-official: everything a citable result needs."""
     problems = []
-    if not harness(facts)[1]:
+    tag = affected(facts)
+    if tag:
+        problems.append(f"signed by release {tag}, which had the signing-token issue fixed in "
+                        "0.5.3: run it again with 0.5.3 or later")  # fmt: skip
+    elif not harness(facts)[1]:
         problems.append("not signed by Flagwake's signing workflow at a release")
     if rec["defender_isolation"] == "none":
         problems.append("the defender was not isolated from the harness")

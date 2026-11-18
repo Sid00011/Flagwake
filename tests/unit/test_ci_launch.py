@@ -127,3 +127,30 @@ def test_the_time_limits_reach_the_check():
 def test_a_company_file_stays_inside_the_repository(world):
     with pytest.raises(SystemExit, match="inside your repository"):
         launch.argv_for({**BASE, "WORLD": world}, [])
+
+
+@pytest.mark.parametrize("signing", [True, False])
+@pytest.mark.parametrize(
+    "source",
+    ["ACTIONS_ID_TOKEN_REQUEST_TOKEN", "actions_id_token_request_url", "ACTIONS_RUNTIME_TOKEN",
+     "GITHUB_REPOSITORY", "RUNNER_TEMP"],
+)  # fmt: skip
+def test_the_runners_own_variables_never_reach_the_defender(signing, source):
+    """Until 0.5.3 a calling workflow could name the job's signing token in defender-env."""
+    env = {**BASE, "DEFENDER_ENV": f"T={source}", source: "the-run-signing-token"}
+    if signing:
+        env["SECRETS_JSON"] = "{}"
+    with pytest.raises(SystemExit, match="runner's own variable"):
+        launch.defender_env(env)
+
+
+def test_the_signing_workflow_takes_secrets_only_and_starts_the_check_without_the_token():
+    env = {**BASE, "SECRETS_JSON": json.dumps({"K": "k", "github_token": "g"}), "JOB_VAR": "v",
+           "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "t", "ACTIONS_ID_TOKEN_REQUEST_URL": "u",
+           "GITHUB_REPOSITORY": "org/repo"}  # fmt: skip
+    with pytest.raises(SystemExit):  # a job variable is not a secret, whatever its name
+        launch.defender_env({**env, "DEFENDER_ENV": "T=JOB_VAR"})
+    out, names = launch.defender_env({**env, "DEFENDER_ENV": "A=K,B=GITHUB_TOKEN"})
+    assert names == ["A", "B"] and out["A"] == "k" and out["B"] == "g"
+    assert not [k for k in out if k.startswith("ACTIONS_")]  # the check never holds the token
+    assert out["GITHUB_REPOSITORY"] == "org/repo"  # what --record-ci needs is kept

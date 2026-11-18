@@ -3,6 +3,24 @@
 All notable changes. Dates are UTC. Incidents are versioned by the generator version, the rules by
 the rules hash (see `docs/METHODOLOGY.md`).
 
+## 0.5.3 (2026-11-18)
+
+A security fix to signed results. No change to incidents, scores or verification of
+unsigned reports: the generator version, the rules hash and the golden fingerprint are
+unchanged.
+
+- **The calling workflow could hand the run's signing token to its defender.** In the
+  signing workflow, `defender-env: T=ACTIONS_ID_TOKEN_REQUEST_TOKEN` read the token from
+  the job's own variables and gave it to the defender, which could then sign a report of
+  its own making as the run. Now a defender gets only secrets of the calling workflow,
+  never one of the job's variables; a name starting with `ACTIONS_`, `GITHUB_` or
+  `RUNNER_` is refused everywhere; and the check starts with no `ACTIONS_` variable at
+  all. The self-test tries each of these with the real token present.
+- **Signatures of the affected releases are not official.** `flagwake verify --provenance`
+  reports a signature from Flagwake's signing workflow at v0.5.0rc4 to v0.5.2 as not
+  official, names the calling workflow file to check by hand, and `--require-official`
+  asks for a new run. SECURITY.md says how to judge an earlier result.
+
 ## 0.5.2 (2026-11-16)
 
 No change to incidents, scores or verification: the generator version, the rules hash and the
